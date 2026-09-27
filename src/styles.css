@@ -65,18 +65,43 @@ button, input { font: inherit; color: inherit; }
   gap: 14px;
 }
 
-.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
-h1 {
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
+.brand {
   margin: 0;
   font-family: var(--display);
   font-weight: 800;
-  font-size: clamp(28px, 4.2vw, 36px);
-  line-height: 1.05;
-  letter-spacing: -0.01em;
-  text-wrap: balance;
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
 }
-.meta { margin: 0; font-size: 17px; font-weight: 700; }
-.install { margin-left: auto; align-self: center; }
+.install { margin-left: auto; }
+
+/* Відкритий трафарет */
+.project-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; min-width: 0; }
+.project-name {
+  field-sizing: content;
+  min-width: 6ch;
+  max-width: 100%;
+  width: 18ch;
+  margin: 0 0 0 -8px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(24px, 3.4vw, 30px);
+  line-height: 1.2;
+  color: var(--ink);
+}
+@supports (field-sizing: content) {
+  .project-name { width: auto; }
+}
+.project-name:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.meta { margin: 0; font-size: 16px; color: var(--muted); }
+.save-state { font-size: 13.5px; color: var(--muted); }
+.save-state.error { color: var(--danger); font-weight: 700; }
+.project-actions { margin-left: auto; }
 
 /* Панель налаштувань */
 .bar {
@@ -162,9 +187,11 @@ h1 {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.tbtn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tbtn[aria-pressed="true"], .tbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .tbtn.danger { color: var(--danger); border-color: var(--danger); background: none; }
 .tbtn.danger.armed { background: var(--danger); color: var(--danger-ink); }
+.tbtn:disabled { opacity: 0.45; cursor: default; }
+.icon-btn { justify-content: center; width: 36px; height: 36px; padding: 0; }
 
 .field { display: inline-flex; align-items: center; gap: 9px; font-size: 15px; }
 .stepper, .seg {
@@ -278,7 +305,7 @@ body.clean {
   --bead-empty: #FFFFFF;
   --bead-stroke: #7F858E;
 }
-body.clean .top, body.clean .bar, body.clean .hint, body.clean .warn, body.clean .stats { display: none; }
+body.clean .top, body.clean .project-row, body.clean .bar, body.clean .hint, body.clean .warn, body.clean .stats { display: none; }
 body.clean .app { max-width: none; padding-block: 72px 24px; }
 body.clean .board { padding: 0; border: 0; border-radius: 0; }
 body.clean .scroller { display: flex; flex-direction: column; gap: 24px; overflow: visible; }
@@ -287,11 +314,82 @@ body.clean .stencil .lc, body.clean .stencil .lr, body.clean .stencil .axis { di
 body.clean.two #strip2 { display: block; }
 body.clean .clean-bar { display: flex; }
 
+/* Вікно «Мої трафарети» */
+.dlg {
+  width: min(1040px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--ground);
+  color: var(--ink);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+}
+.dlg::backdrop { background: rgba(18, 20, 26, 0.5); }
+.dlg-inner { display: grid; gap: 14px; padding: 18px 20px 22px; }
+.dlg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.dlg-head h2 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.1;
+}
+.dlg-note { margin: 0; font-size: 14.5px; color: var(--muted); }
+.dlg-note.error { color: var(--danger); }
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.card.current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.card-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #FFFFFF;
+  cursor: pointer;
+}
+.card-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.card-body { display: grid; gap: 2px; min-width: 0; }
+.card-name { font-size: 17px; overflow-wrap: anywhere; }
+.card-meta { font-size: 13.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.badge {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.card-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.card-actions .tbtn { padding: 5px 11px; font-size: 14px; }
+
 @media (hover: hover) {
   .sw:hover { background: var(--hover); }
   .sw[aria-pressed="true"]:hover, .sw.on:hover { background: var(--accent-soft); }
-  .tbtn:hover { border-color: var(--accent); }
+  .tbtn:not(:disabled):hover { border-color: var(--accent); }
   .tbtn.danger:hover { border-color: var(--danger); }
+  .card-thumb:hover { border-color: var(--accent); }
   .stepper button:hover, .seg button[aria-pressed="false"]:hover { background: var(--hover); }
   #strip .bd:hover { stroke: var(--accent); stroke-width: 1.5; }
   body.clean #strip .bd:hover { stroke: var(--bead-stroke); stroke-width: 0.6; }

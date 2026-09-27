@@ -9,10 +9,29 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "./styles.css";
 
 import { registerSW } from "virtual:pwa-register";
-import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey } from "./geometry";
+import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence } from "./db";
+import { parseProjectFile, saveProjectToFile } from "./files";
+import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Geometry } from "./geometry";
+import { History, type Action } from "./history";
 import { PALETTE, paletteName, paletteRank } from "./palette";
 import { applyPrintLayout } from "./print";
-import { MAX_CELLS, MAX_SIDE, loadState, scheduleSave, type Side } from "./store";
+import {
+  MAX_CELLS,
+  MAX_SIDE,
+  blankProject,
+  cloneFills,
+  emptyFills,
+  fitSize,
+  migrateV1,
+  newId,
+  nextName,
+  sideKey,
+  type Project,
+  type Side
+} from "./projects";
+import { initProjectsDialog } from "./projectsDialog";
+import { loadSettings, saveSettings } from "./settings";
+import { makeThumb } from "./thumb";
 import { $, $$, clamp, num, r2 } from "./util";
 
 registerSW({ immediate: true });
@@ -21,14 +40,19 @@ const GUT_L = 27;
 const GUT_T = 20;
 const PAD = 9;
 
-const state = loadState();
+const settings = loadSettings();
 const ui = { erase: false, clean: false };
+const history = new History(200);
+let project: Project = blankProject("Трафарет 1");
+let geom: Geometry | null = null;
 
 const svg = $<SVGSVGElement>("#strip");
 const copy = $<SVGSVGElement>("#strip2");
 const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
+const undoBtn = $<HTMLButtonElement>("#undo");
+const redoBtn = $<HTMLButtonElement>("#redo");
 const clearBtn = $<HTMLButtonElement>("#clear");
 const inRows = $<HTMLInputElement>("#in-rows");
 const inCols = $<HTMLInputElement>("#in-cols");
@@ -39,19 +63,54 @@ const exitBtn = $<HTMLButtonElement>("#exit-clean");
 const warn = $("#warn");
 const pageSize = $<HTMLStyleElement>("#page-size");
 const installBtn = $<HTMLButtonElement>("#install");
+const nameInput = $<HTMLInputElement>("#project-name");
+const saveState = $("#save-state");
 
 let beadEls = new Map<string, SVGElement>();
 const viewBoxes = { normal: "0 0 1 1", clean: "0 0 1 1" };
 let cleanDims: [number, number] = [1, 1];
 
-const fills = (): Record<string, string> => state.fills[String(state.side) as "3" | "4"];
-const save = (): void => scheduleSave(state);
+const fills = (): Record<string, string> => project.fills[sideKey(project.side)];
+
+/* ---------- Автозбереження ---------- */
+
+let saveTimer = 0;
+let dirty = false;
+
+function markDirty(): void {
+  dirty = true;
+  saveState.textContent = "Зберігаю…";
+  saveState.classList.remove("error");
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => void flushSave(), 600);
+}
+
+async function flushSave(): Promise<void> {
+  window.clearTimeout(saveTimer);
+  if (!dirty) return;
+  dirty = false;
+  project.updatedAt = Date.now();
+  if (geom) project.thumb = makeThumb(geom, fills());
+  try {
+    await dbPut(project);
+    if (!dirty) saveState.textContent = "Збережено";
+  } catch {
+    dirty = true;
+    saveState.textContent = "Не вдалося зберегти";
+    saveState.classList.add("error");
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") void flushSave();
+});
+window.addEventListener("pagehide", () => void flushSave());
 
 /* ---------- Малювання сітки ---------- */
 
 function render(): void {
-  const g = buildGeometry(state.cols, state.rows, state.side);
-  const { H, width: W, height: HT } = g;
+  geom = buildGeometry(project.cols, project.rows, project.side);
+  const { H, width: W, height: HT } = geom;
   const vb = [-GUT_L, -GUT_T, W + GUT_L + PAD, HT + GUT_T + PAD];
   const e = BEAD_R + 1;
   const vbc = [-e, -e, W + 2 * e, HT + 2 * e];
@@ -62,20 +121,20 @@ function render(): void {
   const f = fills();
   const parts: string[] = [];
   let d = "";
-  for (const s of g.segs) d += `M${r2(s[0] * H)} ${r2(s[1] * H)}L${r2(s[2] * H)} ${r2(s[3] * H)}`;
+  for (const s of geom.segs) d += `M${r2(s[0] * H)} ${r2(s[1] * H)}L${r2(s[2] * H)} ${r2(s[3] * H)}`;
   parts.push(`<path class="thread" d="${d}"/>`);
-  const axisY = r2(state.rows * H);
+  const axisY = r2(project.rows * H);
   parts.push(`<line class="axis" x1="-6" y1="${axisY}" x2="${r2(W + 6)}" y2="${axisY}"/>`);
 
-  const colEvery = state.cols > 40 ? 5 : 1;
-  const rowEvery = state.rows > 40 ? 5 : 1;
-  for (let i = 0; i < state.cols; i++) {
+  const colEvery = project.cols > 40 ? 5 : 1;
+  const rowEvery = project.rows > 40 ? 5 : 1;
+  for (let i = 0; i < project.cols; i++) {
     const label = i + 1;
     if (colEvery === 1 || label === 1 || label % colEvery === 0) {
       parts.push(`<text class="lc" x="${r2((2 * i + 1) * H)}" y="-8" text-anchor="middle">${label}</text>`);
     }
   }
-  for (let r = 0; r < state.rows; r++) {
+  for (let r = 0; r < project.rows; r++) {
     const label = r + 1;
     if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
       parts.push(
@@ -83,7 +142,7 @@ function render(): void {
       );
     }
   }
-  for (const b of g.beads) {
+  for (const b of geom.beads) {
     const c = f[b.k];
     parts.push(
       `<circle class="bd" data-k="${b.k}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${c ? ` style="fill:${c}"` : ""}/>`
@@ -94,7 +153,7 @@ function render(): void {
   svg.style.minWidth = `${Math.round(vb[2] * 1.2)}px`;
   svg.style.maxWidth = `${Math.round(vb[2] * 3)}px`;
   svg.innerHTML = parts.join("");
-  svg.setAttribute("aria-label", `Сітка силянки: ${state.rows} у висоту, ${state.cols} у ширину`);
+  svg.setAttribute("aria-label", `Сітка силянки: ${project.rows} у висоту, ${project.cols} у ширину`);
 
   beadEls = new Map();
   for (const el of $$<SVGElement>(".bd", svg)) beadEls.set(el.getAttribute("data-k") ?? "", el);
@@ -106,21 +165,21 @@ function render(): void {
 }
 
 function printLayout(): void {
-  applyPrintLayout(cleanDims[0], cleanDims[1], state.two ? 2 : 1, pageSize);
+  applyPrintLayout(cleanDims[0], cleanDims[1], settings.two ? 2 : 1, pageSize);
 }
 
 function syncCopy(): void {
-  if (!ui.clean || !state.two) return;
+  if (!ui.clean || !settings.two) return;
   copy.setAttribute("viewBox", viewBoxes.clean);
   copy.innerHTML = svg.innerHTML;
 }
 
 function updateMeta(): void {
-  $("#meta").textContent = `${state.rows}-рядна силянка · ${state.side} бісерини в комірці`;
-  inRows.value = String(state.rows);
-  inCols.value = String(state.cols);
+  $("#meta").textContent = `${project.rows}-рядна силянка · ${project.side} бісерини в комірці`;
+  inRows.value = String(project.rows);
+  inCols.value = String(project.cols);
   for (const b of $$<HTMLButtonElement>("button[data-s]")) {
-    b.setAttribute("aria-pressed", String(Number(b.dataset.s) === state.side));
+    b.setAttribute("aria-pressed", String(Number(b.dataset.s) === project.side));
   }
 }
 
@@ -150,7 +209,7 @@ function updateStats(): void {
     else empty++;
   }
   $("#st-total").textContent = num(beadEls.size);
-  $("#st-step").textContent = num(beadsPerStep(state.rows, state.side));
+  $("#st-step").textContent = num(beadsPerStep(project.rows, project.side));
 
   const used = Array.from(counts.keys()).sort((a, b) => paletteRank(a) - paletteRank(b) || a.localeCompare(b));
   const ul = $("#st-colors");
@@ -194,27 +253,27 @@ const customChip = $("#custom-chip");
 customChip.style.setProperty("--c", customInput.value);
 
 function syncTools(): void {
-  const named = paletteName(state.color);
+  const named = paletteName(settings.color);
   for (const b of $$<HTMLButtonElement>("button.sw", pal)) {
-    b.setAttribute("aria-pressed", String(!ui.erase && b.dataset.c === state.color));
+    b.setAttribute("aria-pressed", String(!ui.erase && b.dataset.c === settings.color));
   }
   custom.classList.toggle("on", !ui.erase && !named);
   if (!named) {
-    customInput.value = state.color.toLowerCase();
-    customChip.style.setProperty("--c", state.color);
+    customInput.value = settings.color.toLowerCase();
+    customChip.style.setProperty("--c", settings.color);
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
-  mirrorBtn.setAttribute("aria-pressed", String(state.mirror));
+  mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
   svg.classList.toggle("erasing", ui.erase);
-  svg.classList.toggle("mirror-on", state.mirror);
+  svg.classList.toggle("mirror-on", settings.mirror);
   $("#cur-name").textContent = ui.erase ? "гумка" : (named ?? "свій").toLowerCase();
 }
 
 function selectColor(c: string): void {
-  state.color = c.toUpperCase();
+  settings.color = c.toUpperCase();
   ui.erase = false;
   syncTools();
-  save();
+  saveSettings(settings);
 }
 
 pal.addEventListener("click", (e) => {
@@ -229,30 +288,54 @@ eraseBtn.addEventListener("click", () => {
   syncTools();
 });
 mirrorBtn.addEventListener("click", () => {
-  state.mirror = !state.mirror;
+  settings.mirror = !settings.mirror;
   syncTools();
-  save();
+  saveSettings(settings);
 });
 
 /* ---------- Фарбування ---------- */
 
+let stroke: Map<string, [string | undefined, string | undefined]> | null = null;
+
+function beginStroke(): void {
+  stroke = new Map();
+}
+
+function endStroke(): void {
+  if (!stroke) return;
+  const changes = new Map([...stroke].filter(([, [before, after]]) => before !== after));
+  stroke = null;
+  if (changes.size === 0) return;
+  history.push({ kind: "paint", side: sideKey(project.side), changes });
+  syncHistory();
+  markDirty();
+}
+
 function modeFor(k: string): string | null {
   if (ui.erase) return null;
-  return fills()[k] === state.color ? null : state.color;
+  return fills()[k] === settings.color ? null : settings.color;
 }
 
 function setBead(k: string, c: string | null): void {
   const f = fills();
-  if (c) f[k] = c;
+  const before = f[k];
+  const after = c ?? undefined;
+  if (before === after) return;
+  if (after) f[k] = after;
   else delete f[k];
+  if (stroke) {
+    const rec = stroke.get(k);
+    if (rec) rec[1] = after;
+    else stroke.set(k, [before, after]);
+  }
   const el = beadEls.get(k);
-  if (el) el.style.fill = c ?? "";
+  if (el) el.style.fill = after ?? "";
 }
 
 function paint(k: string, c: string | null): void {
   setBead(k, c);
-  if (state.mirror) {
-    const mk = mirrorKey(k, state.rows);
+  if (settings.mirror) {
+    const mk = mirrorKey(k, project.rows);
     if (mk !== k && beadEls.has(mk)) setBead(mk, c);
   }
   scheduleStats();
@@ -271,6 +354,7 @@ svg.addEventListener("pointerdown", (e) => {
   if (!k) return;
   e.preventDefault();
   painting = { mode: modeFor(k) };
+  beginStroke();
   paint(k, painting.mode);
 });
 svg.addEventListener("pointerover", (e) => {
@@ -281,7 +365,7 @@ svg.addEventListener("pointerover", (e) => {
 const stopPainting = (): void => {
   if (!painting) return;
   painting = null;
-  save();
+  endStroke();
 };
 window.addEventListener("pointerup", stopPainting);
 window.addEventListener("pointercancel", stopPainting);
@@ -289,17 +373,92 @@ svg.addEventListener("click", (e) => {
   if (lastPointer === "mouse") return;
   const k = beadKey(e.target);
   if (!k) return;
+  beginStroke();
   paint(k, modeFor(k));
-  save();
+  endStroke();
 });
 
-/* ---------- Розмір ---------- */
+/* ---------- Скасувати / повторити ---------- */
+
+function syncHistory(): void {
+  undoBtn.disabled = !history.canUndo;
+  redoBtn.disabled = !history.canRedo;
+}
+
+function applyAction(a: Action, useBefore: boolean): void {
+  switch (a.kind) {
+    case "paint": {
+      const f = project.fills[a.side];
+      const visible = a.side === sideKey(project.side);
+      for (const [k, [before, after]] of a.changes) {
+        const v = useBefore ? before : after;
+        if (v) f[k] = v;
+        else delete f[k];
+        if (visible) {
+          const el = beadEls.get(k);
+          if (el) el.style.fill = v ?? "";
+        }
+      }
+      scheduleStats();
+      break;
+    }
+    case "size": {
+      const [rows, cols] = useBefore ? a.before : a.after;
+      project.rows = rows;
+      project.cols = cols;
+      render();
+      break;
+    }
+    case "side":
+      project.side = useBefore ? a.before : a.after;
+      render();
+      break;
+    case "clear":
+      project.fills = cloneFills(useBefore ? a.before : a.after);
+      render();
+      break;
+  }
+  syncHistory();
+  markDirty();
+}
+
+function undo(): void {
+  if (painting) stopPainting();
+  const a = history.undo();
+  if (a) applyAction(a, true);
+}
+
+function redo(): void {
+  if (painting) stopPainting();
+  const a = history.redo();
+  if (a) applyAction(a, false);
+}
+
+undoBtn.addEventListener("click", undo);
+redoBtn.addEventListener("click", redo);
+
+document.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const t = e.target as HTMLElement | null;
+  if (t?.closest("input[type=text], input[type=number], textarea, [contenteditable=true]")) return;
+  if ($<HTMLDialogElement>("#projects-dlg").open) return;
+  // e.code не залежить від розкладки, тож Ctrl+Z працює й з українською.
+  if (e.code === "KeyZ" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  } else if (e.code === "KeyY" || (e.code === "KeyZ" && e.shiftKey)) {
+    e.preventDefault();
+    redo();
+  }
+});
+
+/* ---------- Розмір і сторона ромба ---------- */
 
 let warnTimer = 0;
 function setSize(name: "rows" | "cols", raw: string | number): void {
   let v = Math.round(Number(raw));
-  if (!Number.isFinite(v)) v = state[name];
-  const other = name === "rows" ? state.cols : state.rows;
+  if (!Number.isFinite(v)) v = project[name];
+  const other = name === "rows" ? project.cols : project.rows;
   const cap = Math.min(MAX_SIDE, Math.floor(MAX_CELLS / other));
   const next = clamp(v, 1, cap);
   if (next < v) {
@@ -309,24 +468,35 @@ function setSize(name: "rows" | "cols", raw: string | number): void {
       warn.hidden = true;
     }, 7000);
   }
-  state[name] = next;
+  if (next === project[name]) {
+    updateMeta();
+    return;
+  }
+  const before: [number, number] = [project.rows, project.cols];
+  project[name] = next;
+  history.push({ kind: "size", before, after: [project.rows, project.cols] });
   render();
-  save();
+  syncHistory();
+  markDirty();
 }
 
 for (const b of $$<HTMLButtonElement>("[data-step]")) {
   b.addEventListener("click", () => {
     const p = b.dataset.step === "rows" ? "rows" : "cols";
-    setSize(p, state[p] + Number(b.dataset.d));
+    setSize(p, project[p] + Number(b.dataset.d));
   });
 }
 inRows.addEventListener("change", () => setSize("rows", inRows.value));
 inCols.addEventListener("change", () => setSize("cols", inCols.value));
 for (const b of $$<HTMLButtonElement>("button[data-s]")) {
   b.addEventListener("click", () => {
-    state.side = Number(b.dataset.s) === 4 ? 4 : (3 as Side);
+    const next: Side = Number(b.dataset.s) === 4 ? 4 : 3;
+    if (next === project.side) return;
+    history.push({ kind: "side", before: project.side, after: next });
+    project.side = next;
     render();
-    save();
+    syncHistory();
+    markDirty();
   });
 }
 
@@ -342,13 +512,13 @@ function setClean(on: boolean): void {
 }
 
 function setTwo(on: boolean): void {
-  state.two = on;
+  settings.two = on;
   twoBox.checked = on;
   twoFloat.checked = on;
   document.body.classList.toggle("two", on);
   printLayout();
   syncCopy();
-  save();
+  saveSettings(settings);
 }
 
 cleanBox.addEventListener("change", () => setClean(cleanBox.checked));
@@ -378,10 +548,113 @@ clearBtn.addEventListener("click", () => {
     return;
   }
   disarm();
-  state.fills = { "3": {}, "4": {} };
-  for (const el of beadEls.values()) el.style.fill = "";
-  updateStats();
-  save();
+  const before = cloneFills(project.fills);
+  if (Object.keys(before["3"]).length === 0 && Object.keys(before["4"]).length === 0) return;
+  history.push({ kind: "clear", before, after: emptyFills() });
+  project.fills = emptyFills();
+  render();
+  syncHistory();
+  markDirty();
+});
+
+/* ---------- Трафарети ---------- */
+
+function showProjectName(): void {
+  nameInput.value = project.name;
+  document.title = `${project.name} — Трафарет силянки`;
+}
+
+nameInput.addEventListener("change", () => {
+  const v = nameInput.value.trim().slice(0, 80);
+  if (v && v !== project.name) {
+    project.name = v;
+    markDirty();
+  }
+  showProjectName();
+});
+nameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") nameInput.blur();
+  if (e.key === "Escape") {
+    nameInput.value = project.name;
+    nameInput.blur();
+  }
+});
+
+async function openProject(p: Project): Promise<void> {
+  await flushSave();
+  if (painting) stopPainting();
+  project = p;
+  fitSize(project);
+  history.clear();
+  settings.lastProjectId = p.id;
+  saveSettings(settings);
+  showProjectName();
+  render();
+  syncHistory();
+  saveState.textContent = "Збережено";
+  saveState.classList.remove("error");
+  // Новий чи відкритий з файлу трафарет ще не має мініатюри для списку.
+  if (!project.thumb) markDirty();
+}
+
+async function allProjects(): Promise<Project[]> {
+  await flushSave();
+  return dbGetAll();
+}
+
+async function createProject(): Promise<void> {
+  const names = (await allProjects()).map((p) => p.name);
+  const p = blankProject(nextName(names));
+  await dbPut(p);
+  await openProject(p);
+}
+
+const dialog = initProjectsDialog({
+  currentId: () => project.id,
+  list: allProjects,
+  async open(id) {
+    const p = await dbGet(id);
+    if (p) await openProject(p);
+  },
+  create: createProject,
+  async duplicate(id) {
+    const src = id === project.id ? project : await dbGet(id);
+    if (!src) return;
+    const now = Date.now();
+    const copyP: Project = {
+      ...src,
+      id: newId(),
+      name: `${src.name} (копія)`.slice(0, 80),
+      fills: cloneFills(src.fills),
+      createdAt: now,
+      updatedAt: now
+    };
+    await dbPut(copyP);
+  },
+  async remove(id) {
+    await dbDelete(id);
+    if (id !== project.id) return;
+    dirty = false;
+    const rest = (await dbGetAll()).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (rest.length > 0) await openProject(rest[0]);
+    else await createProject();
+  },
+  async exportFile(id) {
+    const p = id === project.id ? project : await dbGet(id);
+    if (p) await saveProjectToFile(p);
+  },
+  async importFile(file) {
+    const data = parseProjectFile(await file.text(), file.name);
+    const p: Project = { ...blankProject(data.name), ...data };
+    await dbPut(p);
+    await openProject(p);
+  }
+});
+
+$("#open-projects").addEventListener("click", () => void dialog.open());
+$("#export-project").addEventListener("click", async () => {
+  await flushSave();
+  await saveProjectToFile(project);
 });
 
 /* ---------- Встановлення як програми ---------- */
@@ -409,7 +682,43 @@ window.addEventListener("appinstalled", () => {
 
 /* ---------- Старт ---------- */
 
-twoBox.checked = state.two;
-twoFloat.checked = state.two;
-document.body.classList.toggle("two", state.two);
-render();
+async function start(): Promise<void> {
+  twoBox.checked = settings.two;
+  twoFloat.checked = settings.two;
+  document.body.classList.toggle("two", settings.two);
+
+  let list: Project[] = [];
+  try {
+    list = await dbGetAll();
+  } catch {
+    saveState.textContent = "Сховище недоступне: зміни не збережуться";
+    saveState.classList.add("error");
+  }
+
+  if (list.length === 0) {
+    const migrated = migrateV1();
+    const first = migrated?.project ?? blankProject("Трафарет 1");
+    if (migrated) {
+      if (migrated.color) settings.color = migrated.color;
+      if (migrated.mirror !== undefined) settings.mirror = migrated.mirror;
+      if (migrated.two !== undefined) {
+        settings.two = migrated.two;
+        twoBox.checked = twoFloat.checked = settings.two;
+        document.body.classList.toggle("two", settings.two);
+      }
+    }
+    try {
+      await dbPut(first);
+    } catch {
+      // покажемо трафарет навіть без сховища
+    }
+    list = [first];
+  }
+
+  const target =
+    list.find((p) => p.id === settings.lastProjectId) ?? [...list].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  await openProject(target);
+  void requestPersistence();
+}
+
+void start();

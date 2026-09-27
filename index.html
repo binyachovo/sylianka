@@ -13,13 +13,28 @@
 <body>
   <main class="app">
     <header class="top">
-      <h1>Трафарет силянки</h1>
-      <p class="meta" id="meta">8-рядна силянка · 3 бісерини в комірці</p>
+      <h1 class="brand">Трафарет силянки</h1>
       <button type="button" class="tbtn install" id="install" hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8"/><path d="M4.5 6.8L8 10.3l3.5-3.5"/><path d="M2.5 13.5h11"/></svg>
         Встановити як програму
       </button>
     </header>
+
+    <section class="project-row" aria-label="Відкритий трафарет">
+      <input id="project-name" class="project-name" type="text" maxlength="80" autocomplete="off" spellcheck="false" aria-label="Назва трафарету" title="Натисніть, щоб перейменувати">
+      <p class="meta" id="meta">8-рядна силянка · 3 бісерини в комірці</p>
+      <span class="save-state" id="save-state" aria-live="polite"></span>
+      <div class="row project-actions">
+        <button type="button" class="tbtn" id="open-projects">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="5" height="5" rx="1"/><rect x="9" y="2.5" width="5" height="5" rx="1"/><rect x="2" y="9.5" width="5" height="5" rx="1"/><rect x="9" y="9.5" width="5" height="5" rx="1"/></svg>
+          Мої трафарети
+        </button>
+        <button type="button" class="tbtn" id="export-project">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5h7.5L13 5v8.5H3z"/><path d="M5.5 2.5v3.5h5v-3.5"/><path d="M5.5 13.5v-4h5v4"/></svg>
+          Зберегти у файл
+        </button>
+      </div>
+    </section>
 
     <section class="bar" aria-label="Налаштування">
       <div class="grp">
@@ -37,6 +52,14 @@
           <button type="button" class="tbtn" id="mirror" aria-pressed="false">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13" stroke-dasharray="1.6 1.9"/><path d="M4.2 5.8L11.8 2v3.8z"/><path d="M4.2 10.2l7.6 3.8v-3.8z"/></svg>
             Дзеркально
+          </button>
+          <button type="button" class="tbtn" id="undo" title="Скасувати (Ctrl+Z)" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
+            Скасувати
+          </button>
+          <button type="button" class="tbtn" id="redo" title="Повторити (Ctrl+Y)" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 4l3 3-3 3"/><path d="M13.5 7h-7a4 4 0 000 8H9"/></svg>
+            Повторити
           </button>
         </div>
       </div>
@@ -102,6 +125,30 @@
     <label class="check"><input type="checkbox" id="two-float"> Два на аркуші</label>
     <button type="button" class="tbtn" id="exit-clean">Повернути налаштування</button>
   </div>
+
+  <dialog class="dlg" id="projects-dlg" aria-labelledby="projects-title">
+    <div class="dlg-inner">
+      <div class="dlg-head">
+        <h2 id="projects-title">Мої трафарети</h2>
+        <div class="row">
+          <button type="button" class="tbtn primary" id="new-project">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10"/><path d="M3 8h10"/></svg>
+            Новий трафарет
+          </button>
+          <button type="button" class="tbtn" id="open-file">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v7.5H2z"/></svg>
+            Відкрити з файлу
+          </button>
+          <input type="file" id="file-input" accept=".json,application/json" hidden>
+          <button type="button" class="tbtn icon-btn" id="close-dlg" aria-label="Закрити">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8"/><path d="M12 4l-8 8"/></svg>
+          </button>
+        </div>
+      </div>
+      <p class="dlg-note" id="dlg-note" hidden></p>
+      <ul class="cards" id="project-list"></ul>
+    </div>
+  </dialog>
 
   <script type="module" src="/src/main.ts"></script>
 </body>
