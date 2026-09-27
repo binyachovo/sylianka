@@ -60,10 +60,6 @@
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.4l4.4 4.4-6.2 6.7H4.6L2.3 11.2z"/><path d="M5.6 6.3l4.2 4.2"/><path d="M8.5 13.5h5.2"/></svg>
             Гумка
           </button>
-          <button type="button" class="tbtn" id="mirror" aria-pressed="false">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13" stroke-dasharray="1.6 1.9"/><path d="M4.2 5.8L11.8 2v3.8z"/><path d="M4.2 10.2l7.6 3.8v-3.8z"/></svg>
-            Дзеркально
-          </button>
           <button type="button" class="tbtn" id="undo" data-undo title="Скасувати (Ctrl+Z)" disabled>
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
             Скасувати
@@ -72,6 +68,48 @@
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 4l3 3-3 3"/><path d="M13.5 7h-7a4 4 0 000 8H9"/></svg>
             Повторити
           </button>
+        </div>
+      </div>
+
+      <div class="grp grp-sym">
+        <span class="glabel">Дзеркало й повтор</span>
+        <div class="row">
+          <button type="button" class="tbtn" id="mirror" aria-pressed="false" title="Фарбувати й бісерину, дзеркальну відносно середини по висоті">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13" stroke-dasharray="1.6 1.9"/><path d="M4.2 5.8L11.8 2v3.8z"/><path d="M4.2 10.2l7.6 3.8v-3.8z"/></svg>
+            Верх–низ
+          </button>
+          <button type="button" class="tbtn" id="mirror-lr" aria-pressed="false" title="Фарбувати й бісерину, дзеркальну відносно середини по довжині">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13" stroke-dasharray="1.6 1.9"/><path d="M5.8 4.2L2 11.8h3.8z"/><path d="M10.2 4.2l3.8 7.6h-3.8z"/></svg>
+            Ліво–право
+          </button>
+          <button type="button" class="tbtn sym-repeat" id="repeat" aria-pressed="false" title="Фарбувати одразу в усіх повторах візерунка вздовж трафарету">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="5" width="3.6" height="6" rx="0.8"/><rect x="6.2" y="5" width="3.6" height="6" rx="0.8"/><rect x="10.9" y="5" width="3.6" height="6" rx="0.8"/></svg>
+            Повтор
+          </button>
+          <div class="field">
+            <label for="repeat-n" id="repeat-lead">кожні</label>
+            <div class="stepper">
+              <button type="button" data-rep="-1" aria-label="Коротший повтор">−</button>
+              <input id="repeat-n" type="number" min="1" inputmode="numeric">
+              <button type="button" data-rep="1" aria-label="Довший повтор">+</button>
+            </div>
+            <span id="repeat-unit">ромбів</span>
+          </div>
+          <div class="pop-wrap">
+            <button type="button" class="tbtn" id="multiply-btn" aria-expanded="false" aria-controls="multiply-pop" title="Скопіювати візерунок вибраних ромбів праворуч до кінця трафарету">Розмножити…</button>
+            <div class="pop" id="multiply-pop" role="group" aria-label="Розмножити візерунок" hidden>
+              <p class="pop-lead">Візерунок вибраних ромбів повториться праворуч до кінця трафарету.</p>
+              <div class="pop-line">
+                <label for="mul-from">Ромби з</label>
+                <input class="num-in" id="mul-from" type="number" min="1" inputmode="numeric">
+                <label for="mul-to">по</label>
+                <input class="num-in" id="mul-to" type="number" min="1" inputmode="numeric">
+                <button type="button" class="tbtn small primary" id="mul-go">Розмножити</button>
+              </div>
+              <p class="pop-state" id="mul-info" aria-live="polite"></p>
+              <p class="pop-hint">Кольори праворуч заміняться; «Скасувати» поверне їх.</p>
+            </div>
+          </div>
         </div>
       </div>
 

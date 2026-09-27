@@ -290,6 +290,8 @@ button, input { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .grp-print { max-width: 360px; }
+.grp-sym .row { gap: 8px 10px; }
+.sym-repeat { margin-left: 10px; }
 .print-info { margin: 0; font-size: 13.5px; line-height: 1.35; color: var(--muted); }
 .print-pages { display: none; }
 
@@ -329,6 +331,7 @@ body.weaving #clear { display: none; }
   --bead-stroke: #8C929B;
   --accent: #2B45A6;
   --danger: #B42318;
+  --period: #B45309;
   color-scheme: light;
   min-width: 0;
   padding: 12px;
@@ -351,6 +354,9 @@ body.weaving #clear { display: none; }
   gap: 6px;
   margin: -2px 0 8px;
 }
+/* Спливні панелі біля кнопок (проміжки, «Розмножити») */
+.pop-wrap { position: relative; }
+.pop-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 /* Проміжки: кнопка й панель над трафаретом */
 .gaps-wrap { position: relative; margin-right: auto; }
 .gaps-n { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
@@ -367,7 +373,7 @@ body.weaving .gaps-wrap { display: none; }
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #FFFFFF;
+  background: var(--surface);
   color: var(--ink);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
   font-size: 14.5px;
@@ -392,7 +398,7 @@ body.weaving .gaps-wrap { display: none; }
   padding: 0 4px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #FFFFFF;
+  background: var(--surface);
   color: var(--ink);
   text-align: center;
   font-family: var(--mono);
@@ -416,7 +422,10 @@ body.weaving .gaps-wrap { display: none; }
 }
 .stencil .thread { fill: none; stroke: var(--thread); stroke-width: 1; stroke-linecap: round; }
 .stencil .axis { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 4 4; opacity: 0; }
-.stencil.mirror-on .axis { opacity: 0.8; }
+.stencil.mirror-on .axis-tb, .stencil.mirror-lr-on .axis-lr { opacity: 0.8; }
+/* Межі повторів візерунка */
+.stencil .periods line { stroke: var(--period); stroke-width: 1.1; stroke-dasharray: 2 3; opacity: 0; }
+.stencil.repeat-on .periods line { opacity: 0.9; }
 .stencil .lc, .stencil .lr { fill: var(--muted); font-family: var(--mono); font-size: 9.5px; }
 .stencil .bd { fill: var(--bead-empty); stroke: var(--bead-stroke); stroke-width: 0.6; }
 .stencil .hit { fill: transparent; }
@@ -574,7 +583,7 @@ body.clean .board { padding: 0; border: 0; border-radius: 0; }
 body.clean .scroller { display: flex; flex-direction: column; gap: 24px; overflow: visible; }
 body.clean .board .stencil { width: 100% !important; min-width: 0 !important; max-width: none !important; }
 body.clean .board-tools { display: none; }
-body.clean .stencil .lc, body.clean .stencil .lr, body.clean .stencil .axis { display: none; }
+body.clean .stencil .lc, body.clean .stencil .lr, body.clean .stencil .axis, body.clean .stencil .periods { display: none; }
 body.clean.two #strip2 { display: block; }
 body.clean .clean-bar { display: flex; }
 
@@ -858,6 +867,7 @@ body.clean .clean-bar { display: flex; }
 }
 @media (max-width: 640px) {
   .bar { gap: 14px 20px; padding: 12px; }
+  .sym-repeat { margin-left: 0; }
   .cnt { grid-template-columns: 20px 6.5ch minmax(0, 1fr) 6ch; }
   .cnt-act { grid-column: 3 / -1; justify-content: flex-start; }
   .cnt-replace { max-width: 260px; }
@@ -899,6 +909,7 @@ body.clean .clean-bar { display: flex; }
   .mode-switch { display: none !important; }
   .stencil .bd.done { stroke-opacity: 1 !important; }
   .stencil .ring, .stencil .gap-guide { visibility: hidden !important; }
+  .stencil .axis, .stencil .periods { display: none !important; }
   body:not(.clean) .board .stencil { width: 100% !important; min-width: 0 !important; max-width: none !important; max-height: 118mm; }
   .board-tools { display: none !important; }
   .stats { gap: 4px; }

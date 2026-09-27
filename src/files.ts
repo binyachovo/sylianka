@@ -8,6 +8,7 @@ import { sanitizeProjectData, type Project, type ProjectData } from "./projects"
  *       (з етапу 4 — позначки плетіння «woven», з етапу 6 — проміжки «gaps»; обидва необов'язкові).
  *       Проміжки: { x, y } — після якої лінії бісерин (координата ґратки в шостих частках);
  *       найперші файли з проміжками мали { cols, rows } — номери ромбів і рядів, їх теж розуміємо.
+ *       З етапу 7 — «repeat», крок повтору візерунка в ромбах (необов'язковий).
  */
 const APP = "sylianka";
 const FORMAT = 2;
@@ -25,6 +26,7 @@ export function serializeProject(p: Project): string {
       fills: p.fills,
       woven: p.woven,
       gaps: p.gaps,
+      repeat: p.repeat,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     },
@@ -78,6 +80,7 @@ export function serializeBackup(projects: Project[]): string {
       fills: p.fills,
       woven: p.woven,
       gaps: p.gaps,
+      repeat: p.repeat,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     })),

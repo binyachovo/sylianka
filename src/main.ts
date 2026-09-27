@@ -24,7 +24,7 @@ import {
 } from "./colors";
 import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
 import { parseProjectFile, saveBackupToFile, saveProjectToFile, type ParsedBackup } from "./files";
-import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Edge, type Gaps, type Geometry } from "./geometry";
+import { BEAD_R, beadsPerStep, buildGeometry, symmetryKeys, type Edge, type Gaps, type Geometry } from "./geometry";
 import { HitIndex } from "./hit";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
@@ -52,7 +52,7 @@ import { initProjectsDialog } from "./projectsDialog";
 import { legacyBrushHex, loadSettings, rememberRecent, saveSettings } from "./settings";
 import { makeThumb } from "./thumb";
 import { initTooltip } from "./tooltip";
-import { $, $$, clamp, esc, num, r2 } from "./util";
+import { $, $$, clamp, esc, keyOf, num, plural, r2 } from "./util";
 import { Weave } from "./weave";
 
 /* ---------- Оновлення програми ---------- */
@@ -92,6 +92,9 @@ const copy = $<SVGSVGElement>("#strip2");
 const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
+const mirrorLrBtn = $<HTMLButtonElement>("#mirror-lr");
+const repeatBtn = $<HTMLButtonElement>("#repeat");
+const repeatInput = $<HTMLInputElement>("#repeat-n");
 const undoBtns = $$<HTMLButtonElement>("[data-undo]");
 const redoBtns = $$<HTMLButtonElement>("[data-redo]");
 const clearBtn = $<HTMLButtonElement>("#clear");
@@ -258,9 +261,12 @@ function render(): void {
   weave.bind(wovenList(), (k) => existing.has(k));
   const parts: string[] = [];
   parts.push(`<path class="thread" d="${threadPath(geom.edges, H)}"/>`);
-  // Вісь дзеркала — посередині висоти (якщо там проміжок — посередині проміжку).
+  // Осі дзеркал — посередині висоти й довжини (якщо там проміжок — посередині проміжку).
   const axisY = r2((py(project.rows) + py(project.rows + 1e-3) - 1e-3 * H) / 2);
-  parts.push(`<line class="axis" x1="-6" y1="${axisY}" x2="${r2(W + 6)}" y2="${axisY}"/>`);
+  const axisX = r2((px(project.cols) + px(project.cols + 1e-3) - 1e-3 * H) / 2);
+  parts.push(`<line class="axis axis-tb" x1="-6" y1="${axisY}" x2="${r2(W + 6)}" y2="${axisY}"/>`);
+  parts.push(`<line class="axis axis-lr" x1="${axisX}" y1="-6" x2="${axisX}" y2="${r2(HT + 6)}"/>`);
+  parts.push(`<g class="periods">${periodLines()}</g>`);
 
   const colEvery = project.cols > 40 ? 5 : 1;
   const rowEvery = project.rows > 40 ? 5 : 1;
@@ -320,7 +326,26 @@ function render(): void {
   updateStats();
   updateWeaveInfo();
   syncGapsUi();
+  syncRepeatUi();
   printLayout();
+}
+
+/** Межі повторів візерунка: після кожних N ромбів (посередині проміжку, якщо він там є). */
+function periodLines(): string {
+  if (!geom) return "";
+  const { px, H, height: HT } = geom;
+  let out = "";
+  for (let j = project.repeat; j < project.cols; j += project.repeat) {
+    const x = r2((px(2 * j) + px(2 * j + 1e-3) - 1e-3 * H) / 2);
+    out += `<line x1="${x}" y1="-6" x2="${x}" y2="${r2(HT + 6)}"/>`;
+  }
+  return out;
+}
+
+function drawPeriods(): void {
+  const g = svg.querySelector(".periods");
+  if (g) g.innerHTML = periodLines();
+  syncCopy();
 }
 
 /** Перефарбовує бісерини без перебудови сітки (коли змінився відтінок свого кольору). */
@@ -720,8 +745,12 @@ function syncTools(): void {
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
   mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
+  mirrorLrBtn.setAttribute("aria-pressed", String(settings.mirrorLR));
+  repeatBtn.setAttribute("aria-pressed", String(settings.repeat));
   svg.classList.toggle("erasing", ui.erase && !settings.weave);
   svg.classList.toggle("mirror-on", settings.mirror && !settings.weave);
+  svg.classList.toggle("mirror-lr-on", settings.mirrorLR && !settings.weave);
+  svg.classList.toggle("repeat-on", settings.repeat && !settings.weave);
   const cur = $("#cur-name");
   if (ui.erase) cur.textContent = "гумка";
   else if (settings.color) cur.textContent = fullLabel(colorView(settings.color));
@@ -788,11 +817,51 @@ eraseBtn.addEventListener("click", () => {
   ui.erase = !ui.erase;
   syncTools();
 });
-mirrorBtn.addEventListener("click", () => {
-  settings.mirror = !settings.mirror;
-  syncTools();
-  saveSettings(settings);
+/* ---------- Дзеркала й повтор візерунка ---------- */
+
+for (const [btn, key] of [
+  [mirrorBtn, "mirror"],
+  [mirrorLrBtn, "mirrorLR"],
+  [repeatBtn, "repeat"]
+] as const) {
+  btn.addEventListener("click", () => {
+    settings[key] = !settings[key];
+    syncTools();
+    saveSettings(settings);
+  });
+}
+
+/** Поле кроку повтору: число й слова «кожні 5 ромбів», «кожен 21 ромб». */
+function syncRepeatUi(): void {
+  const n = project.repeat;
+  if (document.activeElement !== repeatInput) repeatInput.value = String(n);
+  repeatInput.max = String(MAX_SIDE);
+  const one = n % 10 === 1 && n % 100 !== 11;
+  $("#repeat-lead").textContent = one ? "кожен" : "кожні";
+  $("#repeat-unit").textContent = plural(n, "ромб", "ромби", "ромбів");
+}
+
+function setRepeat(raw: string | number): void {
+  const n = Math.round(Number(String(raw).replace(",", ".")));
+  if (Number.isFinite(n) && n >= 1) {
+    const next = clamp(n, 1, MAX_SIDE);
+    if (next !== project.repeat) {
+      project.repeat = next;
+      markDirty();
+      drawPeriods();
+    }
+  }
+  repeatInput.value = String(project.repeat);
+  syncRepeatUi();
+}
+
+repeatInput.addEventListener("change", () => setRepeat(repeatInput.value));
+repeatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") repeatInput.blur();
 });
+for (const b of $$<HTMLButtonElement>("button[data-rep]")) {
+  b.addEventListener("click", () => setRepeat(project.repeat + Number(b.dataset.rep)));
+}
 
 /* ---------- Фарбування ---------- */
 
@@ -845,12 +914,20 @@ function setBead(k: string, c: string | null): void {
   if (el) el.style.fill = fillFor(k);
 }
 
+/** Бісерини, що фарбуються разом із k: дзеркала й повтор візерунка (лише ті, що є в сітці). */
+function targetsOf(k: string): string[] {
+  if (!settings.mirror && !settings.mirrorLR && !settings.repeat) return [k];
+  return symmetryKeys(k, {
+    tb: settings.mirror,
+    lr: settings.mirrorLR,
+    every: settings.repeat ? project.repeat : 0,
+    rows: project.rows,
+    cols: project.cols
+  }).filter((t) => beadEls.has(t));
+}
+
 function paint(k: string, c: string | null): void {
-  setBead(k, c);
-  if (settings.mirror) {
-    const mk = mirrorKey(k, project.rows);
-    if (mk !== k && beadEls.has(mk)) setBead(mk, c);
-  }
+  for (const t of targetsOf(k)) setBead(t, c);
   scheduleStats();
 }
 
@@ -1064,14 +1141,45 @@ function clearGaps(kind: "x" | "y"): void {
   syncGapsUi();
 }
 
-function showGapsPop(open: boolean): void {
-  if (gapsPop.hidden === !open) return;
-  gapsPop.hidden = !open;
-  gapsBtn.setAttribute("aria-expanded", String(open));
-  if (open) syncGapsUi();
+/**
+ * Спливна панель біля кнопки: кнопка відкриває й закриває її, клік поза панеллю чи Escape — закривають.
+ * Повертає функцію, що відкриває (true) чи закриває (false) панель.
+ */
+function popover(btn: HTMLButtonElement, pop: HTMLElement, onOpen: () => void): (open: boolean) => void {
+  const show = (open: boolean): void => {
+    if (pop.hidden === !open) return;
+    pop.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    if (!open) return;
+    onOpen();
+    // Не виходити за правий край вікна: тоді панель вирівнюється по правому краю кнопки.
+    pop.style.left = "";
+    pop.style.right = "";
+    if (pop.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
+      pop.style.left = "auto";
+      pop.style.right = "0";
+    }
+  };
+  btn.addEventListener("click", () => show(pop.hidden));
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (pop.hidden) return;
+      const t = e.target as Node | null;
+      if (t && (pop.contains(t) || btn.contains(t))) return;
+      show(false);
+    },
+    true
+  );
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || pop.hidden) return;
+    show(false);
+    btn.focus();
+  });
+  return show;
 }
 
-gapsBtn.addEventListener("click", () => showGapsPop(gapsPop.hidden));
+const showGapsPop = popover(gapsBtn, gapsPop, syncGapsUi);
 for (const kind of ["x", "y"] as const) {
   const a = gapAxes[kind];
   a.set.addEventListener("click", () => spreadGaps(kind));
@@ -1084,21 +1192,102 @@ for (const kind of ["x", "y"] as const) {
     }
   });
 }
-// Клік поза панеллю чи Escape закривають її.
-document.addEventListener(
-  "pointerdown",
-  (e) => {
-    if (gapsPop.hidden) return;
-    const t = e.target as Node | null;
-    if (t && (gapsPop.contains(t) || gapsBtn.contains(t))) return;
-    showGapsPop(false);
-  },
-  true
-);
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape" || gapsPop.hidden) return;
-  showGapsPop(false);
-  gapsBtn.focus();
+
+/* ---------- «Розмножити»: візерунок вибраних ромбів — праворуч до кінця ---------- */
+
+const mulFrom = $<HTMLInputElement>("#mul-from");
+const mulTo = $<HTMLInputElement>("#mul-to");
+const mulInfo = $("#mul-info");
+const mulGo = $<HTMLButtonElement>("#mul-go");
+
+/** Ромби з a по b (з 1) або null, якщо поля заповнено неправильно. */
+function mulRange(): [number, number] | null {
+  const a = Math.round(Number(mulFrom.value));
+  const b = Math.round(Number(mulTo.value));
+  if (!mulFrom.value || !mulTo.value || !Number.isFinite(a) || !Number.isFinite(b)) return null;
+  if (a < 1 || b < a || b > project.cols) return null;
+  return [a, b];
+}
+
+/** Що станеться після «Розмножити» — або чому зараз не вийде. */
+function syncMultiply(): void {
+  const cols = project.cols;
+  mulFrom.max = String(cols);
+  mulTo.max = String(cols);
+  const r = mulRange();
+  let ok = false;
+  if (!r) {
+    mulInfo.textContent = `Вкажіть ромби від 1 до ${cols}; «по» — не менше, ніж «з».`;
+  } else if (r[1] >= cols) {
+    mulInfo.textContent = `Праворуч від ромба ${r[1]} ромбів уже немає — збільште трафарет у ширину.`;
+  } else {
+    const size = r[1] - r[0] + 1;
+    const rest = cols - r[1];
+    const full = Math.floor(rest / size);
+    const part = rest % size;
+    const what = [
+      full ? `${full} ${plural(full, "повна копія", "повні копії", "повних копій")}` : "",
+      part ? `частина копії (${part} ${plural(part, "ромб", "ромби", "ромбів")})` : ""
+    ].filter(Boolean);
+    mulInfo.textContent = `Заповнить ромби ${r[1] + 1}–${cols}: ${what.join(" і ")}.`;
+    ok = true;
+  }
+  mulGo.disabled = !ok;
+}
+
+function openMultiply(): void {
+  if (!mulFrom.value || !mulTo.value) {
+    mulFrom.value = "1";
+    mulTo.value = String(Math.max(1, Math.min(project.repeat, project.cols - 1)));
+  }
+  syncMultiply();
+}
+
+/**
+ * Копіює візерунок ромбів a…b праворуч, раз за разом до кінця трафарету (одна дія для «Скасувати»).
+ * Самі ромби a…b не змінюються: копія починається за їхніми правими вузловими бісеринами.
+ */
+function multiply(a: number, b: number): void {
+  if (!geom || b >= project.cols) return;
+  const x0 = 2 * (a - 1);
+  const x1 = 2 * b;
+  const period = x1 - x0;
+  const last = 2 * project.cols;
+  const f = fills();
+  const changes = new Map<string, [string | undefined, string | undefined]>();
+  for (const bd of geom.beads) {
+    if (bd.lx <= x0 + 1e-6 || bd.lx > x1 + 1e-6) continue;
+    const src = f[bd.k];
+    for (let t = bd.lx + period; t <= last + 1e-6; t += period) {
+      const k = keyOf(t, bd.ly);
+      if (!beadEls.has(k)) continue;
+      if (f[k] !== src) changes.set(k, [f[k], src]);
+    }
+  }
+  if (changes.size === 0) {
+    showWarn("Праворуч уже такий самий візерунок — нічого не змінилося.", 5000);
+    return;
+  }
+  applyChanges(changes);
+  showWarn(`Візерунок ромбів ${a}–${b} розмножено до кінця трафарету. «Скасувати» поверне як було.`, 6000);
+}
+
+const showMulPop = popover($<HTMLButtonElement>("#multiply-btn"), $("#multiply-pop"), openMultiply);
+mulFrom.addEventListener("input", syncMultiply);
+mulTo.addEventListener("input", syncMultiply);
+for (const inp of [mulFrom, mulTo]) {
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !mulGo.disabled) {
+      e.preventDefault();
+      mulGo.click();
+    }
+  });
+}
+mulGo.addEventListener("click", () => {
+  const r = mulRange();
+  if (!r) return;
+  showMulPop(false);
+  multiply(r[0], r[1]);
 });
 
 /** Ставить кільце підсвітки на бісерину (або ховає, якщо k — null). */
@@ -1256,6 +1445,7 @@ function setMode(weaveMode: boolean): void {
   settings.weave = weaveMode;
   if (weaveMode) {
     showGapsPop(false);
+    showMulPop(false);
     setGutterHover(null);
   }
   modeDraw.setAttribute("aria-selected", String(!weaveMode));
@@ -1638,7 +1828,10 @@ function setClean(on: boolean): void {
   ui.clean = on;
   setHover(null);
   setGutterHover(null);
-  if (on) showGapsPop(false);
+  if (on) {
+    showGapsPop(false);
+    showMulPop(false);
+  }
   cleanBox.checked = on;
   document.body.classList.toggle("clean", on);
   svg.setAttribute("viewBox", on ? viewBoxes.clean : viewBoxes.normal);

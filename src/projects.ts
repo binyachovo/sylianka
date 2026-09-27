@@ -18,8 +18,10 @@ export interface ProjectData {
   palette: string[];
   /** Позначки плетіння. */
   woven: Woven;
-  /** Проміжки для вигляду (після ромба / ряду, з 1). */
+  /** Проміжки для вигляду (див. Gaps). */
   gaps: Gaps;
+  /** Крок повтору візерунка, ромбів: для «Повтору» й «Розмножити». */
+  repeat: number;
 }
 
 export interface Project extends ProjectData {
@@ -38,6 +40,7 @@ export const MAX_PALETTE = 300;
 export const MAX_WOVEN = 200000;
 export const DEFAULT_ROWS = 8;
 export const DEFAULT_COLS = 20;
+export const DEFAULT_REPEAT = 10;
 
 export const HEX = /^#[0-9a-f]{6}$/i;
 /** «p:23980» — колір Preciosa, «u:…» — свій колір. */
@@ -72,6 +75,7 @@ export function blankProject(name: string): Project {
     palette: [],
     woven: emptyWoven(),
     gaps: emptyGaps(),
+    repeat: DEFAULT_REPEAT,
     createdAt: now,
     updatedAt: now
   };
@@ -97,6 +101,12 @@ export function ensureFields(p: Project): void {
   const w = (p as Partial<Project>).woven;
   if (!w || !Array.isArray(w["3"]) || !Array.isArray(w["4"])) p.woven = emptyWoven();
   p.gaps = sanitizeGaps((p as Partial<Project>).gaps);
+  p.repeat = sanitizeRepeat((p as Partial<Project>).repeat);
+}
+
+/** Крок повтору: ціле число ромбів 1…MAX_SIDE, інакше типовий. */
+export function sanitizeRepeat(raw: unknown): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= MAX_SIDE ? raw : DEFAULT_REPEAT;
 }
 
 export const emptyGaps = (): Gaps => ({ x: [], y: [] });
@@ -181,7 +191,8 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     fills: sanitizeFills(o.fills, mode),
     palette: mode === "id" ? sanitizePalette(o.palette) : [],
     woven: sanitizeWoven(o.woven),
-    gaps: sanitizeGaps(o.gaps)
+    gaps: sanitizeGaps(o.gaps),
+    repeat: sanitizeRepeat(o.repeat)
   };
   fitSize(data);
   return data;

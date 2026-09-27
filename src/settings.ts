@@ -4,7 +4,12 @@ import { COLOR_ID, HEX } from "./projects";
 export interface Settings {
   /** Поточний колір пензля (ідентифікатор) або null, якщо кольорів ще немає. */
   color: string | null;
+  /** Дзеркало «верх–низ»: фарбувати й бісерину, симетричну відносно середини по висоті. */
   mirror: boolean;
+  /** Дзеркало «ліво–право»: симетрично відносно середини по довжині. */
+  mirrorLR: boolean;
+  /** Повтор візерунка: фарбувати одразу в усіх повторах (крок — у трафареті). */
+  repeat: boolean;
   two: boolean;
   lastProjectId: string | null;
   /** Нещодавно додані до трафаретів кольори, найновіші спершу. */
@@ -26,13 +31,27 @@ const MAX_RECENT = 30;
 export let legacyBrushHex: string | null = null;
 
 export function loadSettings(): Settings {
-  const s: Settings = { color: null, mirror: false, two: false, lastProjectId: null, recent: [], weave: false, dim: true, zoom: null, printBead: null };
+  const s: Settings = {
+    color: null,
+    mirror: false,
+    mirrorLR: false,
+    repeat: false,
+    two: false,
+    lastProjectId: null,
+    recent: [],
+    weave: false,
+    dim: true,
+    zoom: null,
+    printBead: null
+  };
   try {
     const o = JSON.parse(localStorage.getItem(KEY) || "null") as Record<string, unknown> | null;
     if (o && typeof o === "object") {
       if (typeof o.color === "string" && COLOR_ID.test(o.color)) s.color = o.color;
       else if (typeof o.color === "string" && HEX.test(o.color)) legacyBrushHex = o.color.toUpperCase();
       if (typeof o.mirror === "boolean") s.mirror = o.mirror;
+      if (typeof o.mirrorLR === "boolean") s.mirrorLR = o.mirrorLR;
+      if (typeof o.repeat === "boolean") s.repeat = o.repeat;
       if (typeof o.two === "boolean") s.two = o.two;
       if (typeof o.weave === "boolean") s.weave = o.weave;
       if (typeof o.dim === "boolean") s.dim = o.dim;

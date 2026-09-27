@@ -150,6 +150,39 @@ export function mirrorKey(k: string, rows: number): string {
   return keyOf(x, 2 * rows - y);
 }
 
+/** Що фарбується разом: дзеркало «верх–низ», «ліво–право» й повтор кожні every ромбів (0 — без повтору). */
+export interface Symmetry {
+  tb: boolean;
+  lr: boolean;
+  every: number;
+  rows: number;
+  cols: number;
+}
+
+/**
+ * Ключі бісерин, що фарбуються разом із k: сама бісерина, її дзеркальні відображення
+ * і всі їхні повтори вздовж трафарету. Бісерин за межами сітки тут може бути й більше —
+ * їх відкидає той, хто фарбує.
+ */
+export function symmetryKeys(k: string, s: Symmetry): string[] {
+  const [x, y] = parseKey(k);
+  let pts: [number, number][] = [[x, y]];
+  if (s.tb) pts = pts.concat(pts.map(([a, b]): [number, number] => [a, 2 * s.rows - b]));
+  if (s.lr) pts = pts.concat(pts.map(([a, b]): [number, number] => [2 * s.cols - a, b]));
+  if (s.every > 0 && s.every < s.cols) {
+    const period = 2 * s.every;
+    const out: [number, number][] = [];
+    for (const [a, b] of pts) {
+      const start = a - period * Math.floor((a + 1e-6) / period);
+      for (let t = start; t <= 2 * s.cols + 1e-6; t += period) out.push([t, b]);
+    }
+    pts = out;
+  }
+  const keys = new Set<string>();
+  for (const [a, b] of pts) keys.add(keyOf(a, b));
+  return [...keys];
+}
+
 /** Скільки бісерин додає кожен ромб довжини при заданій висоті. */
 export function beadsPerStep(rows: number, side: number): number {
   return 2 * rows + 1 + 4 * rows * (side - 2);
