@@ -431,6 +431,22 @@ body.weaving .gaps-wrap { display: none; }
 .stencil .hit { fill: transparent; }
 #strip .hit.over { cursor: pointer; }
 #strip.erasing .hit.over { cursor: cell; }
+#strip.filling .hit.over { cursor: crosshair; }
+/* Шлях набору (режим плетіння) */
+.stencil .path { display: none; pointer-events: none; }
+#strip.weaving.show-path .path { display: inline; }
+.stencil .path .pl { fill: none; stroke: var(--accent); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.75; }
+.stencil .path .pa { fill: var(--accent); }
+.stencil .path .pn {
+  fill: var(--accent);
+  font-family: var(--mono);
+  font-size: 6.5px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: #FFFFFF;
+  stroke-width: 2.4px;
+  stroke-linejoin: round;
+}
 /* Кільця: під мишею й «де зупинилися» (у режимі плетіння) */
 .stencil .ring { fill: none; stroke: var(--accent); pointer-events: none; visibility: hidden; }
 .stencil .ring-hover { stroke-width: 1.3; }

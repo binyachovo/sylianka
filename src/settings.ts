@@ -18,6 +18,8 @@ export interface Settings {
   weave: boolean;
   /** Приглушувати нанизані бісерини в режимі плетіння. */
   dim: boolean;
+  /** Показувати в режимі плетіння шлях набору — лінію через нанизані бісерини по порядку. */
+  path: boolean;
   /** Масштаб трафарету на екрані у відсотках (100 % — бісеринка 16 px) або null — «Авто». */
   zoom: number | null;
   /** Діаметр бісеринки на папері, мм, або null — «вмістити на аркуш». */
@@ -41,6 +43,7 @@ export function loadSettings(): Settings {
     recent: [],
     weave: false,
     dim: true,
+    path: false,
     zoom: null,
     printBead: null
   };
@@ -55,6 +58,7 @@ export function loadSettings(): Settings {
       if (typeof o.two === "boolean") s.two = o.two;
       if (typeof o.weave === "boolean") s.weave = o.weave;
       if (typeof o.dim === "boolean") s.dim = o.dim;
+      if (typeof o.path === "boolean") s.path = o.path;
       if (typeof o.zoom === "number" && Number.isFinite(o.zoom)) s.zoom = Math.min(400, Math.max(5, o.zoom));
       if (typeof o.printBead === "number" && o.printBead >= 1 && o.printBead <= 10) s.printBead = o.printBead;
       if (typeof o.lastProjectId === "string") s.lastProjectId = o.lastProjectId;

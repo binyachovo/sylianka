@@ -24,7 +24,7 @@ import {
 } from "./colors";
 import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
 import { parseProjectFile, saveBackupToFile, saveProjectToFile, type ParsedBackup } from "./files";
-import { BEAD_R, beadsPerStep, buildGeometry, symmetryKeys, type Edge, type Gaps, type Geometry } from "./geometry";
+import { BEAD_R, beadsPerStep, buildGeometry, symmetryClosure, type Bead, type Edge, type Gaps, type Geometry, type Symmetry } from "./geometry";
 import { HitIndex } from "./hit";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
@@ -77,7 +77,7 @@ const GUT_T = 20;
 const PAD = 9;
 
 const settings = loadSettings();
-const ui = { erase: false, clean: false };
+const ui = { erase: false, fill: false, clean: false };
 /** «Скасувати» в малюванні й у плетінні — окремі: кожне скасовує лише свої дії. */
 const drawHistory = new History(200);
 const weaveHistory = new History(200);
@@ -91,6 +91,7 @@ const svg = $<SVGSVGElement>("#strip");
 const copy = $<SVGSVGElement>("#strip2");
 const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
+const fillBtn = $<HTMLButtonElement>("#fill");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
 const mirrorLrBtn = $<HTMLButtonElement>("#mirror-lr");
 const repeatBtn = $<HTMLButtonElement>("#repeat");
@@ -121,12 +122,17 @@ const wvLast = $("#wv-last");
 const wvFind = $<HTMLButtonElement>("#wv-find");
 const wvReset = $<HTMLButtonElement>("#wv-reset");
 const wvDim = $<HTMLInputElement>("#wv-dim");
+const wvPath = $<HTMLInputElement>("#wv-path");
 const scroller = $("#scroller");
 const zoomValue = $("#zoom-value");
 const zoomOutBtn = $<HTMLButtonElement>("#zoom-out");
 const zoomInBtn = $<HTMLButtonElement>("#zoom-in");
 
 let beadEls = new Map<string, SVGElement>();
+/** Бісерини за ключем — для шляху набору. */
+let beadPos = new Map<string, Bead>();
+/** Сусіди кожної бісерини вздовж ниток — для заливки (будуються, коли вперше знадобляться). */
+let neighbors: Map<string, string[]> | null = null;
 /** Пошук бісерини під курсором за координатами (див. hit.ts). */
 let hitIndex: HitIndex | null = null;
 /** Бісерина під мишею (підсвічена). */
@@ -138,6 +144,8 @@ let ringHover: SVGElement | null = null;
 let ringLast: SVGElement | null = null;
 /** Лінія-підказка «тут буде проміжок», коли миша між номерами ромбів чи рядів. */
 let gapGuide: SVGElement | null = null;
+/** Група шляху набору (запам'ятовуємо: пошук у сітці з десятків тисяч бісерин повільний). */
+let pathGroup: SVGElement | null = null;
 /** Межа під мишею над номерами: після якого ромба (col) чи ряду (row). */
 let hoverGutter: GapAt | null = null;
 const viewBoxes = { normal: "0 0 1 1", clean: "0 0 1 1" };
@@ -293,6 +301,7 @@ function render(): void {
     );
   }
   parts.push(`</g>`);
+  parts.push(`<g class="path"></g>`);
   parts.push(
     `<g class="marks"><circle class="ring ring-last" cx="0" cy="0" r="${BEAD_R + 1.1}"/>` +
       `<circle class="ring ring-hover" cx="0" cy="0" r="${BEAD_R + 0.9}"/>` +
@@ -312,11 +321,14 @@ function render(): void {
   beadEls = new Map();
   const els = $$<SVGElement>(".bd", svg);
   for (let i = 0; i < els.length; i++) beadEls.set(geom.beads[i].k, els[i]);
+  beadPos = new Map(geom.beads.map((b) => [b.k, b]));
+  neighbors = null;
   hitIndex = new HitIndex(geom.beads, W);
   hitRect = svg.querySelector<SVGElement>(".hit");
   ringHover = svg.querySelector<SVGElement>(".ring-hover");
   ringLast = svg.querySelector<SVGElement>(".ring-last");
   gapGuide = svg.querySelector<SVGElement>(".gap-guide");
+  pathGroup = svg.querySelector<SVGElement>(".path");
   hoverKey = null;
   hoverGutter = null;
   placeRing(ringLast, weave.last);
@@ -327,6 +339,7 @@ function render(): void {
   updateWeaveInfo();
   syncGapsUi();
   syncRepeatUi();
+  drawPath();
   printLayout();
 }
 
@@ -744,6 +757,8 @@ function syncTools(): void {
     b.setAttribute("aria-pressed", String(!ui.erase && b.dataset.id === settings.color));
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
+  fillBtn.setAttribute("aria-pressed", String(ui.fill));
+  svg.classList.toggle("filling", ui.fill && !settings.weave);
   mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
   mirrorLrBtn.setAttribute("aria-pressed", String(settings.mirrorLR));
   repeatBtn.setAttribute("aria-pressed", String(settings.repeat));
@@ -752,9 +767,8 @@ function syncTools(): void {
   svg.classList.toggle("mirror-lr-on", settings.mirrorLR && !settings.weave);
   svg.classList.toggle("repeat-on", settings.repeat && !settings.weave);
   const cur = $("#cur-name");
-  if (ui.erase) cur.textContent = "гумка";
-  else if (settings.color) cur.textContent = fullLabel(colorView(settings.color));
-  else cur.textContent = "не вибрано";
+  const brush = ui.erase ? "гумка" : settings.color ? fullLabel(colorView(settings.color)) : "не вибрано";
+  cur.textContent = ui.fill ? (ui.erase ? "заливка гумкою" : `заливка — ${brush}`) : brush;
 }
 
 function selectColor(id: string): void {
@@ -815,6 +829,10 @@ pal.addEventListener("click", (e) => {
 
 eraseBtn.addEventListener("click", () => {
   ui.erase = !ui.erase;
+  syncTools();
+});
+fillBtn.addEventListener("click", () => {
+  ui.fill = !ui.fill;
   syncTools();
 });
 /* ---------- Дзеркала й повтор візерунка ---------- */
@@ -914,21 +932,84 @@ function setBead(k: string, c: string | null): void {
   if (el) el.style.fill = fillFor(k);
 }
 
-/** Бісерини, що фарбуються разом із k: дзеркала й повтор візерунка (лише ті, що є в сітці). */
-function targetsOf(k: string): string[] {
-  if (!settings.mirror && !settings.mirrorLR && !settings.repeat) return [k];
-  return symmetryKeys(k, {
+/** Поточні дзеркала й повтор. */
+function symmetry(): Symmetry {
+  return {
     tb: settings.mirror,
     lr: settings.mirrorLR,
     every: settings.repeat ? project.repeat : 0,
     rows: project.rows,
     cols: project.cols
-  }).filter((t) => beadEls.has(t));
+  };
+}
+
+/** Бісерини, що фарбуються разом із даними: дзеркала й повтор візерунка (лише ті, що є в сітці). */
+function withSymmetry(keys: string[]): string[] {
+  if (!settings.mirror && !settings.mirrorLR && !settings.repeat) return keys;
+  return [...symmetryClosure(keys, symmetry())].filter((t) => beadEls.has(t));
 }
 
 function paint(k: string, c: string | null): void {
-  for (const t of targetsOf(k)) setBead(t, c);
+  for (const t of withSymmetry([k])) setBead(t, c);
   scheduleStats();
+}
+
+/* ---------- Заливка ---------- */
+
+/** Сусіди бісерин уздовж ниток: сусідні бісерини на одній стороні ромба. */
+function neighborMap(): Map<string, string[]> {
+  if (neighbors) return neighbors;
+  const m = new Map<string, string[]>();
+  const link = (a: string, b: string): void => {
+    const list = m.get(a);
+    if (list) list.push(b);
+    else m.set(a, [b]);
+  };
+  for (const e of geom?.edges ?? []) {
+    for (let i = 1; i < e.keys.length; i++) {
+      link(e.keys[i - 1], e.keys[i]);
+      link(e.keys[i], e.keys[i - 1]);
+    }
+  }
+  neighbors = m;
+  return m;
+}
+
+/** Область: бісерини того самого кольору (чи всі порожні), з'єднані з k нитками. */
+function regionOf(k: string): string[] {
+  const f = fills();
+  const color = f[k];
+  const near = neighborMap();
+  const seen = new Set([k]);
+  const queue = [k];
+  for (let i = 0; i < queue.length; i++) {
+    for (const n of near.get(queue[i]) ?? []) {
+      if (seen.has(n) || f[n] !== color || !beadEls.has(n)) continue;
+      seen.add(n);
+      queue.push(n);
+    }
+  }
+  return queue;
+}
+
+/** Заливає область під k поточним кольором (з гумкою — стирає її); одна дія для «Скасувати». */
+function fillAt(k: string): void {
+  if (!ui.erase && !settings.color) {
+    needColor();
+    return;
+  }
+  const f = fills();
+  const target = ui.erase ? undefined : (settings.color ?? undefined);
+  if (f[k] === target) {
+    showWarn(ui.erase ? "Тут і так порожньо — стирати нічого." : "Ця область уже такого кольору.", 4000);
+    return;
+  }
+  const changes = new Map<string, [string | undefined, string | undefined]>();
+  for (const t of withSymmetry(regionOf(k))) if (f[t] !== target) changes.set(t, [f[t], target]);
+  if (changes.size === 0) return;
+  applyChanges(changes);
+  const n = changes.size;
+  showWarn(`${ui.erase ? "Стерто" : "Залито"} ${num(n)} ${plural(n, "бісерину", "бісерини", "бісерин")}.`, 3500);
 }
 
 /** Точка екрана → координати SVG трафарету. */
@@ -1352,10 +1433,12 @@ function weaveAt(k: string): void {
   if (weaving.mode === "mark") {
     if (!weave.mark(k)) return;
     weaving.keys.push(k);
+    extendPath(k);
   } else {
     const i = weave.unmark(k);
     if (i < 0) return;
     weaving.items.push([i, k]);
+    schedulePath();
   }
   refreshBead(k);
   moveLast(prev);
@@ -1416,6 +1499,7 @@ function syncStencilClasses(): void {
   const weavingView = settings.weave && !ui.clean && !printing;
   svg.classList.toggle("weaving", weavingView);
   svg.classList.toggle("dim", settings.dim);
+  svg.classList.toggle("show-path", settings.path);
   const fadeNow = weavingView && settings.dim;
   if (fadeNow !== fadeDone) {
     fadeDone = fadeNow;
@@ -1459,6 +1543,7 @@ function setMode(weaveMode: boolean): void {
   syncHistory();
   updateStats();
   updateWeaveInfo();
+  drawPath();
   saveSettings(settings);
 }
 
@@ -1526,7 +1611,91 @@ function afterWeaveChange(): void {
   refreshWeaveMarks();
   scheduleStats();
   updateWeaveInfo();
+  drawPath();
 }
+
+/* ---------- Шлях набору ---------- */
+
+/** Шлях видно лише в режимі плетіння з галочкою, не в «лише трафарет» і не під час друку. */
+const pathVisible = (): boolean => settings.weave && settings.path && !ui.clean && !printing;
+
+/** Стан намальованого шляху: скільки в ньому бісерин, остання з них і скільки відрізків дописано окремо. */
+let pathCount = 0;
+let pathPrev: Bead | undefined;
+let pathExtra = 0;
+
+/** Стрілка напрямку (на кожному п'ятому відрізку) і номер (першої бісерини й кожної десятої). */
+function pathMarks(n: number, prev: Bead | undefined, b: Bead): string {
+  let out = "";
+  if (prev && n % 5 === 2) {
+    const angle = (Math.atan2(b.y - prev.y, b.x - prev.x) * 180) / Math.PI;
+    out +=
+      `<path class="pa" d="M-2.4 -2L2 0L-2.4 2z" transform="translate(${r2((prev.x + b.x) / 2)} ${r2((prev.y + b.y) / 2)})` +
+      ` rotate(${r2(angle)})"/>`;
+  }
+  if (n === 1 || n % 10 === 0) out += `<text class="pn" x="${r2(b.x + 4.2)}" y="${r2(b.y - 4.2)}">${n}</text>`;
+  return out;
+}
+
+/** Шлях набору: лінія через нанизані бісерини в порядку позначення, зі стрілками й номерами. */
+function drawPath(): void {
+  const g = pathGroup;
+  pathCount = 0;
+  pathPrev = undefined;
+  pathExtra = 0;
+  if (!g) return;
+  if (!pathVisible()) {
+    if (g.firstChild) g.textContent = "";
+    return;
+  }
+  let d = "";
+  let marks = "";
+  for (const k of wovenList()) {
+    const b = beadPos.get(k);
+    if (!b) continue;
+    pathCount++;
+    d += `${pathCount === 1 ? "M" : "L"}${r2(b.x)} ${r2(b.y)}`;
+    marks += pathMarks(pathCount, pathPrev, b);
+    pathPrev = b;
+  }
+  g.innerHTML = pathCount ? `<path class="pl" d="${d}"/>${marks}` : "";
+}
+
+let pathQueued = false;
+function schedulePath(): void {
+  if (pathQueued || !pathVisible()) return;
+  pathQueued = true;
+  requestAnimationFrame(() => {
+    pathQueued = false;
+    drawPath();
+  });
+}
+
+/**
+ * Нанизали ще одну бісерину в кінці набору: дописуємо до шляху один відрізок, а не малюємо
+ * весь шлях наново — так на великих трафаретах браузер перемальовує лише малу ділянку.
+ */
+function extendPath(k: string): void {
+  if (!pathGroup || !pathVisible() || pathQueued) return;
+  const b = beadPos.get(k);
+  if (!b) return;
+  if (weave.number(k) !== pathCount + 1 || pathExtra >= 300) {
+    schedulePath();
+    return;
+  }
+  pathCount++;
+  const seg = pathPrev ? `<path class="pl" d="M${r2(pathPrev.x)} ${r2(pathPrev.y)}L${r2(b.x)} ${r2(b.y)}"/>` : "";
+  pathGroup.insertAdjacentHTML("beforeend", seg + pathMarks(pathCount, pathPrev, b));
+  pathPrev = b;
+  pathExtra++;
+}
+
+wvPath.addEventListener("change", () => {
+  settings.path = wvPath.checked;
+  saveSettings(settings);
+  syncStencilClasses();
+  drawPath();
+});
 
 /* ---------- Події миші на сітці ---------- */
 
@@ -1555,6 +1724,10 @@ svg.addEventListener("pointerdown", (e) => {
   strokeKey = k;
   if (settings.weave) {
     startWeave(k);
+    return;
+  }
+  if (ui.fill) {
+    fillAt(k);
     return;
   }
   const mode = modeFor(k);
@@ -1608,6 +1781,10 @@ svg.addEventListener("click", (e) => {
   if (settings.weave) {
     startWeave(k);
     endWeave();
+    return;
+  }
+  if (ui.fill) {
+    fillAt(k);
     return;
   }
   const mode = modeFor(k);
@@ -1756,6 +1933,10 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     ui.erase = !ui.erase;
     syncTools();
+  } else if (e.code === "KeyF") {
+    e.preventDefault();
+    ui.fill = !ui.fill;
+    syncTools();
   }
 });
 
@@ -1836,6 +2017,7 @@ function setClean(on: boolean): void {
   document.body.classList.toggle("clean", on);
   svg.setAttribute("viewBox", on ? viewBoxes.clean : viewBoxes.normal);
   syncStencilClasses();
+  drawPath();
   syncCopy();
   updatePrintInfo();
   if (on) window.scrollTo(0, 0);
@@ -2194,6 +2376,7 @@ async function start(): Promise<void> {
   twoFloat.checked = settings.two;
   document.body.classList.toggle("two", settings.two);
   wvDim.checked = settings.dim;
+  wvPath.checked = settings.path;
   setMode(settings.weave);
 
   let list: Project[] = [];

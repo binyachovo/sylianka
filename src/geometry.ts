@@ -23,6 +23,8 @@ export interface Edge {
   ly1: number;
   /** x0, y0, x1, y1, … — вершина, бісерини сторони, вершина. */
   pts: number[];
+  /** Ключі тих самих бісерин по порядку: сусідні в списку з'єднані ниткою. */
+  keys: string[];
 }
 
 /**
@@ -125,15 +127,18 @@ export function buildGeometry(cols: number, rows: number, side: number, gaps: Ga
         const a = pts[e];
         const b = pts[(e + 1) % 4];
         const line = [px(a[0]), py(a[1])];
+        const keys = [keyOf(a[0], a[1])];
         for (let j = 1; j <= m; j++) {
           const t = j / (m + 1);
           const lx = a[0] + (b[0] - a[0]) * t;
           const ly = a[1] + (b[1] - a[1]) * t;
           add(lx, ly);
           line.push(px(lx), py(ly));
+          keys.push(keyOf(lx, ly));
         }
         line.push(px(b[0]), py(b[1]));
-        edges.push({ lx0: a[0], ly0: a[1], lx1: b[0], ly1: b[1], pts: line });
+        keys.push(keyOf(b[0], b[1]));
+        edges.push({ lx0: a[0], ly0: a[1], lx1: b[0], ly1: b[1], pts: line, keys });
       }
     }
   }
@@ -160,27 +165,45 @@ export interface Symmetry {
 }
 
 /**
- * Ключі бісерин, що фарбуються разом із k: сама бісерина, її дзеркальні відображення
- * і всі їхні повтори вздовж трафарету. Бісерин за межами сітки тут може бути й більше —
- * їх відкидає той, хто фарбує.
+ * Бісерини, що фарбуються разом із даними: вони самі, їхні дзеркальні відображення
+ * і всі повтори вздовж трафарету (повтор — кроками по 2·every у ґратці, доки не вийде за край).
  */
-export function symmetryKeys(k: string, s: Symmetry): string[] {
-  const [x, y] = parseKey(k);
-  let pts: [number, number][] = [[x, y]];
-  if (s.tb) pts = pts.concat(pts.map(([a, b]): [number, number] => [a, 2 * s.rows - b]));
-  if (s.lr) pts = pts.concat(pts.map(([a, b]): [number, number] => [2 * s.cols - a, b]));
+export function symmetryClosure(keys: Iterable<string>, s: Symmetry): Set<string> {
+  const out = new Set(keys);
+  const map = (fn: (x: number, y: number) => [number, number]): void => {
+    for (const k of [...out]) {
+      const [x, y] = parseKey(k);
+      const [a, b] = fn(x, y);
+      out.add(keyOf(a, b));
+    }
+  };
+  if (s.tb) map((x, y) => [x, 2 * s.rows - y]);
+  if (s.lr) map((x, y) => [2 * s.cols - x, y]);
   if (s.every > 0 && s.every < s.cols) {
     const period = 2 * s.every;
-    const out: [number, number][] = [];
-    for (const [a, b] of pts) {
-      const start = a - period * Math.floor((a + 1e-6) / period);
-      for (let t = start; t <= 2 * s.cols + 1e-6; t += period) out.push([t, b]);
+    let frontier = [...out];
+    while (frontier.length) {
+      const next: string[] = [];
+      for (const k of frontier) {
+        const [x, y] = parseKey(k);
+        for (const t of [x + period, x - period]) {
+          if (t < -1e-6 || t > 2 * s.cols + 1e-6) continue;
+          const nk = keyOf(t, y);
+          if (!out.has(nk)) {
+            out.add(nk);
+            next.push(nk);
+          }
+        }
+      }
+      frontier = next;
     }
-    pts = out;
   }
-  const keys = new Set<string>();
-  for (const [a, b] of pts) keys.add(keyOf(a, b));
-  return [...keys];
+  return out;
+}
+
+/** Ключі бісерин, що фарбуються разом із k (див. symmetryClosure). */
+export function symmetryKeys(k: string, s: Symmetry): string[] {
+  return [...symmetryClosure([k], s)];
 }
 
 /** Скільки бісерин додає кожен ромб довжини при заданій висоті. */
