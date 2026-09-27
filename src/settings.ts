@@ -1,3 +1,4 @@
+import { DEFAULT_RESERVE, RESERVES } from "./buy";
 import { COLOR_ID, HEX } from "./projects";
 
 /** Налаштування інструментів, спільні для всіх трафаретів. */
@@ -24,6 +25,8 @@ export interface Settings {
   zoom: number | null;
   /** Діаметр бісеринки на папері, мм, або null — «вмістити на аркуш». */
   printBead: number | null;
+  /** Запас бісеру на брак і втрати, відсотки (для «Купувати»). */
+  reserve: number;
 }
 
 const KEY = "sylianka-settings-v1";
@@ -45,7 +48,8 @@ export function loadSettings(): Settings {
     dim: true,
     path: false,
     zoom: null,
-    printBead: null
+    printBead: null,
+    reserve: DEFAULT_RESERVE
   };
   try {
     const o = JSON.parse(localStorage.getItem(KEY) || "null") as Record<string, unknown> | null;
@@ -62,6 +66,7 @@ export function loadSettings(): Settings {
       if (typeof o.zoom === "number" && Number.isFinite(o.zoom)) s.zoom = Math.min(400, Math.max(5, o.zoom));
       if (typeof o.printBead === "number" && o.printBead >= 1 && o.printBead <= 10) s.printBead = o.printBead;
       if (typeof o.lastProjectId === "string") s.lastProjectId = o.lastProjectId;
+      if (typeof o.reserve === "number" && (RESERVES as readonly number[]).includes(o.reserve)) s.reserve = o.reserve;
       if (Array.isArray(o.recent)) {
         s.recent = o.recent.filter((v): v is string => typeof v === "string" && COLOR_ID.test(v)).slice(0, MAX_RECENT);
       }

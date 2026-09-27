@@ -1,7 +1,7 @@
 {
   "name": "sylianka",
   "private": true,
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Трафарет силянки: сітка для розфарбовування бісерин, підрахунок і друк",
   "type": "module",
   "scripts": {

@@ -35,9 +35,17 @@ export function serializeProject(p: Project): string {
   return JSON.stringify(data, null, 1);
 }
 
+/** Назва трафарету, придатна для імені файлу. */
+function baseName(p: Project): string {
+  return p.name.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Трафарет";
+}
+
 export function fileNameFor(p: Project): string {
-  const base = p.name.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Трафарет";
-  return `${base}.sylianka.json`;
+  return `${baseName(p)}.sylianka.json`;
+}
+
+export function imageNameFor(p: Project): string {
+  return `${baseName(p)}.png`;
 }
 
 export interface ParsedFile {
@@ -158,19 +166,29 @@ export function saveBackupToFile(projects: Project[]): Promise<boolean> {
   return saveJson(backupFileName(), serializeBackup(projects));
 }
 
+/** Зберігає картинку трафарету (PNG). Повертає false, якщо збереження скасували. */
+export function saveImageToFile(p: Project, png: Blob): Promise<boolean> {
+  return saveBlob(imageNameFor(p), png, { description: "Картинка PNG", accept: { "image/png": [".png"] } });
+}
+
+function saveJson(name: string, text: string): Promise<boolean> {
+  const blob = new Blob([text], { type: "application/json" });
+  return saveBlob(name, blob, { description: "Трафарет силянки", accept: { "application/json": [".json"] } });
+}
+
 /**
  * У Chrome та Edge відкривається звичайне вікно «Зберегти як»,
  * в інших браузерах файл завантажується.
  */
-async function saveJson(name: string, text: string): Promise<boolean> {
-  const blob = new Blob([text], { type: "application/json" });
+async function saveBlob(
+  name: string,
+  blob: Blob,
+  type: { description: string; accept: Record<string, string[]> }
+): Promise<boolean> {
   const picker = (window as unknown as { showSaveFilePicker?: SavePicker }).showSaveFilePicker;
   if (picker) {
     try {
-      const handle = await picker({
-        suggestedName: name,
-        types: [{ description: "Трафарет силянки", accept: { "application/json": [".json"] } }]
-      });
+      const handle = await picker({ suggestedName: name, types: [type] });
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();

@@ -9,6 +9,7 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "./styles.css";
 
 import { registerSW } from "virtual:pwa-register";
+import { fmtGrams, gramsFor } from "./buy";
 import { initCatalogDialog } from "./catalogDialog";
 import {
   adoptCustomColors,
@@ -23,9 +24,10 @@ import {
   restoreCustomColors
 } from "./colors";
 import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
-import { parseProjectFile, saveBackupToFile, saveProjectToFile, type ParsedBackup } from "./files";
+import { parseProjectFile, saveBackupToFile, saveImageToFile, saveProjectToFile, type ParsedBackup } from "./files";
 import { BEAD_R, beadsPerStep, buildGeometry, symmetryClosure, type Bead, type Edge, type Gaps, type Geometry, type Symmetry } from "./geometry";
 import { HitIndex } from "./hit";
+import { renderStencilPng, type ImageText, type LegendRow } from "./image";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
 import {
@@ -651,6 +653,63 @@ printBead.addEventListener("change", () => {
   updatePrintInfo();
 });
 
+/* ---------- Картинка (PNG) ---------- */
+
+let imageBusy = false;
+
+/** Зберігає трафарет картинкою: з назвою, номерами й списком кольорів або (у «лише трафарет») без тексту. */
+async function saveImage(): Promise<void> {
+  if (!geom || imageBusy) return;
+  imageBusy = true;
+  const buttons = $$<HTMLButtonElement>("[data-png]");
+  for (const b of buttons) b.disabled = true;
+  document.body.classList.add("busy");
+  try {
+    const f = fills();
+    let text: ImageText | null = null;
+    if (!ui.clean) {
+      const c = colorCounts();
+      const legend: LegendRow[] = c.used.map((id) => {
+        const v = colorView(id);
+        const n = c.counts.get(id) ?? 0;
+        return { hex: v.hex, code: v.code, name: v.name, count: num(n), grams: `≈ ${fmtGrams(gramsFor(n, settings.reserve))}` };
+      });
+      if (c.empty > 0) {
+        legend.push({
+          hex: null,
+          code: "",
+          name: "Не зафарбовано",
+          count: num(c.empty),
+          grams: `≈ ${fmtGrams(gramsFor(c.empty, settings.reserve))}`
+        });
+      }
+      const reserve = settings.reserve ? `запас ${settings.reserve} %` : "без запасу";
+      text = {
+        title: project.name,
+        meta:
+          `${project.rows}-рядна силянка · ${project.side} бісерини в комірці · ` +
+          `${project.cols} ${plural(project.cols, "ромб", "ромби", "ромбів")} завдовжки`,
+        rows: project.rows,
+        cols: project.cols,
+        total: `Усього бісерин: ${num(beadEls.size)} · купувати ≈ ${fmtGrams(totalGrams(c))} (${reserve})`,
+        legend
+      };
+    }
+    const png = await renderStencilPng({ geom, colorOf: (k) => (f[k] ? hexOf(f[k]) : undefined), text });
+    if (!png) {
+      showWarn("Не вдалося зробити картинку: браузеру забракло пам'яті. Спробуйте «Лише трафарет, без тексту» або менший трафарет.", 8000);
+      return;
+    }
+    await saveImageToFile(project, png);
+  } finally {
+    imageBusy = false;
+    for (const b of buttons) b.disabled = false;
+    document.body.classList.remove("busy");
+  }
+}
+
+for (const b of $$<HTMLButtonElement>("[data-png]")) b.addEventListener("click", () => void saveImage());
+
 for (const b of $$<HTMLButtonElement>("[data-print]")) {
   b.addEventListener("click", () => window.print());
 }
@@ -682,19 +741,23 @@ function progressCell(done: number, count: number): string {
   );
 }
 
+/** Скільки купувати: «≈ 2,5 г» із поточним запасом. */
+const gramsCell = (count: number): string =>
+  `<span class="g">${count ? `≈ ${fmtGrams(gramsFor(count, settings.reserve))}` : "—"}</span>`;
+
 function countRow(id: string | null, count: number, done: number): string {
   if (!id) {
     if (settings.weave) {
       return (
         `<li class="cnt cnt-empty"><span class="chip chip-empty"></span><span class="cnt-code"></span>` +
-        `<span class="cnt-name">Не зафарбовано</span><span class="n">${num(count)}</span>${progressCell(done, count)}</li>`
+        `<span class="cnt-name">Не зафарбовано</span><span class="n">${num(count)}</span>${gramsCell(count)}${progressCell(done, count)}</li>`
       );
     }
     const canFill = count > 0 && !!settings.color;
     const cur = settings.color ? colorView(settings.color) : null;
     return (
       `<li class="cnt cnt-empty"><span class="chip chip-empty"></span><span class="cnt-code"></span>` +
-      `<span class="cnt-name">Не зафарбовано</span><span class="n">${num(count)}</span>` +
+      `<span class="cnt-name">Не зафарбовано</span><span class="n">${num(count)}</span>${gramsCell(count)}` +
       `<span class="cnt-act"><button type="button" class="tbtn small" data-fill-empty${canFill ? "" : " disabled"}` +
       ` title="${cur ? esc(`Зафарбувати всі порожні бісерини кольором ${fullLabel(cur)}`) : "Спершу виберіть колір"}">` +
       `Залити поточним кольором</button></span></li>`
@@ -708,7 +771,7 @@ function countRow(id: string | null, count: number, done: number): string {
   return (
     `<li class="cnt" title="${esc(colorTitle(v))}"><span class="chip" style="--c:${v.hex}"></span>` +
     `<span class="cnt-code">${esc(v.code)}</span><span class="cnt-name">${esc(v.name)}</span>` +
-    `<span class="n">${num(count)}</span>` +
+    `<span class="n">${num(count)}</span>${gramsCell(count)}` +
     (settings.weave
       ? progressCell(done, count)
       : `<span class="cnt-act"><select class="cnt-replace" data-replace="${esc(id)}" aria-label="Замінити ${esc(fullLabel(v))} на інший колір"${others.length ? "" : " disabled"}>` +
@@ -717,7 +780,14 @@ function countRow(id: string | null, count: number, done: number): string {
   );
 }
 
-function updateStats(): void {
+/** Скільки бісерин кожного кольору (у порядку кольорів трафарету) і скільки з них нанизано. */
+function colorCounts(): {
+  used: string[];
+  counts: Map<string, number>;
+  done: Map<string, number>;
+  empty: number;
+  emptyDone: number;
+} {
   const f = fills();
   const counts = new Map<string, number>();
   const done = new Map<string, number>();
@@ -734,15 +804,32 @@ function updateStats(): void {
       if (strung) emptyDone++;
     }
   }
-  $("#st-total").textContent = num(beadEls.size);
-  $("#st-step").textContent = num(beadsPerStep(project.rows, project.side));
-
   const order = new Map(project.palette.map((id, i) => [id, i]));
   const used = Array.from(counts.keys()).sort(
     (a, b) => (order.get(a) ?? 1e6) - (order.get(b) ?? 1e6) || a.localeCompare(b)
   );
+  return { used, counts, done, empty, emptyDone };
+}
+
+/** Скільки грамів купувати разом: сума по кольорах (кожен колір купують окремо й округлюють угору). */
+function totalGrams(c: ReturnType<typeof colorCounts>): number {
+  const grams = [...c.used.map((id) => c.counts.get(id) ?? 0), c.empty].reduce(
+    (sum, n) => sum + gramsFor(n, settings.reserve),
+    0
+  );
+  return Math.round(grams * 10) / 10;
+}
+
+function updateStats(): void {
+  const c = colorCounts();
+  const { used, counts, done, empty, emptyDone } = c;
+  $("#st-total").textContent = num(beadEls.size);
+  $("#st-step").textContent = num(beadsPerStep(project.rows, project.side));
+
   countsList.innerHTML =
     used.map((id) => countRow(id, counts.get(id) ?? 0, done.get(id) ?? 0)).join("") + countRow(null, empty, emptyDone);
+  $("#st-grams").textContent = `≈ ${fmtGrams(totalGrams(c))}`;
+  $("#st-reserve-note").textContent = settings.reserve ? ` (запас ${settings.reserve} %)` : " (без запасу)";
   syncCopy();
   // Від кількості рядків таблиці залежить, чи вміститься вона на аркуші з трафаретом.
   if (used.length !== tableRows) {
@@ -807,6 +894,13 @@ countsList.addEventListener("change", (e) => {
 });
 countsList.addEventListener("click", (e) => {
   if ((e.target as Element).closest("[data-fill-empty]")) fillEmpty();
+});
+
+const reserveSel = $<HTMLSelectElement>("#reserve");
+reserveSel.addEventListener("change", () => {
+  settings.reserve = Number(reserveSel.value);
+  saveSettings(settings);
+  updateStats();
 });
 
 /* ---------- Кольори трафарету й інструменти ---------- */
@@ -2479,6 +2573,7 @@ async function start(): Promise<void> {
   document.body.classList.toggle("two", settings.two);
   wvDim.checked = settings.dim;
   wvPath.checked = settings.path;
+  reserveSel.value = String(settings.reserve);
   setMode(settings.weave);
 
   let list: Project[] = [];

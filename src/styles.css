@@ -485,7 +485,7 @@ body.clean .stencil .gap-guide { visibility: hidden !important; }
 .counts { display: grid; margin: 0; padding: 0; list-style: none; }
 .cnt {
   display: grid;
-  grid-template-columns: 20px 6.5ch minmax(0, 1fr) 7ch 230px;
+  grid-template-columns: 20px 6.5ch minmax(0, 1fr) 7ch 8ch 230px;
   align-items: center;
   gap: 12px;
   min-height: 42px;
@@ -504,6 +504,11 @@ body.clean .stencil .gap-guide { visibility: hidden !important; }
 .cnt-name { min-width: 0; overflow-wrap: anywhere; }
 .cnt-empty .cnt-name { color: var(--muted); }
 .cnt .n { text-align: right; }
+.cnt .g { text-align: right; font-family: var(--mono); font-size: 13.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stat-reserve { display: inline-flex; align-items: center; gap: 6px; }
+.select-sm { height: 30px; padding: 0 6px; font-size: 14px; }
+.print-only { display: none; }
+body.busy, body.busy * { cursor: progress !important; }
 .cnt-act { display: flex; justify-content: flex-end; min-width: 0; }
 .cnt-replace {
   width: 100%;
@@ -884,7 +889,7 @@ body.clean .clean-bar { display: flex; }
 @media (max-width: 640px) {
   .bar { gap: 14px 20px; padding: 12px; }
   .sym-repeat { margin-left: 0; }
-  .cnt { grid-template-columns: 20px 6.5ch minmax(0, 1fr) 6ch; }
+  .cnt { grid-template-columns: 20px 6.5ch minmax(0, 1fr) 6ch 7.5ch; }
   .cnt-act { grid-column: 3 / -1; justify-content: flex-start; }
   .cnt-replace { max-width: 260px; }
   .cat-src { display: none; }
@@ -930,7 +935,9 @@ body.clean .clean-bar { display: flex; }
   .board-tools { display: none !important; }
   .stats { gap: 4px; }
   .stats-title { font-size: 16px; }
-  .cnt { grid-template-columns: 20px 6.5ch minmax(0, 1fr) 7ch; min-height: 0; padding: 1.2mm 0; break-inside: avoid; }
+  .cnt { grid-template-columns: 20px 6.5ch minmax(0, 1fr) 7ch 8ch; min-height: 0; padding: 1.2mm 0; break-inside: avoid; }
+  .stat-reserve { display: none !important; }
+  .print-only { display: inline; }
   body.clean .scroller {
     flex-direction: var(--print-dir, column);
     align-items: center;

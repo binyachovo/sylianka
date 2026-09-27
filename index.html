@@ -165,10 +165,16 @@
           </select>
         </div>
         <p class="print-info" id="print-info"></p>
-        <button type="button" class="tbtn" data-print>
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1"/><path d="M4.5 9.5h7v4h-7z"/></svg>
-          Друкувати…
-        </button>
+        <div class="row">
+          <button type="button" class="tbtn" data-print>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1"/><path d="M4.5 9.5h7v4h-7z"/></svg>
+            Друкувати…
+          </button>
+          <button type="button" class="tbtn" data-png title="Зберегти трафарет картинкою PNG, щоб надіслати, наприклад, у месенджері. «Лише трафарет, без тексту» — без назви, номерів і списку кольорів">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.8" cy="6.2" r="1.3"/><path d="M2.5 12l3.8-3.6 2.4 2.2 2.3-2 2.5 2.4"/></svg>
+            Зберегти картинкою
+          </button>
+        </div>
       </div>
     </section>
 
@@ -268,6 +274,15 @@
         <h2 class="stats-title" id="stats-title">Бісер для трафарету</h2>
         <span class="stat">Усього бісерин: <b id="st-total">—</b></span>
         <span class="stat">На один ромб довжини: <b id="st-step">—</b></span>
+        <span class="stat" title="Приблизно: у грамі Preciosa 10/0 близько 90 бісерин">Купувати: <b id="st-grams">—</b><span class="print-only" id="st-reserve-note"></span></span>
+        <label class="stat stat-reserve">запас
+          <select id="reserve" class="select select-sm" aria-label="Запас бісеру на брак і втрати">
+            <option value="0">0 %</option>
+            <option value="10">10 %</option>
+            <option value="20">20 %</option>
+            <option value="30">30 %</option>
+          </select>
+        </label>
         <button type="button" class="tbtn danger" id="clear">Стерти все</button>
       </div>
       <ul class="counts" id="st-colors"></ul>
@@ -285,6 +300,7 @@
   <div class="clean-bar" id="clean-bar">
     <label class="check"><input type="checkbox" id="two-float"> Два на аркуші</label>
     <button type="button" class="tbtn" data-print>Друкувати…</button>
+    <button type="button" class="tbtn" data-png title="Зберегти трафарет картинкою PNG">Картинкою</button>
     <button type="button" class="tbtn" id="exit-clean">Повернути налаштування</button>
   </div>
 
