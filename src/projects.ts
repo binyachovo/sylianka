@@ -10,9 +10,10 @@ export type Fills = Record<SideKey, Record<string, string>>;
 /** Нанизані бісерини в порядку позначення (окремо для кожної кількості): номер у наборі = позиція + 1. */
 export type Woven = Record<SideKey, string[]>;
 
-export const MIN_BEADS_SIDE = 3;
+export const MIN_BEADS_SIDE = 2;
 export const MAX_BEADS_SIDE = 10;
-export const SIDES = Array.from({ length: MAX_BEADS_SIDE - MIN_BEADS_SIDE + 1 }, (_, i) => MIN_BEADS_SIDE + i);
+/** Для нового трафарету й коли в даних незрозуміла кількість. */
+export const DEFAULT_SIDE = 3;
 const isSide = (v: unknown): v is Side => typeof v === "number" && Number.isInteger(v) && v >= MIN_BEADS_SIDE && v <= MAX_BEADS_SIDE;
 const isSideKey = (k: string): boolean => /^\d+$/.test(k) && isSide(Number(k));
 
@@ -86,7 +87,7 @@ export function blankProject(name: string): Project {
     name,
     rows: DEFAULT_ROWS,
     cols: DEFAULT_COLS,
-    side: 3,
+    side: DEFAULT_SIDE,
     fills: emptyFills(),
     palette: [],
     woven: emptyWoven(),
@@ -116,7 +117,7 @@ export function isLegacyProject(p: Project): boolean {
 export function ensureFields(p: Project): void {
   const w = (p as Partial<Project>).woven;
   if (!w || typeof w !== "object" || Object.values(w).some((list) => !Array.isArray(list))) p.woven = emptyWoven();
-  if (!isSide(p.side)) p.side = MIN_BEADS_SIDE;
+  if (!isSide(p.side)) p.side = DEFAULT_SIDE;
   p.gaps = sanitizeGaps((p as Partial<Project>).gaps);
   p.repeat = sanitizeRepeat((p as Partial<Project>).repeat);
 }
@@ -210,7 +211,7 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     name: typeof o.name === "string" && o.name.trim() ? o.name.trim().slice(0, 80) : fallbackName,
     rows: o.rows,
     cols: o.cols,
-    side: isSide(o.side) ? o.side : MIN_BEADS_SIDE,
+    side: isSide(o.side) ? o.side : DEFAULT_SIDE,
     fills: sanitizeFills(o.fills, mode),
     palette: mode === "id" ? sanitizePalette(o.palette) : [],
     woven: sanitizeWoven(o.woven),

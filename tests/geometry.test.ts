@@ -18,8 +18,10 @@ const beadAt = (g: ReturnType<typeof buildGeometry>, lx: number, ly: number) => 
 describe("сітка", () => {
   it("кількість бісерин: вузлові й бісерини сторін", () => {
     for (const [rows, cols, side] of [
+      [8, 20, 2],
       [8, 20, 3],
       [8, 20, 4],
+      [1, 1, 2],
       [1, 1, 3],
       [30, 7, 4],
       [6, 9, 5],
@@ -34,7 +36,7 @@ describe("сітка", () => {
   });
 
   it("кожен ромб довжини додає beadsPerStep бісерин", () => {
-    for (const side of [3, 4, 5, 7, 10]) {
+    for (const side of [2, 3, 4, 5, 7, 10]) {
       const a = buildGeometry(10, 8, side).beads.length;
       const b = buildGeometry(11, 8, side).beads.length;
       expect(b - a).toBe(beadsPerStep(8, side));
@@ -48,6 +50,17 @@ describe("сітка", () => {
       expect(e.keys.length).toBe(4);
       for (const k of e.keys) expect(keys.has(k)).toBe(true);
     }
+  });
+
+  it("2 бісерини на сторону: лише вузлові, сусідні — на відстані однієї бісерини", () => {
+    const g = buildGeometry(3, 2, 2);
+    const keys = new Set(g.beads.map((b) => b.k));
+    for (const e of g.edges) {
+      expect(e.keys.length).toBe(2);
+      for (const k of e.keys) expect(keys.has(k)).toBe(true);
+      expect(Math.hypot(e.pts[2] - e.pts[0], e.pts[3] - e.pts[1])).toBeCloseTo(10);
+    }
+    expect(beadsPerStep(8, 2)).toBe(17);
   });
 
   it("ключ бісерини перетворюється туди й назад", () => {
@@ -92,7 +105,15 @@ describe("проміжки", () => {
 
 describe("будь-яка кількість бісерин на сторону", () => {
   it("кожна лінія бісерин має ціле положення для проміжків", () => {
-    for (let side = 3; side <= 10; side++) expect(Number.isInteger(GAP_UNIT / (side - 1))).toBe(true);
+    for (let side = 2; side <= 10; side++) expect(Number.isInteger(GAP_UNIT / (side - 1))).toBe(true);
+  });
+
+  it("проміжок після ряду вузлових (2 бісерини на сторону)", () => {
+    const g0 = buildGeometry(3, 2, 2);
+    const g = buildGeometry(3, 2, 2, { unit: GAP_UNIT, x: [], y: [GAP_UNIT] });
+    expect(beadAt(g, 0, 1).y).toBeCloseTo(beadAt(g0, 0, 1).y);
+    expect(beadAt(g, 1, 2).y).toBeCloseTo(beadAt(g0, 1, 2).y + g.gap);
+    expect(g.gap).toBeCloseTo(g.H);
   });
 
   it("проміжок між лініями 1/9 і 2/9 (10 бісерин на сторону)", () => {
@@ -108,8 +129,8 @@ describe("будь-яка кількість бісерин на сторону"
     expect(buildGeometry(2, 1, 8).gap).toBeCloseTo(buildGeometry(2, 1, 4).H);
   });
 
-  it("дзеркальні бісерини існують для 5–10 на сторону", () => {
-    for (let side = 5; side <= 10; side++) {
+  it("дзеркальні бісерини існують для 2 і 5–10 на сторону", () => {
+    for (const side of [2, 5, 6, 7, 8, 9, 10]) {
       const g = buildGeometry(7, 3, side);
       const keys = new Set(g.beads.map((b) => b.k));
       const s: Symmetry = { tb: true, lr: true, every: 2, rows: 3, cols: 7 };

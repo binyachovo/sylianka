@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GAP_UNIT, knotLine } from "../src/geometry";
-import { DEFAULT_REPEAT, fitSize, maxCells, sanitizeGaps, sanitizeProjectData, sanitizeRepeat } from "../src/projects";
+import { DEFAULT_REPEAT, DEFAULT_SIDE, fitSize, maxCells, sanitizeGaps, sanitizeProjectData, sanitizeRepeat } from "../src/projects";
 
 describe("перевірка даних трафарету", () => {
   it("проміжки першого вигляду (номери ромбів і рядів) переводяться в лінії бісерин", () => {
@@ -18,6 +18,7 @@ describe("перевірка даних трафарету", () => {
   });
 
   it("розмір обмежується кількістю бісерин у ромбі", () => {
+    expect(maxCells(2)).toBe(12000);
     expect(maxCells(3)).toBe(12000);
     expect(maxCells(4)).toBe(12000);
     expect(maxCells(10)).toBeLessThan(4000);
@@ -58,7 +59,7 @@ describe("перевірка даних трафарету", () => {
     expect(d?.repeat).toBe(12);
   });
 
-  it("будь-яка кількість бісерин на сторону від 3 до 10", () => {
+  it("будь-яка кількість бісерин на сторону від 2 до 10", () => {
     const d = sanitizeProjectData(
       { rows: 2, cols: 3, side: 7, fills: { "7": { "1.000,0.000": "p:23980" }, "11": { "1.000,0.000": "p:23980" }, x: {} } },
       "x",
@@ -67,8 +68,12 @@ describe("перевірка даних трафарету", () => {
     expect(d?.side).toBe(7);
     expect(d?.fills["7"]).toEqual({ "1.000,0.000": "p:23980" });
     expect(d?.fills["11"]).toBeUndefined();
-    expect(sanitizeProjectData({ rows: 2, cols: 3, side: 11 }, "x", "id")?.side).toBe(3);
-    expect(sanitizeProjectData({ rows: 2, cols: 3, side: 2.5 }, "x", "id")?.side).toBe(3);
+    const two = sanitizeProjectData({ rows: 2, cols: 3, side: 2, fills: { "2": { "1.000,0.000": "p:23980" } } }, "x", "id");
+    expect(two?.side).toBe(2);
+    expect(two?.fills["2"]).toEqual({ "1.000,0.000": "p:23980" });
+    for (const bad of [1, 11, 2.5, "4", null]) {
+      expect(sanitizeProjectData({ rows: 2, cols: 3, side: bad }, "x", "id")?.side).toBe(DEFAULT_SIDE);
+    }
   });
 
   it("не трафарет — null", () => {

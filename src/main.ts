@@ -55,8 +55,10 @@ import {
   type Frame
 } from "./print";
 import {
+  MAX_BEADS_SIDE,
   MAX_PALETTE,
   MAX_SIDE,
+  MIN_BEADS_SIDE,
   blankProject,
   cloneFills,
   cloneGaps,
@@ -127,6 +129,7 @@ const redoBtns = $$<HTMLButtonElement>("[data-redo]");
 const clearBtn = $<HTMLButtonElement>("#clear");
 const inRows = $<HTMLInputElement>("#in-rows");
 const inCols = $<HTMLInputElement>("#in-cols");
+const inSide = $<HTMLInputElement>("#in-side");
 const cleanBox = $<HTMLInputElement>("#clean");
 const twoBox = $<HTMLInputElement>("#two");
 const twoFloat = $<HTMLInputElement>("#two-float");
@@ -183,7 +186,7 @@ let vbWidth = 1;
 let vbHeight = 1;
 
 const fills = (): Record<string, string> => (project.fills[sideKey(project.side)] ??= {});
-/** Позначки плетіння поточної сітки (3 чи 4 бісерини на сторону). */
+/** Позначки плетіння поточної сітки (для поточної кількості бісерин на сторону). */
 const weave = new Weave();
 const wovenList = (): string[] => (project.woven[sideKey(project.side)] ??= []);
 
@@ -667,8 +670,8 @@ printBead.addEventListener("change", () => {
 
 let imageBusy = false;
 
-/** Зберігає трафарет картинкою: з назвою, номерами й списком кольорів або (у «лише трафарет») без тексту. */
-async function saveImage(): Promise<void> {
+/** Зберігає трафарет картинкою: з назвою, номерами й списком кольорів або (withText = false) лише трафарет. */
+async function saveImage(withText: boolean): Promise<void> {
   if (!geom || imageBusy) return;
   imageBusy = true;
   const buttons = $$<HTMLButtonElement>("[data-png]");
@@ -677,7 +680,7 @@ async function saveImage(): Promise<void> {
   try {
     const f = fills();
     let text: ImageText | null = null;
-    if (!ui.clean) {
+    if (withText) {
       const c = colorCounts();
       const legend: LegendRow[] = c.used.map((id) => {
         const v = colorView(id);
@@ -706,7 +709,7 @@ async function saveImage(): Promise<void> {
     }
     const png = await renderStencilPng({ geom, colorOf: (k) => (f[k] ? hexOf(f[k]) : undefined), text });
     if (!png) {
-      showWarn("Не вдалося зробити картинку: браузеру забракло пам'яті. Спробуйте «Лише трафарет, без тексту» або менший трафарет.", 8000);
+      showWarn("Не вдалося зробити картинку: браузеру забракло пам'яті. Спробуйте «Картинкою без тексту» або менший трафарет.", 8000);
       return;
     }
     await saveImageToFile(project, png);
@@ -717,10 +720,31 @@ async function saveImage(): Promise<void> {
   }
 }
 
-for (const b of $$<HTMLButtonElement>("[data-png]")) b.addEventListener("click", () => void saveImage());
+/* ---------- Меню «Друк» і «Експортувати» (угорі праворуч) ---------- */
+
+const printBtn = $<HTMLButtonElement>("#print-btn");
+const exportBtn = $<HTMLButtonElement>("#export-btn");
+const showPrintPop = popover(printBtn, $("#print-pop"), updatePrintInfo);
+const showExportPop = popover(exportBtn, $("#export-pop"), () => {});
+
+for (const b of $$<HTMLButtonElement>("[data-png]")) {
+  b.addEventListener("click", () => {
+    if (b.closest("#export-pop")) {
+      showExportPop(false);
+      exportBtn.focus();
+    }
+    void saveImage(b.dataset.png !== "plain");
+  });
+}
 
 for (const b of $$<HTMLButtonElement>("[data-print]")) {
-  b.addEventListener("click", () => window.print());
+  b.addEventListener("click", () => {
+    if (b.closest("#print-pop")) {
+      showPrintPop(false);
+      printBtn.focus();
+    }
+    window.print();
+  });
 }
 
 function syncCopy(): void {
@@ -740,9 +764,7 @@ function updateMeta(): void {
   $("#meta").textContent = metaText();
   inRows.value = String(project.rows);
   inCols.value = String(project.cols);
-  for (const b of $$<HTMLButtonElement>("button[data-s]")) {
-    b.setAttribute("aria-pressed", String(Number(b.dataset.s) === project.side));
-  }
+  inSide.value = String(project.side);
 }
 
 /* ---------- Підрахунок бісеру ---------- */
@@ -1435,14 +1457,24 @@ function popover(btn: HTMLButtonElement, pop: HTMLElement, onOpen: () => void): 
     btn.setAttribute("aria-expanded", String(open));
     if (!open) return;
     onOpen();
-    // Не виходити за правий край вікна: тоді панель вирівнюється по правому краю кнопки.
-    pop.style.left = "";
-    pop.style.right = "";
-    if (pop.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
-      pop.style.left = "auto";
-      pop.style.right = "0";
-    }
+    place();
   };
+  // Панель — під кнопкою від її лівого краю; якщо так виходить за правий край вікна —
+  // вирівнюється по правому краю кнопки, але не заходить за поле сторінки ліворуч.
+  const place = (): void => {
+    const margin = 16;
+    pop.style.left = "0px";
+    pop.style.right = "auto";
+    const vw = document.documentElement.clientWidth;
+    const anchor = (pop.offsetParent ?? btn).getBoundingClientRect();
+    const w = pop.offsetWidth;
+    if (anchor.left + w <= vw - margin) return;
+    const left = Math.max(anchor.width - w, margin - anchor.left);
+    pop.style.left = `${Math.round(left)}px`;
+  };
+  window.addEventListener("resize", () => {
+    if (!pop.hidden) place();
+  });
   btn.addEventListener("click", () => show(pop.hidden));
   document.addEventListener(
     "pointerdown",
@@ -2209,27 +2241,41 @@ for (const b of $$<HTMLButtonElement>("[data-step]")) {
 }
 inRows.addEventListener("change", () => setSize("rows", inRows.value));
 inCols.addEventListener("change", () => setSize("cols", inCols.value));
-for (const b of $$<HTMLButtonElement>("button[data-s]")) {
-  b.addEventListener("click", () => {
-    const next: Side = Number(b.dataset.s);
-    if (!Number.isInteger(next) || next === project.side) return;
-    // Більші комірки — більше бісерин у кожному ромбі: завеликий трафарет спершу треба зменшити.
-    const cells = maxCells(next);
-    if (project.rows * project.cols > cells) {
-      showWarn(
-        `Для ${next} бісерин на сторону трафарет може мати до ${num(cells)} ромбів разом, ` +
-          `а зараз ${num(project.rows * project.cols)}. Зменште висоту чи ширину й спробуйте ще раз.`,
-        9000
-      );
-      return;
-    }
-    drawHistory.push({ kind: "side", before: project.side, after: next });
-    project.side = next;
-    render();
-    syncHistory();
-    markDirty();
-  });
+/** Бісерин на сторону ромба: ціле від MIN_BEADS_SIDE до MAX_BEADS_SIDE. */
+function setSide(raw: string | number): void {
+  if (typeof raw === "string" && !/^\s*-?\d+([.,]\d+)?\s*$/.test(raw)) {
+    updateMeta();
+    return;
+  }
+  const v = Math.round(Number(String(raw).replace(",", ".")));
+  const next: Side = clamp(Number.isFinite(v) ? v : project.side, MIN_BEADS_SIDE, MAX_BEADS_SIDE);
+  if (next !== v) showWarn(`Бісерин на сторону ромба може бути від ${MIN_BEADS_SIDE} до ${MAX_BEADS_SIDE}.`);
+  if (next === project.side) {
+    updateMeta();
+    return;
+  }
+  // Більші комірки — більше бісерин у кожному ромбі: завеликий трафарет спершу треба зменшити.
+  const cells = maxCells(next);
+  if (project.rows * project.cols > cells) {
+    showWarn(
+      `Для ${next} бісерин на сторону трафарет може мати до ${num(cells)} ромбів разом, ` +
+        `а зараз ${num(project.rows * project.cols)}. Зменште висоту чи ширину й спробуйте ще раз.`,
+      9000
+    );
+    updateMeta();
+    return;
+  }
+  drawHistory.push({ kind: "side", before: project.side, after: next });
+  project.side = next;
+  render();
+  syncHistory();
+  markDirty();
 }
+
+for (const b of $$<HTMLButtonElement>("[data-side-step]")) {
+  b.addEventListener("click", () => setSide(project.side + Number(b.dataset.sideStep)));
+}
+inSide.addEventListener("change", () => setSide(inSide.value));
 
 /* ---------- Друк ---------- */
 
@@ -2240,6 +2286,8 @@ function setClean(on: boolean): void {
   if (on) {
     showGapsPop(false);
     showMulPop(false);
+    showPrintPop(false);
+    showExportPop(false);
   }
   cleanBox.checked = on;
   document.body.classList.toggle("clean", on);
@@ -2266,7 +2314,7 @@ twoBox.addEventListener("change", () => setTwo(twoBox.checked));
 twoFloat.addEventListener("change", () => setTwo(twoFloat.checked));
 exitBtn.addEventListener("click", () => {
   setClean(false);
-  cleanBox.focus();
+  printBtn.focus();
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && ui.clean && !document.querySelector("dialog[open]")) setClean(false);
@@ -2528,6 +2576,8 @@ async function restoreBackup(b: ParsedBackup): Promise<string> {
 
 $("#open-projects").addEventListener("click", () => void dialog.open());
 $("#export-project").addEventListener("click", async () => {
+  showExportPop(false);
+  exportBtn.focus();
   await flushSave();
   await saveProjectToFile(project);
 });

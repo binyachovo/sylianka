@@ -29,10 +29,56 @@
           <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="5" height="5" rx="1"/><rect x="9" y="2.5" width="5" height="5" rx="1"/><rect x="2" y="9.5" width="5" height="5" rx="1"/><rect x="9" y="9.5" width="5" height="5" rx="1"/></svg>
           Мої трафарети
         </button>
-        <button type="button" class="tbtn" id="export-project">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5h7.5L13 5v8.5H3z"/><path d="M5.5 2.5v3.5h5v-3.5"/><path d="M5.5 13.5v-4h5v4"/></svg>
-          Зберегти у файл
-        </button>
+        <div class="pop-wrap">
+          <button type="button" class="tbtn" id="export-btn" aria-expanded="false" aria-controls="export-pop">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5V2"/><path d="M4.8 5.2L8 2l3.2 3.2"/><path d="M2.5 9.5v4h11v-4"/></svg>
+            Експортувати
+          </button>
+          <div class="pop pop-menu" id="export-pop" role="group" aria-label="Експортувати" hidden>
+            <button type="button" class="menu-item" id="export-project">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5h7.5L13 5v8.5H3z"/><path d="M5.5 2.5v3.5h5v-3.5"/><path d="M5.5 13.5v-4h5v4"/></svg>
+              <span><b>Зберегти у файл</b><small>Трафарет, щоб відкрити пізніше чи на іншому пристрої</small></span>
+            </button>
+            <button type="button" class="menu-item" data-png="text">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.8" cy="6.2" r="1.3"/><path d="M2.5 12l3.8-3.6 2.4 2.2 2.3-2 2.5 2.4"/></svg>
+              <span><b>Зберегти картинкою</b><small>PNG з назвою, номерами й списком бісеру — щоб надіслати, наприклад, у месенджері</small></span>
+            </button>
+            <button type="button" class="menu-item" data-png="plain">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M8 5l3 3-3 3-3-3z"/></svg>
+              <span><b>Картинкою без тексту</b><small>PNG лише з трафаретом</small></span>
+            </button>
+          </div>
+        </div>
+        <div class="pop-wrap">
+          <button type="button" class="tbtn" id="print-btn" aria-expanded="false" aria-controls="print-pop">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1"/><path d="M4.5 9.5h7v4h-7z"/></svg>
+            Друк
+          </button>
+          <div class="pop pop-print" id="print-pop" role="group" aria-label="Друк" hidden>
+            <div class="checks">
+              <label class="check"><input type="checkbox" id="clean"> Лише трафарет, без тексту</label>
+              <label class="check"><input type="checkbox" id="two"> Два трафарети на аркуші</label>
+            </div>
+            <div class="pop-line">
+              <label for="print-bead">Бісеринки на папері</label>
+              <select id="print-bead" class="select">
+                <option value="">вмістити на аркуш</option>
+                <option value="2.3">як справжні, 2,3 мм</option>
+                <option value="3">3 мм</option>
+                <option value="4">4 мм</option>
+                <option value="5">5 мм</option>
+                <option value="6">6 мм</option>
+              </select>
+            </div>
+            <p class="print-info" id="print-info"></p>
+            <div class="pop-line">
+              <button type="button" class="tbtn primary" data-print>
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1"/><path d="M4.5 9.5h7v4h-7z"/></svg>
+                Друкувати…
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -47,31 +93,39 @@
       </button>
     </div>
 
-    <section class="bar" id="bar-draw" role="tabpanel" aria-labelledby="mode-draw">
+    <section class="bar bar-stack" id="bar-draw" role="tabpanel" aria-labelledby="mode-draw">
       <div class="grp grp-colors">
-        <span class="glabel" id="l-color">Кольори трафарету · зараз: <b id="cur-name">не вибрано</b></span>
+        <span class="glabel" id="l-color">Кольори трафарету<span class="cur-line"><span class="cur-sep"> · </span>зараз: <b id="cur-name">не вибрано</b></span></span>
         <div class="palette" id="palette" role="group" aria-labelledby="l-color"></div>
       </div>
 
-      <div class="grp">
-        <span class="glabel">Інструменти</span>
+      <div class="grp grp-size">
+        <span class="glabel">Розміри</span>
         <div class="row">
-          <button type="button" class="tbtn" id="erase" aria-pressed="false">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.4l4.4 4.4-6.2 6.7H4.6L2.3 11.2z"/><path d="M5.6 6.3l4.2 4.2"/><path d="M8.5 13.5h5.2"/></svg>
-            Гумка
-          </button>
-          <button type="button" class="tbtn" id="fill" aria-pressed="false" title="Заливка (F): клік заливає всю область бісерин того самого кольору, з'єднаних нитками">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.6 2.2l5.6 5.6-4.9 4.9a1.3 1.3 0 01-1.8 0L2 9.2a1.3 1.3 0 010-1.8z"/><path d="M2.4 8.4h9.4"/><path d="M4.6 1.4l2 2"/><path d="M13.6 10.3c.8 1.1 1.2 1.9 1.2 2.5a1.2 1.2 0 01-2.4 0c0-.6.4-1.4 1.2-2.5z"/></svg>
-            Заливка
-          </button>
-          <button type="button" class="tbtn" id="undo" data-undo title="Скасувати (Ctrl+Z)" disabled>
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
-            Скасувати
-          </button>
-          <button type="button" class="tbtn" id="redo" data-redo title="Повторити (Ctrl+Y)" disabled>
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 4l3 3-3 3"/><path d="M13.5 7h-7a4 4 0 000 8H9"/></svg>
-            Повторити
-          </button>
+          <div class="field">
+            <label for="in-rows">У висоту</label>
+            <div class="stepper">
+              <button type="button" data-step="rows" data-d="-1" aria-label="Менше рядів">−</button>
+              <input id="in-rows" type="number" min="1" inputmode="numeric">
+              <button type="button" data-step="rows" data-d="1" aria-label="Більше рядів">+</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="in-cols">У ширину</label>
+            <div class="stepper">
+              <button type="button" data-step="cols" data-d="-1" aria-label="Менше ромбів у ширину">−</button>
+              <input id="in-cols" type="number" min="1" inputmode="numeric">
+              <button type="button" data-step="cols" data-d="1" aria-label="Більше ромбів у ширину">+</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="in-side">Бісерин на сторону ромба</label>
+            <div class="stepper">
+              <button type="button" data-side-step="-1" aria-label="Менше бісерин на сторону ромба">−</button>
+              <input id="in-side" type="number" min="2" max="10" inputmode="numeric">
+              <button type="button" data-side-step="1" aria-label="Більше бісерин на сторону ромба">+</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -86,18 +140,20 @@
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13" stroke-dasharray="1.6 1.9"/><path d="M5.8 4.2L2 11.8h3.8z"/><path d="M10.2 4.2l3.8 7.6h-3.8z"/></svg>
             Ліво–право
           </button>
-          <button type="button" class="tbtn sym-repeat" id="repeat" aria-pressed="false" title="Фарбувати одразу в усіх повторах візерунка вздовж трафарету">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="5" width="3.6" height="6" rx="0.8"/><rect x="6.2" y="5" width="3.6" height="6" rx="0.8"/><rect x="10.9" y="5" width="3.6" height="6" rx="0.8"/></svg>
-            Повтор
-          </button>
-          <div class="field">
-            <label for="repeat-n" id="repeat-lead">кожні</label>
-            <div class="stepper">
-              <button type="button" data-rep="-1" aria-label="Коротший повтор">−</button>
-              <input id="repeat-n" type="number" min="1" inputmode="numeric" aria-labelledby="repeat repeat-lead repeat-n repeat-unit">
-              <button type="button" data-rep="1" aria-label="Довший повтор">+</button>
+          <div class="sym-rep">
+            <button type="button" class="tbtn" id="repeat" aria-pressed="false" title="Фарбувати одразу в усіх повторах візерунка вздовж трафарету">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="5" width="3.6" height="6" rx="0.8"/><rect x="6.2" y="5" width="3.6" height="6" rx="0.8"/><rect x="10.9" y="5" width="3.6" height="6" rx="0.8"/></svg>
+              Повтор
+            </button>
+            <div class="field">
+              <label for="repeat-n" id="repeat-lead">кожні</label>
+              <div class="stepper">
+                <button type="button" data-rep="-1" aria-label="Коротший повтор">−</button>
+                <input id="repeat-n" type="number" min="1" inputmode="numeric" aria-labelledby="repeat repeat-lead repeat-n repeat-unit">
+                <button type="button" data-rep="1" aria-label="Довший повтор">+</button>
+              </div>
+              <span id="repeat-unit">ромбів</span>
             </div>
-            <span id="repeat-unit">ромбів</span>
           </div>
           <div class="pop-wrap">
             <button type="button" class="tbtn" id="multiply-btn" aria-expanded="false" aria-controls="multiply-pop" title="Скопіювати візерунок вибраних ромбів праворуч до кінця трафарету">Розмножити…</button>
@@ -118,67 +174,23 @@
       </div>
 
       <div class="grp">
-        <span class="glabel">Розмір, ромбів</span>
+        <span class="glabel">Інструменти</span>
         <div class="row">
-          <div class="field">
-            <label for="in-rows">У висоту</label>
-            <div class="stepper">
-              <button type="button" data-step="rows" data-d="-1" aria-label="Менше рядів">−</button>
-              <input id="in-rows" type="number" min="1" inputmode="numeric">
-              <button type="button" data-step="rows" data-d="1" aria-label="Більше рядів">+</button>
-            </div>
-          </div>
-          <div class="field">
-            <label for="in-cols">У ширину</label>
-            <div class="stepper">
-              <button type="button" data-step="cols" data-d="-1" aria-label="Менше ромбів у ширину">−</button>
-              <input id="in-cols" type="number" min="1" inputmode="numeric">
-              <button type="button" data-step="cols" data-d="1" aria-label="Більше ромбів у ширину">+</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grp">
-        <span class="glabel" id="l-s">Бісерин на сторону ромба</span>
-        <div class="seg seg-side" role="group" aria-labelledby="l-s">
-          <button type="button" data-s="3" aria-pressed="true">3</button>
-          <button type="button" data-s="4" aria-pressed="false">4</button>
-          <button type="button" data-s="5" aria-pressed="false">5</button>
-          <button type="button" data-s="6" aria-pressed="false">6</button>
-          <button type="button" data-s="7" aria-pressed="false">7</button>
-          <button type="button" data-s="8" aria-pressed="false">8</button>
-          <button type="button" data-s="9" aria-pressed="false">9</button>
-          <button type="button" data-s="10" aria-pressed="false">10</button>
-        </div>
-      </div>
-
-      <div class="grp grp-print">
-        <span class="glabel">Друк</span>
-        <div class="checks">
-          <label class="check"><input type="checkbox" id="clean"> Лише трафарет, без тексту</label>
-          <label class="check"><input type="checkbox" id="two"> Два трафарети на аркуші</label>
-        </div>
-        <div class="row">
-          <label class="field" for="print-bead">Бісеринки на папері</label>
-          <select id="print-bead" class="select">
-            <option value="">вмістити на аркуш</option>
-            <option value="2.3">як справжні, 2,3 мм</option>
-            <option value="3">3 мм</option>
-            <option value="4">4 мм</option>
-            <option value="5">5 мм</option>
-            <option value="6">6 мм</option>
-          </select>
-        </div>
-        <p class="print-info" id="print-info"></p>
-        <div class="row">
-          <button type="button" class="tbtn" data-print>
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1"/><path d="M4.5 9.5h7v4h-7z"/></svg>
-            Друкувати…
+          <button type="button" class="tbtn" id="erase" aria-pressed="false">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.4l4.4 4.4-6.2 6.7H4.6L2.3 11.2z"/><path d="M5.6 6.3l4.2 4.2"/><path d="M8.5 13.5h5.2"/></svg>
+            Гумка
           </button>
-          <button type="button" class="tbtn" data-png title="Зберегти трафарет картинкою PNG, щоб надіслати, наприклад, у месенджері. «Лише трафарет, без тексту» — без назви, номерів і списку кольорів">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.8" cy="6.2" r="1.3"/><path d="M2.5 12l3.8-3.6 2.4 2.2 2.3-2 2.5 2.4"/></svg>
-            Зберегти картинкою
+          <button type="button" class="tbtn" id="fill" aria-pressed="false" title="Заливка (F): клік заливає всю область бісерин того самого кольору, з'єднаних нитками">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.6 2.2l5.6 5.6-4.9 4.9a1.3 1.3 0 01-1.8 0L2 9.2a1.3 1.3 0 010-1.8z"/><path d="M2.4 8.4h9.4"/><path d="M4.6 1.4l2 2"/><path d="M13.6 10.3c.8 1.1 1.2 1.9 1.2 2.5a1.2 1.2 0 01-2.4 0c0-.6.4-1.4 1.2-2.5z"/></svg>
+            Заливка
+          </button>
+          <button type="button" class="tbtn" id="undo" data-undo title="Скасувати (Ctrl+Z)" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
+            Скасувати
+          </button>
+          <button type="button" class="tbtn" id="redo" data-redo title="Повторити (Ctrl+Y)" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 4l3 3-3 3"/><path d="M13.5 7h-7a4 4 0 000 8H9"/></svg>
+            Повторити
           </button>
         </div>
       </div>
@@ -306,7 +318,7 @@
   <div class="clean-bar" id="clean-bar">
     <label class="check"><input type="checkbox" id="two-float"> Два на аркуші</label>
     <button type="button" class="tbtn" data-print>Друкувати…</button>
-    <button type="button" class="tbtn" data-png title="Зберегти трафарет картинкою PNG">Картинкою</button>
+    <button type="button" class="tbtn" data-png="plain" title="Зберегти трафарет картинкою PNG">Картинкою</button>
     <button type="button" class="tbtn" id="exit-clean">Повернути налаштування</button>
   </div>
 
