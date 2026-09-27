@@ -72,17 +72,69 @@ export interface StripPlan {
   beadMm: number;
   /** Бісеринки довелося зменшити, щоб усі ряди вмістилися по висоті аркуша. */
   reduced: boolean;
-  /** Ромбів у смузі (остання може бути коротшою). */
+  /** Найбільше ромбів в одній смузі. */
   perStrip: number;
   strips: number;
   stripsPerPage: number;
   pages: number;
+  /** Ромби кожної смуги: [перший, після останнього), з 0. */
+  ranges: [number, number][];
+}
+
+/** Ліва межа смуги, що починається з ромба c0: якщо перед ним проміжок, смуга його не містить. */
+export function stripStart(geom: Geometry, c0: number): number {
+  return geom.colX[c0] + (geom.colGaps.has(c0) ? geom.gap : 0);
+}
+
+const stripWidth = (geom: Geometry, c0: number, c1: number): number => geom.colX[c1] - stripStart(geom, c0);
+
+/**
+ * Жадібний поділ на смуги не ширші за maxW (у кожній смузі щонайменше один ромб).
+ * alignGaps — закінчувати смугу на останньому проміжку, що в неї вліз.
+ */
+function split(geom: Geometry, cols: number, maxW: number, alignGaps: boolean): [number, number][] {
+  const out: [number, number][] = [];
+  let c0 = 0;
+  while (c0 < cols) {
+    let c1 = c0 + 1;
+    while (c1 < cols && stripWidth(geom, c0, c1 + 1) <= maxW + 1e-9) c1++;
+    if (alignGaps && c1 < cols) {
+      let g = c1;
+      while (g > c0 && !geom.colGaps.has(g)) g--;
+      if (g > c0) c1 = g;
+    }
+    out.push([c0, c1]);
+    c0 = c1;
+  }
+  return out;
+}
+
+/**
+ * Смуги не ширші за maxW. Якщо поділ по проміжках не додає аркушів — ріжемо по проміжках;
+ * інакше беремо найменше смуг і вирівнюємо їх за шириною (найширша якомога вужча).
+ */
+function stripRanges(geom: Geometry, cols: number, maxW: number, perPage: number): [number, number][] {
+  const greedy = split(geom, cols, maxW, false);
+  const n = greedy.length;
+  if (n === 1) return greedy;
+  if (geom.colGaps.size) {
+    const aligned = split(geom, cols, maxW, true);
+    if (Math.ceil(aligned.length / perPage) <= Math.ceil(n / perPage)) return aligned;
+  }
+  let lo = 0;
+  let hi = maxW;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (split(geom, cols, mid, false).length <= n) hi = mid;
+    else lo = mid;
+  }
+  const even = split(geom, cols, hi, false);
+  return even.length === n ? even : greedy;
 }
 
 /** Як поділити трафарет на смуги й аркуші для бісеринок заданого розміру. */
 export function planStrips(geom: Geometry, cols: number, frame: Frame, beadMm: number, header: boolean): StripPlan {
   const hUnits = geom.height + frame.top + frame.bottom;
-  const colW = 2 * geom.H;
   let best: StripPlan | null = null;
   for (const [pw, ph, orient] of PAGES) {
     const aw = pw - 2 * MARGIN;
@@ -93,12 +145,22 @@ export function planStrips(geom: Geometry, cols: number, frame: Frame, beadMm: n
       scale = ah / hUnits;
       reduced = true;
     }
-    const fit = Math.max(1, Math.floor((aw / scale - frame.left - frame.right) / colW));
-    const strips = Math.ceil(cols / fit);
-    const perStrip = Math.ceil(cols / strips);
     const stripsPerPage = Math.max(1, Math.floor((ah + STRIP_GAP) / (hUnits * scale + STRIP_GAP)));
+    const ranges = stripRanges(geom, cols, aw / scale - frame.left - frame.right, stripsPerPage);
+    const strips = ranges.length;
+    const perStrip = Math.max(...ranges.map(([a, b]) => b - a));
     const pages = Math.ceil(strips / stripsPerPage);
-    const plan: StripPlan = { orient, scale, beadMm: 2 * BEAD_R * scale, reduced, perStrip, strips, stripsPerPage, pages };
+    const plan: StripPlan = {
+      orient,
+      scale,
+      beadMm: 2 * BEAD_R * scale,
+      reduced,
+      perStrip,
+      strips,
+      stripsPerPage,
+      pages,
+      ranges
+    };
     if (!best || better(plan, best)) best = plan;
   }
   return best as StripPlan;
@@ -117,10 +179,15 @@ export const fmtMm = (v: number): string => `${mm.format(v)} мм`;
 /** Короткий опис плану для панелі «Друк». */
 export function describePlan(p: StripPlan): string {
   const pages = `${p.pages} ${plural(p.pages, "аркуш", "аркуші", "аркушів")}`;
+  // «по N ромбів», якщо всі смуги, крім останньої, однакові; інакше «до N ромбів».
+  const even = p.ranges.slice(0, -1).every(([a, b]) => b - a === p.perStrip);
   const strips =
     p.strips === 1
       ? "одна смуга"
-      : `${p.strips} ${plural(p.strips, "смуга", "смуги", "смуг")} по ${p.perStrip} ${plural(p.perStrip, "ромбу", "ромби", "ромбів")}`;
+      : `${p.strips} ${plural(p.strips, "смуга", "смуги", "смуг")} ` +
+        (even
+          ? `по ${p.perStrip} ${plural(p.perStrip, "ромбу", "ромби", "ромбів")}`
+          : `до ${p.perStrip} ${plural(p.perStrip, "ромба", "ромбів", "ромбів")}`);
   const bead = p.reduced
     ? `бісеринки зменшено до ${fmtMm(p.beadMm)}, щоб вмістилися всі ряди`
     : `бісеринки ${fmtMm(p.beadMm)}`;

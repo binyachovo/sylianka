@@ -1,3 +1,4 @@
+import type { Gaps } from "./geometry";
 import type { Fills, Side, SideKey } from "./projects";
 
 /** Одна дія користувача, яку можна скасувати й повторити. */
@@ -6,6 +7,7 @@ export type Action =
   | { kind: "size"; before: [number, number]; after: [number, number] }
   | { kind: "side"; before: Side; after: Side }
   | { kind: "clear"; before: Fills; after: Fills }
+  | { kind: "gaps"; before: Gaps; after: Gaps }
   /** Позначено нанизаними (додано в кінець набору в цьому порядку). */
   | { kind: "mark"; side: SideKey; keys: string[] }
   /** Знято позначки: [позиція в наборі на момент зняття, ключ] у порядку зняття. */

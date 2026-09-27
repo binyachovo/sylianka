@@ -1,3 +1,4 @@
+import type { Gaps } from "./geometry";
 import { clamp } from "./util";
 
 export type Side = 3 | 4;
@@ -17,6 +18,8 @@ export interface ProjectData {
   palette: string[];
   /** Позначки плетіння. */
   woven: Woven;
+  /** Проміжки для вигляду (після ромба / ряду, з 1). */
+  gaps: Gaps;
 }
 
 export interface Project extends ProjectData {
@@ -68,6 +71,7 @@ export function blankProject(name: string): Project {
     fills: emptyFills(),
     palette: [],
     woven: emptyWoven(),
+    gaps: { cols: [], rows: [] },
     createdAt: now,
     updatedAt: now
   };
@@ -85,10 +89,25 @@ export function isLegacyProject(p: Project): boolean {
   return !Array.isArray((p as Partial<Project>).palette);
 }
 
-/** Трафарети, збережені до режиму плетіння, не мають позначок — додаємо порожні. */
+/** Трафарети, збережені до режиму плетіння чи проміжків, не мають цих полів — додаємо порожні. */
 export function ensureWoven(p: Project): void {
   const w = (p as Partial<Project>).woven;
   if (!w || !Array.isArray(w["3"]) || !Array.isArray(w["4"])) p.woven = emptyWoven();
+  const g = (p as Partial<Project>).gaps;
+  if (!g || !Array.isArray(g.cols) || !Array.isArray(g.rows)) p.gaps = { cols: [], rows: [] };
+}
+
+export const cloneGaps = (g: Gaps): Gaps => ({ cols: [...g.cols], rows: [...g.rows] });
+
+/** Перевіряє проміжки: цілі числа 1…MAX_SIDE, без повторів, за зростанням. */
+export function sanitizeGaps(raw: unknown): Gaps {
+  const list = (v: unknown): number[] =>
+    Array.isArray(v)
+      ? [...new Set(v.filter((n): n is number => Number.isInteger(n) && n >= 1 && n < MAX_SIDE))].sort((a, b) => a - b)
+      : [];
+  if (!raw || typeof raw !== "object") return { cols: [], rows: [] };
+  const o = raw as Record<string, unknown>;
+  return { cols: list(o.cols), rows: list(o.rows) };
 }
 
 /**
@@ -148,7 +167,8 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     side: o.side === 4 ? 4 : 3,
     fills: sanitizeFills(o.fills, mode),
     palette: mode === "id" ? sanitizePalette(o.palette) : [],
-    woven: sanitizeWoven(o.woven)
+    woven: sanitizeWoven(o.woven),
+    gaps: sanitizeGaps(o.gaps)
   };
   fitSize(data);
   return data;

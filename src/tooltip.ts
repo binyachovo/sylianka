@@ -1,9 +1,8 @@
-/** Підказка біля курсора, коли миша над бісеринкою. */
-export function initBeadTooltip(
+/** Підказка біля курсора над трафаретом: текст для точки дає textAt (null — сховати). */
+export function initTooltip(
   svg: SVGSVGElement,
   tip: HTMLElement,
-  keyAt: (e: MouseEvent) => string | null,
-  textFor: (key: string) => string | null
+  textAt: (e: MouseEvent) => string | null
 ): { hide(): void } {
   let current = "";
 
@@ -29,18 +28,13 @@ export function initBeadTooltip(
       if (!tip.hidden) hide();
       return;
     }
-    const key = keyAt(e);
-    if (!key) {
+    const text = textAt(e);
+    if (!text) {
       if (!tip.hidden) hide();
       return;
     }
-    if (key !== current || tip.hidden) {
-      const text = textFor(key);
-      if (!text) {
-        hide();
-        return;
-      }
-      current = key;
+    if (text !== current || tip.hidden) {
+      current = text;
       tip.textContent = text;
       tip.hidden = false;
     }

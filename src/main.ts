@@ -24,17 +24,18 @@ import {
 } from "./colors";
 import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
 import { parseProjectFile, saveBackupToFile, saveProjectToFile, type ParsedBackup } from "./files";
-import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Geometry } from "./geometry";
+import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Edge, type Gaps, type Geometry } from "./geometry";
 import { HitIndex } from "./hit";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
-import { applyPrintLayout, describePlan, fitScaleWithText, fmtMm, planStrips, type Frame } from "./print";
+import { applyPrintLayout, describePlan, fitScaleWithText, fmtMm, planStrips, stripStart, type Frame } from "./print";
 import {
   MAX_CELLS,
   MAX_PALETTE,
   MAX_SIDE,
   blankProject,
   cloneFills,
+  cloneGaps,
   emptyWoven,
   ensureWoven,
   fitSize,
@@ -50,7 +51,7 @@ import {
 import { initProjectsDialog } from "./projectsDialog";
 import { legacyBrushHex, loadSettings, rememberRecent, saveSettings } from "./settings";
 import { makeThumb } from "./thumb";
-import { initBeadTooltip } from "./tooltip";
+import { initTooltip } from "./tooltip";
 import { $, $$, clamp, esc, num, r2 } from "./util";
 import { Weave } from "./weave";
 
@@ -132,6 +133,10 @@ let hitRect: SVGElement | null = null;
 /** Кільця підсвітки: під мишею й «де зупинилися». Окремі елементи, щоб не змінювати розмір самих бісерин. */
 let ringHover: SVGElement | null = null;
 let ringLast: SVGElement | null = null;
+/** Лінія-підказка «тут буде проміжок», коли миша між номерами ромбів чи рядів. */
+let gapGuide: SVGElement | null = null;
+/** Межа під мишею над номерами: після якого ромба (col) чи ряду (row). */
+let hoverGutter: GapAt | null = null;
 const viewBoxes = { normal: "0 0 1 1", clean: "0 0 1 1" };
 let cleanDims: [number, number] = [1, 1];
 /** Ширина трафарету в одиницях SVG (звичайний вигляд, з номерами). */
@@ -223,9 +228,25 @@ function showWarn(text: string, ms = 7000): void {
 
 /* ---------- Малювання сітки ---------- */
 
+/** Нитки: одна пряма на сторону ромба, а якщо сторона перетинає проміжок — ламана через її бісерини. */
+function threadPath(edges: Edge[], H: number, keep: (e: Edge) => boolean = () => true): string {
+  let d = "";
+  for (const e of edges) {
+    if (!keep(e)) continue;
+    const p = e.pts;
+    const n = p.length;
+    d += `M${r2(p[0])} ${r2(p[1])}`;
+    const straight =
+      Math.abs(p[n - 2] - p[0] - (e.lx1 - e.lx0) * H) < 1e-6 && Math.abs(p[n - 1] - p[1] - (e.ly1 - e.ly0) * H) < 1e-6;
+    if (straight) d += `L${r2(p[n - 2])} ${r2(p[n - 1])}`;
+    else for (let i = 2; i < n; i += 2) d += `L${r2(p[i])} ${r2(p[i + 1])}`;
+  }
+  return d;
+}
+
 function render(): void {
-  geom = buildGeometry(project.cols, project.rows, project.side);
-  const { H, width: W, height: HT } = geom;
+  geom = buildGeometry(project.cols, project.rows, project.side, project.gaps);
+  const { H, width: W, height: HT, px, py } = geom;
   const vb = [-GUT_L, -GUT_T, W + GUT_L + PAD, HT + GUT_T + PAD];
   const e = BEAD_R + 1;
   const vbc = [-e, -e, W + 2 * e, HT + 2 * e];
@@ -236,10 +257,9 @@ function render(): void {
   const existing = new Set(geom.beads.map((b) => b.k));
   weave.bind(wovenList(), (k) => existing.has(k));
   const parts: string[] = [];
-  let d = "";
-  for (const s of geom.segs) d += `M${r2(s[0] * H)} ${r2(s[1] * H)}L${r2(s[2] * H)} ${r2(s[3] * H)}`;
-  parts.push(`<path class="thread" d="${d}"/>`);
-  const axisY = r2(project.rows * H);
+  parts.push(`<path class="thread" d="${threadPath(geom.edges, H)}"/>`);
+  // Вісь дзеркала — посередині висоти (якщо там проміжок — посередині проміжку).
+  const axisY = r2((py(project.rows) + py(project.rows + 1e-3) - 1e-3 * H) / 2);
   parts.push(`<line class="axis" x1="-6" y1="${axisY}" x2="${r2(W + 6)}" y2="${axisY}"/>`);
 
   const colEvery = project.cols > 40 ? 5 : 1;
@@ -247,14 +267,14 @@ function render(): void {
   for (let i = 0; i < project.cols; i++) {
     const label = i + 1;
     if (colEvery === 1 || label === 1 || label % colEvery === 0) {
-      parts.push(`<text class="lc" x="${r2((2 * i + 1) * H)}" y="-8" text-anchor="middle">${label}</text>`);
+      parts.push(`<text class="lc" x="${r2(px(2 * i + 1))}" y="-8" text-anchor="middle">${label}</text>`);
     }
   }
   for (let r = 0; r < project.rows; r++) {
     const label = r + 1;
     if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
       parts.push(
-        `<text class="lr" x="-7.5" y="${r2((2 * r + 1) * H)}" text-anchor="end" dominant-baseline="central">${label}</text>`
+        `<text class="lr" x="-7.5" y="${r2(py(2 * r + 1))}" text-anchor="end" dominant-baseline="central">${label}</text>`
       );
     }
   }
@@ -269,7 +289,8 @@ function render(): void {
   parts.push(`</g>`);
   parts.push(
     `<g class="marks"><circle class="ring ring-last" cx="0" cy="0" r="${BEAD_R + 1.1}"/>` +
-      `<circle class="ring ring-hover" cx="0" cy="0" r="${BEAD_R + 0.9}"/></g>`
+      `<circle class="ring ring-hover" cx="0" cy="0" r="${BEAD_R + 0.9}"/>` +
+      `<line class="gap-guide" x1="0" y1="0" x2="0" y2="0"/></g>`
   );
   // Прозорий шар зверху ловить мишу; бісерину під курсором шукаємо за координатами.
   parts.push(`<rect class="hit" x="${r2(vb[0])}" y="${r2(vb[1])}" width="${r2(vb[2])}" height="${r2(vb[3])}"/>`);
@@ -289,13 +310,16 @@ function render(): void {
   hitRect = svg.querySelector<SVGElement>(".hit");
   ringHover = svg.querySelector<SVGElement>(".ring-hover");
   ringLast = svg.querySelector<SVGElement>(".ring-last");
+  gapGuide = svg.querySelector<SVGElement>(".gap-guide");
   hoverKey = null;
+  hoverGutter = null;
   placeRing(ringLast, weave.last);
 
   syncTools();
   updateMeta();
   updateStats();
   updateWeaveInfo();
+  syncGapsUi();
   printLayout();
 }
 
@@ -409,28 +433,42 @@ function updatePrintInfo(): void {
     (bead < 2 ? " Задрібно — виберіть розмір бісеринок, і трафарет поділиться на смуги." : "");
 }
 
-/** Одна смуга трафарету для друку: ромби з c0 до c1 (не включно). */
+/**
+ * Одна смуга трафарету для друку: ромби з c0 до c1 (не включно).
+ * Якщо смуга починається одразу після проміжку, проміжок у неї не потрапляє:
+ * вузлові бісерини на її лівому краї стають поруч зі своїм ромбом.
+ */
 function stripSvg(c0: number, c1: number, labels: boolean, scale: number): string {
   if (!geom) return "";
-  const { H, height: HT } = geom;
-  const x0 = 2 * c0 * H;
-  const x1 = 2 * c1 * H;
+  const { H, height: HT, px, py } = geom;
+  const x0 = stripStart(geom, c0);
+  const x1 = geom.colX[c1];
+  const lo = 2 * c0 - 1e-9;
+  const hi = 2 * c1 + 1e-9;
+  const shift = x0 - geom.colX[c0];
+  const onLeft = (lx: number): boolean => shift > 0 && Math.abs(lx - 2 * c0) < 1e-6;
   const fr = frameFor(labels);
   const vb = [x0 - fr.left, -fr.top, x1 - x0 + fr.left + fr.right, HT + fr.top + fr.bottom];
   const parts: string[] = [];
-  let d = "";
-  for (const sg of geom.segs) {
-    const lo = Math.min(sg[0], sg[2]);
-    const hi = Math.max(sg[0], sg[2]);
-    if (lo >= 2 * c0 - 1e-9 && hi <= 2 * c1 + 1e-9) d += `M${r2(sg[0] * H)} ${r2(sg[1] * H)}L${r2(sg[2] * H)} ${r2(sg[3] * H)}`;
+  const edges: Edge[] = [];
+  for (const e of geom.edges) {
+    if (Math.min(e.lx0, e.lx1) < lo || Math.max(e.lx0, e.lx1) > hi) continue;
+    if (!onLeft(e.lx0) && !onLeft(e.lx1)) {
+      edges.push(e);
+      continue;
+    }
+    const pts = [...e.pts];
+    if (onLeft(e.lx0)) pts[0] += shift;
+    if (onLeft(e.lx1)) pts[pts.length - 2] += shift;
+    edges.push({ ...e, pts });
   }
-  parts.push(`<path class="thread" d="${d}"/>`);
+  parts.push(`<path class="thread" d="${threadPath(edges, H)}"/>`);
   if (labels) {
     const colEvery = c1 - c0 > 40 ? 5 : 1;
     for (let i = c0; i < c1; i++) {
       const label = i + 1;
       if (colEvery === 1 || i === c0 || label % colEvery === 0) {
-        parts.push(`<text class="lc" x="${r2((2 * i + 1) * H)}" y="-8" text-anchor="middle">${label}</text>`);
+        parts.push(`<text class="lc" x="${r2(px(2 * i + 1))}" y="-8" text-anchor="middle">${label}</text>`);
       }
     }
     const rowEvery = project.rows > 40 ? 5 : 1;
@@ -438,16 +476,17 @@ function stripSvg(c0: number, c1: number, labels: boolean, scale: number): strin
       const label = r + 1;
       if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
         parts.push(
-          `<text class="lr" x="${r2(x0 - 7.5)}" y="${r2((2 * r + 1) * H)}" text-anchor="end" dominant-baseline="central">${label}</text>`
+          `<text class="lr" x="${r2(x0 - 7.5)}" y="${r2(py(2 * r + 1))}" text-anchor="end" dominant-baseline="central">${label}</text>`
         );
       }
     }
   }
   const f = fills();
   for (const b of geom.beads) {
-    if (b.x < x0 - 0.01 || b.x > x1 + 0.01) continue;
+    if (b.lx < lo || b.lx > hi) continue;
     const id = f[b.k];
-    parts.push(`<circle class="bd" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${id ? ` style="fill:${hexOf(id)}"` : ""}/>`);
+    const x = onLeft(b.lx) ? b.x + shift : b.x;
+    parts.push(`<circle class="bd" cx="${r2(x)}" cy="${r2(b.y)}" r="${BEAD_R}"${id ? ` style="fill:${hexOf(id)}"` : ""}/>`);
   }
   return (
     `<svg class="stencil print-strip" xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map(r2).join(" ")}"` +
@@ -470,8 +509,8 @@ function buildPrintPages(): void {
     const strips: string[] = [];
     const last = Math.min(plan.strips, (p + 1) * plan.stripsPerPage);
     for (let st = p * plan.stripsPerPage; st < last; st++) {
-      const c0 = st * plan.perStrip;
-      strips.push(stripSvg(c0, Math.min(project.cols, c0 + plan.perStrip), labels, plan.scale));
+      const [c0, c1] = plan.ranges[st];
+      strips.push(stripSvg(c0, c1, labels, plan.scale));
     }
     const head = labels
       ? `<p class="print-head"><b>${esc(project.name)}</b> · ${esc(meta)} · аркуш ${p + 1} з ${plan.pages}</p>`
@@ -811,17 +850,241 @@ function paint(k: string, c: string | null): void {
   scheduleStats();
 }
 
-/** Бісерина під курсором (за координатами) або null. */
-function beadAt(e: { clientX: number; clientY: number }): string | null {
-  if (!geom || !hitIndex) return null;
+/** Точка екрана → координати SVG трафарету. */
+function svgPoint(e: { clientX: number; clientY: number }): { x: number; y: number } | null {
   const m = svg.getScreenCTM();
   if (!m) return null;
   const inv = m.inverse();
-  const x = inv.a * e.clientX + inv.c * e.clientY + inv.e;
-  const y = inv.b * e.clientX + inv.d * e.clientY + inv.f;
-  const i = hitIndex.nearest(x, y);
+  return { x: inv.a * e.clientX + inv.c * e.clientY + inv.e, y: inv.b * e.clientX + inv.d * e.clientY + inv.f };
+}
+
+/** Бісерина під курсором (за координатами) або null. */
+function beadAt(e: { clientX: number; clientY: number }): string | null {
+  if (!geom || !hitIndex) return null;
+  const pt = svgPoint(e);
+  if (!pt) return null;
+  const i = hitIndex.nearest(pt.x, pt.y);
   return i >= 0 ? geom.beads[i].k : null;
 }
+
+/* ---------- Проміжки: клік між номерами ромбів чи рядів ---------- */
+
+/** Межа, де може бути проміжок: після ромба index (col) чи після ряду index (row), з 1. */
+type GapAt = { kind: "col" | "row"; index: number };
+
+/** Екранне положення межі після ромба j (посередині проміжку, якщо він є). */
+function colBoundary(j: number): number {
+  if (!geom) return 0;
+  return geom.colGaps.has(j) ? geom.colX[j] + geom.gap / 2 : geom.colX[j];
+}
+function rowBoundary(r: number): number {
+  if (!geom) return 0;
+  return geom.rowGaps.has(r) ? geom.rowY[r] + geom.gap / 2 : geom.rowY[r];
+}
+
+/** Межа між номерами під мишею: над трафаретом — між ромбами, зліва — між рядами. */
+function gutterAt(e: { clientX: number; clientY: number }): GapAt | null {
+  if (!geom || ui.clean || settings.weave) return null;
+  const pt = svgPoint(e);
+  if (!pt) return null;
+  // Лише між номерами: над самим номером підказка не заважає його прочитати.
+  const reach = geom.H * 0.65;
+  if (pt.y < -1 && pt.y >= -GUT_T && pt.x > -2 && pt.x < geom.width + 2) {
+    let best = -1;
+    let bestD = reach;
+    for (let j = 1; j < project.cols; j++) {
+      const d = Math.abs(colBoundary(j) - pt.x);
+      if (d < bestD) {
+        bestD = d;
+        best = j;
+      }
+    }
+    return best > 0 ? { kind: "col", index: best } : null;
+  }
+  if (pt.x < -1 && pt.x >= -GUT_L && pt.y > -2 && pt.y < geom.height + 2) {
+    let best = -1;
+    let bestD = reach;
+    for (let r = 1; r < project.rows; r++) {
+      const d = Math.abs(rowBoundary(r) - pt.y);
+      if (d < bestD) {
+        bestD = d;
+        best = r;
+      }
+    }
+    return best > 0 ? { kind: "row", index: best } : null;
+  }
+  return null;
+}
+
+const hasGap = (g: GapAt): boolean =>
+  g.kind === "col" ? project.gaps.cols.includes(g.index) : project.gaps.rows.includes(g.index);
+
+function gutterText(g: GapAt): string {
+  const what = g.kind === "col" ? `ромбами ${g.index} і ${g.index + 1}` : `рядами ${g.index} і ${g.index + 1}`;
+  return hasGap(g) ? `Клік — прибрати проміжок між ${what}` : `Клік — проміжок між ${what}`;
+}
+
+function setGutterHover(g: GapAt | null): void {
+  if (g?.kind === hoverGutter?.kind && g?.index === hoverGutter?.index) return;
+  hoverGutter = g;
+  if (gapGuide && geom) {
+    if (g) {
+      if (g.kind === "col") {
+        const x = r2(colBoundary(g.index));
+        gapGuide.setAttribute("x1", x);
+        gapGuide.setAttribute("x2", x);
+        gapGuide.setAttribute("y1", r2(-GUT_T + 3));
+        gapGuide.setAttribute("y2", r2(geom.height + 3));
+      } else {
+        const y = r2(rowBoundary(g.index));
+        gapGuide.setAttribute("y1", y);
+        gapGuide.setAttribute("y2", y);
+        gapGuide.setAttribute("x1", r2(-GUT_L + 3));
+        gapGuide.setAttribute("x2", r2(geom.width + 3));
+      }
+    }
+    gapGuide.classList.toggle("on", g !== null);
+    gapGuide.classList.toggle("del", g !== null && hasGap(g));
+  }
+  hitRect?.classList.toggle("over", hoverKey !== null || g !== null);
+}
+
+/** Змінює проміжки однією дією (можна скасувати). */
+function setGaps(next: Gaps): void {
+  const norm = (v: number[]): number[] => [...new Set(v)].sort((a, b) => a - b);
+  const after: Gaps = { cols: norm(next.cols), rows: norm(next.rows) };
+  const before = cloneGaps(project.gaps);
+  if (before.cols.join() === after.cols.join() && before.rows.join() === after.rows.join()) return;
+  drawHistory.push({ kind: "gaps", before, after: cloneGaps(after) });
+  project.gaps = after;
+  render();
+  syncHistory();
+  markDirty();
+}
+
+function toggleGap(g: GapAt): void {
+  const list = g.kind === "col" ? project.gaps.cols : project.gaps.rows;
+  const next = list.includes(g.index) ? list.filter((v) => v !== g.index) : [...list, g.index];
+  setGaps(g.kind === "col" ? { cols: next, rows: project.gaps.rows } : { cols: project.gaps.cols, rows: next });
+}
+
+/* ---------- Проміжки: панель «Проміжки» над трафаретом ---------- */
+
+const gapsBtn = $<HTMLButtonElement>("#gaps-btn");
+const gapsPop = $("#gaps-pop");
+const gapsCount = $("#gaps-n");
+const gapsState = $("#gaps-state");
+const gapAxes = {
+  col: {
+    input: $<HTMLInputElement>("#gap-cols-n"),
+    lead: $("#gap-cols-lead"),
+    unit: $("#gap-cols-unit"),
+    set: $<HTMLButtonElement>("#gap-cols-set"),
+    clear: $<HTMLButtonElement>("#gap-cols-clear"),
+    fallback: 5
+  },
+  row: {
+    input: $<HTMLInputElement>("#gap-rows-n"),
+    lead: $("#gap-rows-lead"),
+    unit: $("#gap-rows-unit"),
+    set: $<HTMLButtonElement>("#gap-rows-set"),
+    clear: $<HTMLButtonElement>("#gap-rows-clear"),
+    fallback: 4
+  }
+};
+
+/** «Після кожних 5 ромбів», але «після кожного 21 ромба». */
+function syncEveryWords(kind: "col" | "row"): void {
+  const a = gapAxes[kind];
+  const n = Math.round(Number(a.input.value));
+  const one = n % 10 === 1 && n % 100 !== 11;
+  a.lead.textContent = one ? "Після кожного" : "Після кожних";
+  a.unit.textContent = kind === "col" ? (one ? "ромба" : "ромбів") : one ? "ряду" : "рядів";
+}
+
+/** «після 5, 10, 15» — перші кілька проміжків. */
+function gapList(v: number[]): string {
+  const head = v.slice(0, 8).join(", ");
+  return v.length > 8 ? `${head} … (усього ${v.length})` : head;
+}
+
+/** Лічильник на кнопці, стан кнопок і підсумок у панелі. */
+function syncGapsUi(): void {
+  if (!geom) return;
+  const cols = [...geom.colGaps].sort((a, b) => a - b);
+  const rows = [...geom.rowGaps].sort((a, b) => a - b);
+  gapsCount.textContent = cols.length + rows.length ? ` · ${cols.length + rows.length}` : "";
+  for (const kind of ["col", "row"] as const) {
+    const a = gapAxes[kind];
+    const total = kind === "col" ? project.cols : project.rows;
+    a.input.max = String(Math.max(1, total - 1));
+    a.input.disabled = total < 2;
+    a.set.disabled = total < 2;
+    a.clear.disabled = (kind === "col" ? cols : rows).length === 0;
+    syncEveryWords(kind);
+  }
+  const parts: string[] = [];
+  if (cols.length) parts.push(`між ромбами — після ${gapList(cols)}`);
+  if (rows.length) parts.push(`між рядами — після ${gapList(rows)}`);
+  gapsState.textContent = parts.length ? `Зараз проміжки ${parts.join("; ")}.` : "Проміжків ще немає.";
+}
+
+/** Рівномірні проміжки: після кожних n ромбів (рядів). Попередні проміжки цього напрямку замінюються. */
+function spreadGaps(kind: "col" | "row"): void {
+  const a = gapAxes[kind];
+  const total = kind === "col" ? project.cols : project.rows;
+  if (total < 2) return;
+  let n = Math.round(Number(a.input.value));
+  if (!Number.isFinite(n) || n < 1) n = a.fallback;
+  n = clamp(n, 1, total - 1);
+  a.input.value = String(n);
+  const list: number[] = [];
+  for (let v = n; v < total; v += n) list.push(v);
+  setGaps(kind === "col" ? { cols: list, rows: project.gaps.rows } : { cols: project.gaps.cols, rows: list });
+  syncGapsUi();
+}
+
+function clearGaps(kind: "col" | "row"): void {
+  setGaps(kind === "col" ? { cols: [], rows: project.gaps.rows } : { cols: project.gaps.cols, rows: [] });
+  syncGapsUi();
+}
+
+function showGapsPop(open: boolean): void {
+  if (gapsPop.hidden === !open) return;
+  gapsPop.hidden = !open;
+  gapsBtn.setAttribute("aria-expanded", String(open));
+  if (open) syncGapsUi();
+}
+
+gapsBtn.addEventListener("click", () => showGapsPop(gapsPop.hidden));
+for (const kind of ["col", "row"] as const) {
+  const a = gapAxes[kind];
+  a.set.addEventListener("click", () => spreadGaps(kind));
+  a.clear.addEventListener("click", () => clearGaps(kind));
+  a.input.addEventListener("input", () => syncEveryWords(kind));
+  a.input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      spreadGaps(kind);
+    }
+  });
+}
+// Клік поза панеллю чи Escape закривають її.
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    if (gapsPop.hidden) return;
+    const t = e.target as Node | null;
+    if (t && (gapsPop.contains(t) || gapsBtn.contains(t))) return;
+    showGapsPop(false);
+  },
+  true
+);
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || gapsPop.hidden) return;
+  showGapsPop(false);
+  gapsBtn.focus();
+});
 
 /** Ставить кільце підсвітки на бісерину (або ховає, якщо k — null). */
 function placeRing(ring: SVGElement | null, k: string | null): void {
@@ -841,7 +1104,7 @@ function setHover(k: string | null): void {
   hoverKey = k;
   placeRing(ringHover, k);
   // Клас на прозорому шарі, а не на всій сітці: інакше браузер перераховує стилі всіх бісерин.
-  hitRect?.classList.toggle("over", k !== null);
+  hitRect?.classList.toggle("over", k !== null || hoverGutter !== null);
 }
 
 let painting: { mode: string | null } | null = null;
@@ -976,6 +1239,10 @@ function setMode(weaveMode: boolean): void {
   if (painting) stopPainting();
   if (weaving) endWeave();
   settings.weave = weaveMode;
+  if (weaveMode) {
+    showGapsPop(false);
+    setGutterHover(null);
+  }
   modeDraw.setAttribute("aria-selected", String(!weaveMode));
   modeWeave.setAttribute("aria-selected", String(weaveMode));
   modeDraw.tabIndex = weaveMode ? -1 : 0;
@@ -1065,7 +1332,15 @@ svg.addEventListener("pointerdown", (e) => {
   lastPointer = e.pointerType;
   if (e.pointerType !== "mouse" || e.button !== 0 || ui.clean) return;
   const k = beadAt(e);
-  if (!k) return;
+  if (!k) {
+    const g = gutterAt(e);
+    if (g) {
+      e.preventDefault();
+      toggleGap(g);
+      setGutterHover(gutterAt(e));
+    }
+    return;
+  }
   e.preventDefault();
   try {
     svg.setPointerCapture(e.pointerId);
@@ -1089,7 +1364,9 @@ svg.addEventListener("pointerdown", (e) => {
 svg.addEventListener("pointermove", (e) => {
   if (e.pointerType !== "mouse") return;
   if (!painting && !weaving) {
-    setHover(ui.clean ? null : beadAt(e));
+    const k = ui.clean ? null : beadAt(e);
+    setHover(k);
+    setGutterHover(k ? null : gutterAt(e));
     return;
   }
   // Проміжні положення миші, щоб швидкий рух не пропускав бісерини.
@@ -1103,7 +1380,10 @@ svg.addEventListener("pointermove", (e) => {
   }
   setHover(strokeKey);
 });
-svg.addEventListener("pointerleave", () => setHover(null));
+svg.addEventListener("pointerleave", () => {
+  setHover(null);
+  setGutterHover(null);
+});
 const stopPainting = (): void => {
   if (weaving) endWeave();
   if (!painting) return;
@@ -1115,7 +1395,11 @@ window.addEventListener("pointercancel", stopPainting);
 svg.addEventListener("click", (e) => {
   if (lastPointer === "mouse" || ui.clean) return;
   const k = beadAt(e);
-  if (!k) return;
+  if (!k) {
+    const g = gutterAt(e);
+    if (g) toggleGap(g);
+    return;
+  }
   if (settings.weave) {
     startWeave(k);
     endWeave();
@@ -1131,7 +1415,12 @@ svg.addEventListener("click", (e) => {
   endStroke();
 });
 
-initBeadTooltip(svg, $("#tip"), beadAt, (k) => {
+initTooltip(svg, $("#tip"), (e) => {
+  const k = beadAt(e);
+  if (!k) {
+    const g = gutterAt(e);
+    return g ? gutterText(g) : null;
+  }
   const id = fills()[k];
   const color = id ? fullLabel(colorView(id)) : "не зафарбована";
   const n = weave.number(k);
@@ -1183,6 +1472,10 @@ function applyAction(a: Action, useBefore: boolean): void {
       break;
     case "clear":
       project.fills = cloneFills(useBefore ? a.before : a.after);
+      render();
+      break;
+    case "gaps":
+      project.gaps = cloneGaps(useBefore ? a.before : a.after);
       render();
       break;
     case "mark": {
@@ -1329,6 +1622,8 @@ for (const b of $$<HTMLButtonElement>("button[data-s]")) {
 function setClean(on: boolean): void {
   ui.clean = on;
   setHover(null);
+  setGutterHover(null);
+  if (on) showGapsPop(false);
   cleanBox.checked = on;
   document.body.classList.toggle("clean", on);
   svg.setAttribute("viewBox", on ? viewBoxes.clean : viewBoxes.normal);
@@ -1492,6 +1787,7 @@ const dialog = initProjectsDialog({
       name: `${src.name} (копія)`.slice(0, 80),
       fills: cloneFills(src.fills),
       palette: [...src.palette],
+      gaps: cloneGaps(src.gaps),
       woven: emptyWoven(),
       progress: undefined,
       createdAt: now,
@@ -1548,13 +1844,15 @@ function isPristine(p: Project): boolean {
     Object.keys(p.fills["3"]).length === 0 &&
     Object.keys(p.fills["4"]).length === 0 &&
     p.woven["3"].length === 0 &&
-    p.woven["4"].length === 0
+    p.woven["4"].length === 0 &&
+    p.gaps.cols.length === 0 &&
+    p.gaps.rows.length === 0
   );
 }
 
 /** Мініатюра й прогрес для трафарету, що не відкривався в цьому браузері. */
 function decorate(p: Project): void {
-  const g = buildGeometry(p.cols, p.rows, p.side);
+  const g = buildGeometry(p.cols, p.rows, p.side, p.gaps);
   const key = sideKey(p.side);
   p.thumb = makeThumb(g, p.fills[key], hexOf);
   const exist = new Set(g.beads.map((b) => b.k));

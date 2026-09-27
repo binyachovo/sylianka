@@ -328,6 +328,7 @@ body.weaving #clear { display: none; }
   --bead-empty: #EEF0EB;
   --bead-stroke: #8C929B;
   --accent: #2B45A6;
+  --danger: #B42318;
   color-scheme: light;
   min-width: 0;
   padding: 12px;
@@ -338,6 +339,11 @@ body.weaving #clear { display: none; }
 }
 .scroller { overflow-x: auto; overflow-y: hidden; }
 .board-tools {
+  /* Кнопки над трафаретом — на світлому тлі й у темній темі */
+  --line: #D7DAD2;
+  --hover: #E6E8E2;
+  --ink: #1B1D22;
+  --accent-ink: #FFFFFF;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -345,6 +351,47 @@ body.weaving #clear { display: none; }
   gap: 6px;
   margin: -2px 0 8px;
 }
+/* Проміжки: кнопка й панель над трафаретом */
+.gaps-wrap { position: relative; margin-right: auto; }
+.gaps-n { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
+body.weaving .gaps-wrap { display: none; }
+.pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 12;
+  display: grid;
+  gap: 10px;
+  width: max-content;
+  max-width: min(470px, calc(100vw - 48px));
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: var(--ink);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  font-size: 14.5px;
+}
+.pop p { margin: 0; }
+.pop-lead, .pop-hint { font-size: 13.5px; line-height: 1.35; color: var(--muted); }
+.pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.pop-row label { min-width: 7.5em; }
+.pop-unit { min-width: 3.4em; }
+.pop-state { font-size: 13.5px; line-height: 1.35; }
+.num-in {
+  width: 58px;
+  height: 30px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: var(--ink);
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 14.5px;
+  font-variant-numeric: tabular-nums;
+}
+.num-in:disabled { opacity: 0.45; }
 .zoom-label { margin-right: 4px; font-size: 13.5px; color: var(--muted); }
 .zoom-label b { color: #1B1D22; font-family: var(--mono); font-weight: 500; }
 .board-tools .icon-btn { width: 30px; height: 30px; padding: 0; }
@@ -377,6 +424,11 @@ body.weaving #clear { display: none; }
   50% { stroke: #D92D20; stroke-width: 4; }
 }
 body.clean .stencil .ring { visibility: hidden !important; }
+/* Лінія «тут буде проміжок» (червона — «тут проміжок приберемо») */
+.stencil .gap-guide { stroke: var(--accent); stroke-width: 1.3; stroke-dasharray: 3 2.5; pointer-events: none; visibility: hidden; }
+.stencil .gap-guide.del { stroke: var(--danger); }
+#strip .gap-guide.on { visibility: visible; }
+body.clean .stencil .gap-guide { visibility: hidden !important; }
 /* Плетіння: нанизані приглушені (заливку змішує код) */
 .stencil.weaving.dim .bd.done { stroke-opacity: 0.3; }
 #strip2 { display: none; pointer-events: none; }
@@ -838,7 +890,7 @@ body.clean .clean-bar { display: flex; }
   .board, .stats { border: 0; padding: 0; }
   .mode-switch { display: none !important; }
   .stencil .bd.done { stroke-opacity: 1 !important; }
-  .stencil .ring { visibility: hidden !important; }
+  .stencil .ring, .stencil .gap-guide { visibility: hidden !important; }
   body:not(.clean) .board .stencil { width: 100% !important; min-width: 0 !important; max-width: none !important; max-height: 118mm; }
   .board-tools { display: none !important; }
   .stats { gap: 4px; }
