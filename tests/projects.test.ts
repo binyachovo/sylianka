@@ -1,15 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_REPEAT, sanitizeGaps, sanitizeProjectData, sanitizeRepeat } from "../src/projects";
+import { GAP_UNIT, knotLine } from "../src/geometry";
+import { DEFAULT_REPEAT, fitSize, maxCells, sanitizeGaps, sanitizeProjectData, sanitizeRepeat } from "../src/projects";
 
 describe("перевірка даних трафарету", () => {
   it("проміжки першого вигляду (номери ромбів і рядів) переводяться в лінії бісерин", () => {
-    expect(sanitizeGaps({ cols: [5, 10, 5], rows: [4] })).toEqual({ x: [60, 120], y: [48] });
+    expect(sanitizeGaps({ cols: [5, 10, 5], rows: [4] })).toEqual({ unit: GAP_UNIT, x: [knotLine(5), knotLine(10)], y: [knotLine(4)] });
   });
 
-  it("нові проміжки: цілі невід'ємні, без повторів, за зростанням", () => {
-    expect(sanitizeGaps({ x: [3, 0, 3, -1, 1.5, 99999], y: ["7", 12] })).toEqual({ x: [0, 3], y: [12] });
-    expect(sanitizeGaps("щось")).toEqual({ x: [], y: [] });
-    expect(sanitizeGaps(null)).toEqual({ x: [], y: [] });
+  it("проміжки в шостих частках ґратки (без unit) переводяться в GAP_UNIT", () => {
+    expect(sanitizeGaps({ x: [3, 0, 3, -1, 1.5, 99999], y: ["7", 12] })).toEqual({ unit: GAP_UNIT, x: [0, 1260], y: [5040] });
+  });
+
+  it("проміжки в GAP_UNIT лишаються як є", () => {
+    expect(sanitizeGaps({ unit: GAP_UNIT, x: [1260, 280, 280], y: [] })).toEqual({ unit: GAP_UNIT, x: [280, 1260], y: [] });
+    expect(sanitizeGaps("щось")).toEqual({ unit: GAP_UNIT, x: [], y: [] });
+    expect(sanitizeGaps(null)).toEqual({ unit: GAP_UNIT, x: [], y: [] });
+  });
+
+  it("розмір обмежується кількістю бісерин у ромбі", () => {
+    expect(maxCells(3)).toBe(12000);
+    expect(maxCells(4)).toBe(12000);
+    expect(maxCells(10)).toBeLessThan(4000);
+    const p = { rows: 30, cols: 400, side: 10 };
+    fitSize(p);
+    expect(p.rows * p.cols).toBeLessThanOrEqual(maxCells(10));
   });
 
   it("крок повтору: ціле 1…400, інакше типовий", () => {
@@ -40,8 +54,21 @@ describe("перевірка даних трафарету", () => {
     expect(d?.palette).toEqual(["p:23980", "u:abcd1234"]);
     expect(d?.fills["4"]).toEqual({ "0.000,1.000": "p:23980" });
     expect(d?.woven["4"]).toEqual(["0.000,1.000"]);
-    expect(d?.gaps).toEqual({ x: [24], y: [] });
+    expect(d?.gaps).toEqual({ unit: GAP_UNIT, x: [knotLine(2)], y: [] });
     expect(d?.repeat).toBe(12);
+  });
+
+  it("будь-яка кількість бісерин на сторону від 3 до 10", () => {
+    const d = sanitizeProjectData(
+      { rows: 2, cols: 3, side: 7, fills: { "7": { "1.000,0.000": "p:23980" }, "11": { "1.000,0.000": "p:23980" }, x: {} } },
+      "x",
+      "id"
+    );
+    expect(d?.side).toBe(7);
+    expect(d?.fills["7"]).toEqual({ "1.000,0.000": "p:23980" });
+    expect(d?.fills["11"]).toBeUndefined();
+    expect(sanitizeProjectData({ rows: 2, cols: 3, side: 11 }, "x", "id")?.side).toBe(3);
+    expect(sanitizeProjectData({ rows: 2, cols: 3, side: 2.5 }, "x", "id")?.side).toBe(3);
   });
 
   it("не трафарет — null", () => {

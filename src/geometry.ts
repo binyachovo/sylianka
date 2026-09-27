@@ -28,18 +28,26 @@ export interface Edge {
 }
 
 /**
+ * Одиниця положення ліній бісерин для проміжків: 1/2520 кроку ґратки. 2520 ділиться на
+ * (бісерин на сторону − 1) для будь-якої кількості від 3 до 11, тож кожна лінія має ціле
+ * положення, яке не змінюється, коли перемикають кількість бісерин на сторону.
+ */
+export const GAP_UNIT = 2520;
+/** Межа ромбів (рядів) j у цих одиницях: там стоять вузлові бісерини. */
+export const knotLine = (j: number): number => 2 * GAP_UNIT * j;
+/** Відстань між сусідніми лініями бісерин (у GAP_UNIT) для side бісерин на сторону. */
+export const lineStep = (side: number): number => GAP_UNIT / (side - 1);
+
+/**
  * Проміжки для вигляду: після якої лінії бісерин вставлено розрив — окремо по x (вертикальні
- * проміжки між стовпчиками бісерин) і по y (горизонтальні — між рядками). Положення лінії —
- * координата ґратки в шостих частках: так однаково записуються лінії і для 3 (крок 1/2),
- * і для 4 бісерин на сторону (крок 1/3). Межа ромбів j — це 12·j.
+ * проміжки між стовпчиками бісерин) і по y (горизонтальні — між рядками), у одиницях unit
+ * на крок ґратки (завжди GAP_UNIT; старіші записи переводить sanitizeGaps).
  */
 export interface Gaps {
+  unit: number;
   x: number[];
   y: number[];
 }
-
-/** Відстань між сусідніми лініями бісерин у шостих частках ґратки: 3 для 3 бісерин на сторону, 2 — для 4. */
-export const lineStep = (side: number): number => 6 / (side - 1);
 
 export interface Geometry {
   beads: Bead[];
@@ -54,9 +62,9 @@ export interface Geometry {
   colX: number[];
   /** Екранне y вузлових бісерин на межі рядів r (ґратка 2r), r = 0…rows. */
   rowY: number[];
-  /** Відстань між сусідніми лініями бісерин (шості частки ґратки). */
+  /** Відстань між сусідніми лініями бісерин (у GAP_UNIT). */
   step: number;
-  /** Проміжки в межах сітки за зростанням (шості частки ґратки). */
+  /** Проміжки в межах сітки за зростанням (у GAP_UNIT). */
   gx: number[];
   gy: number[];
   /** Координати ґратки → екран. */
@@ -64,9 +72,9 @@ export interface Geometry {
   py(ly: number): number;
 }
 
-export const noGaps = (): Gaps => ({ x: [], y: [] });
+export const noGaps = (): Gaps => ({ unit: GAP_UNIT, x: [], y: [] });
 
-/** Скільки проміжків зі списку (відсортованого, шості частки ґратки) лежить строго лівіше/вище від v. */
+/** Скільки проміжків зі списку (відсортованого, у GAP_UNIT) лежить строго лівіше/вище від v. */
 function countBefore(bounds: number[], v: number): number {
   let lo = 0;
   let hi = bounds.length;
@@ -80,7 +88,7 @@ function countBefore(bounds: number[], v: number): number {
 
 /** Проміжки, що лежать усередині сітки (після лінії від 0 до передостанньої), без повторів і за зростанням. */
 function inside(list: number[], n: number): number[] {
-  return [...new Set(list.filter((g) => Number.isInteger(g) && g >= 0 && g < 12 * n))].sort((a, b) => a - b);
+  return [...new Set(list.filter((g) => Number.isInteger(g) && g >= 0 && g < knotLine(n)))].sort((a, b) => a - b);
 }
 
 /**
@@ -93,11 +101,12 @@ function inside(list: number[], n: number): number[] {
 export function buildGeometry(cols: number, rows: number, side: number, gaps: Gaps = noGaps()): Geometry {
   const m = side - 2;
   const H = ((side - 1) / Math.SQRT2) * U;
-  const gap = H;
+  // Проміжок — пів ромба, але не ширший за три кроки бісерини (на великих комірках).
+  const gap = Math.min(H, (3 * U) / Math.SQRT2);
   const gx = inside(gaps.x, cols);
   const gy = inside(gaps.y, rows);
-  const px = (lx: number): number => lx * H + gap * countBefore(gx, lx * 6);
-  const py = (ly: number): number => ly * H + gap * countBefore(gy, ly * 6);
+  const px = (lx: number): number => lx * H + gap * countBefore(gx, lx * GAP_UNIT);
+  const py = (ly: number): number => ly * H + gap * countBefore(gy, ly * GAP_UNIT);
 
   const beads: Bead[] = [];
   const edges: Edge[] = [];
@@ -204,6 +213,14 @@ export function symmetryClosure(keys: Iterable<string>, s: Symmetry): Set<string
 /** Ключі бісерин, що фарбуються разом із k (див. symmetryClosure). */
 export function symmetryKeys(k: string, s: Symmetry): string[] {
   return [...symmetryClosure([k], s)];
+}
+
+/**
+ * У скільки разів збільшити номери ромбів і рядів (і смуги для них): на великих комірках
+ * звичайні номери губляться поруч із ромбами. До 4 бісерин на сторону — як завжди.
+ */
+export function labelScale(side: number): number {
+  return side <= 4 ? 1 : Math.min(2, (side - 1) / 3);
 }
 
 /** Скільки бісерин додає кожен ромб довжини при заданій висоті. */

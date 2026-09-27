@@ -25,16 +25,17 @@ export const legacyName = (hex: string): string => NAMES.get(hex) ?? `Колір
 /** Замінює HEX-кольори бісерин на свої кольори. Повертає нові кольори й палітру трафарету. */
 export async function convertHexFills(fills: Fills): Promise<{ fills: Fills; palette: string[] }> {
   const hexes = new Set<string>();
-  for (const side of ["3", "4"] as const) for (const v of Object.values(fills[side])) hexes.add(v.toUpperCase());
+  for (const side of Object.values(fills)) for (const v of Object.values(side)) hexes.add(v.toUpperCase());
   const order = [...hexes].sort((a, b) => (RANK.get(a) ?? 99) - (RANK.get(b) ?? 99) || a.localeCompare(b));
   const ids = new Map<string, string>();
   for (const hex of order) ids.set(hex, await customForHex(hex, legacyName(hex)));
 
   const out = emptyFills();
-  for (const side of ["3", "4"] as const) {
-    for (const [k, v] of Object.entries(fills[side])) {
+  for (const [side, src] of Object.entries(fills)) {
+    const dst: Record<string, string> = (out[side] ??= {});
+    for (const [k, v] of Object.entries(src)) {
       const id = ids.get(v.toUpperCase());
-      if (id) out[side][k] = id;
+      if (id) dst[k] = id;
     }
   }
   return { fills: out, palette: order.map((h) => ids.get(h) ?? "").filter(Boolean) };

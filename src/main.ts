@@ -25,7 +25,20 @@ import {
 } from "./colors";
 import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
 import { parseProjectFile, saveBackupToFile, saveImageToFile, saveProjectToFile, type ParsedBackup } from "./files";
-import { BEAD_R, beadsPerStep, buildGeometry, symmetryClosure, type Bead, type Edge, type Gaps, type Geometry, type Symmetry } from "./geometry";
+import {
+  BEAD_R,
+  GAP_UNIT,
+  beadsPerStep,
+  buildGeometry,
+  knotLine,
+  labelScale,
+  symmetryClosure,
+  type Bead,
+  type Edge,
+  type Gaps,
+  type Geometry,
+  type Symmetry
+} from "./geometry";
 import { HitIndex } from "./hit";
 import { renderStencilPng, type ImageText, type LegendRow } from "./image";
 import { History, type Action } from "./history";
@@ -42,7 +55,6 @@ import {
   type Frame
 } from "./print";
 import {
-  MAX_CELLS,
   MAX_PALETTE,
   MAX_SIDE,
   blankProject,
@@ -53,6 +65,7 @@ import {
   fitSize,
   forgetV1,
   isLegacyProject,
+  maxCells,
   migrateV1,
   newId,
   nextName,
@@ -84,8 +97,9 @@ $("#update-later").addEventListener("click", () => {
   updateBar.hidden = true;
 });
 
-const GUT_L = 27;
-const GUT_T = 20;
+/** Смуги для номерів зліва й згори (на великих комірках — ширші, див. labelScale). */
+const gutL = (): number => 27 * labelScale(project.side);
+const gutT = (): number => 20 * labelScale(project.side);
 const PAD = 9;
 
 const settings = loadSettings();
@@ -168,10 +182,10 @@ let cleanDims: [number, number] = [1, 1];
 let vbWidth = 1;
 let vbHeight = 1;
 
-const fills = (): Record<string, string> => project.fills[sideKey(project.side)];
+const fills = (): Record<string, string> => (project.fills[sideKey(project.side)] ??= {});
 /** Позначки плетіння поточної сітки (3 чи 4 бісерини на сторону). */
 const weave = new Weave();
-const wovenList = (): string[] => project.woven[sideKey(project.side)];
+const wovenList = (): string[] => (project.woven[sideKey(project.side)] ??= []);
 
 /** Приглушувати нанизані бісерини (режим плетіння з галочкою, не під час друку). */
 let fadeDone = false;
@@ -273,7 +287,7 @@ function threadPath(edges: Edge[], H: number, keep: (e: Edge) => boolean = () =>
 function frameGeometry(): number[] {
   if (!geom) return [0, 0, 1, 1];
   const { width: W, height: HT } = geom;
-  const vb = [-GUT_L, -GUT_T, W + GUT_L + PAD, HT + GUT_T + PAD];
+  const vb = [-gutL(), -gutT(), W + gutL() + PAD, HT + gutT() + PAD];
   const e = BEAD_R + 1;
   const vbc = [-e, -e, W + 2 * e, HT + 2 * e];
   viewBoxes.normal = vb.map(r2).join(" ");
@@ -297,22 +311,7 @@ function underParts(): string {
   parts.push(`<line class="axis axis-tb" x1="-6" y1="${axisY}" x2="${r2(W + 6)}" y2="${axisY}"/>`);
   parts.push(`<line class="axis axis-lr" x1="${axisX}" y1="-6" x2="${axisX}" y2="${r2(HT + 6)}"/>`);
   parts.push(`<g class="periods">${periodLines()}</g>`);
-  const colEvery = project.cols > 40 ? 5 : 1;
-  const rowEvery = project.rows > 40 ? 5 : 1;
-  for (let i = 0; i < project.cols; i++) {
-    const label = i + 1;
-    if (colEvery === 1 || label === 1 || label % colEvery === 0) {
-      parts.push(`<text class="lc" x="${r2(px(2 * i + 1))}" y="-8" text-anchor="middle">${label}</text>`);
-    }
-  }
-  for (let r = 0; r < project.rows; r++) {
-    const label = r + 1;
-    if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
-      parts.push(
-        `<text class="lr" x="-7.5" y="${r2(py(2 * r + 1))}" text-anchor="end" dominant-baseline="central">${label}</text>`
-      );
-    }
-  }
+  parts.push(numberLabels(0, project.cols, 0));
   return parts.join("");
 }
 
@@ -409,6 +408,34 @@ function relayout(): void {
   printLayout();
 }
 
+/**
+ * Номери ромбів c0…c1 − 1 згори й рядів зліва (x0 — лівий край смуги). Розмір — за labelScale.
+ */
+function numberLabels(c0: number, c1: number, x0: number): string {
+  if (!geom) return "";
+  const { px, py } = geom;
+  const k = labelScale(project.side);
+  const parts = [`<g class="labels" font-size="${r2(9.5 * k)}">`];
+  const colEvery = c1 - c0 > 40 ? 5 : 1;
+  for (let i = c0; i < c1; i++) {
+    const label = i + 1;
+    if (colEvery === 1 || i === c0 || label % colEvery === 0) {
+      parts.push(`<text class="lc" x="${r2(px(2 * i + 1))}" y="${r2(-8 * k)}" text-anchor="middle">${label}</text>`);
+    }
+  }
+  const rowEvery = project.rows > 40 ? 5 : 1;
+  for (let r = 0; r < project.rows; r++) {
+    const label = r + 1;
+    if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
+      parts.push(
+        `<text class="lr" x="${r2(x0 - 7.5 * k)}" y="${r2(py(2 * r + 1))}" text-anchor="end" dominant-baseline="central">${label}</text>`
+      );
+    }
+  }
+  parts.push(`</g>`);
+  return parts.join("");
+}
+
 /** Межі повторів візерунка: після кожних N ромбів (посередині проміжку, якщо він там є). */
 function periodLines(): string {
   if (!geom) return "";
@@ -503,7 +530,7 @@ const printPages = $("#print-pages");
 
 /** Поля навколо сітки: з номерами рядів і ромбів (друк з текстом) або без. */
 function frameFor(labels: boolean): Frame {
-  if (labels) return { left: GUT_L, right: PAD, top: GUT_T, bottom: PAD };
+  if (labels) return { left: gutL(), right: PAD, top: gutT(), bottom: PAD };
   const e = BEAD_R + 1;
   return { left: e, right: e, top: e, bottom: e };
 }
@@ -582,24 +609,7 @@ function stripSvg(c0: number, c1: number, labels: boolean, scale: number): strin
     edges.push({ ...e, pts });
   }
   parts.push(`<path class="thread" d="${threadPath(edges, H)}"/>`);
-  if (labels) {
-    const colEvery = c1 - c0 > 40 ? 5 : 1;
-    for (let i = c0; i < c1; i++) {
-      const label = i + 1;
-      if (colEvery === 1 || i === c0 || label % colEvery === 0) {
-        parts.push(`<text class="lc" x="${r2(px(2 * i + 1))}" y="-8" text-anchor="middle">${label}</text>`);
-      }
-    }
-    const rowEvery = project.rows > 40 ? 5 : 1;
-    for (let r = 0; r < project.rows; r++) {
-      const label = r + 1;
-      if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
-        parts.push(
-          `<text class="lr" x="${r2(x0 - 7.5)}" y="${r2(py(2 * r + 1))}" text-anchor="end" dominant-baseline="central">${label}</text>`
-        );
-      }
-    }
-  }
+  if (labels) parts.push(numberLabels(c0, c1, x0));
   const f = fills();
   for (const b of geom.beads) {
     if (b.lx < lo || b.lx > hi) continue;
@@ -622,7 +632,7 @@ function buildPrintPages(): void {
   const labels = !ui.clean;
   const plan = planStrips(geom, project.cols, frameFor(labels), settings.printBead, labels, tableMm());
   pageSize.textContent = `@page { size: A4 ${plan.orient}; margin: 0; }`;
-  const meta = `${project.rows}-рядна силянка · ${project.side} бісерини в комірці`;
+  const meta = metaText();
   const pages: string[] = [];
   for (let p = 0; p < plan.pages; p++) {
     const strips: string[] = [];
@@ -686,11 +696,10 @@ async function saveImage(): Promise<void> {
       const reserve = settings.reserve ? `запас ${settings.reserve} %` : "без запасу";
       text = {
         title: project.name,
-        meta:
-          `${project.rows}-рядна силянка · ${project.side} бісерини в комірці · ` +
-          `${project.cols} ${plural(project.cols, "ромб", "ромби", "ромбів")} завдовжки`,
+        meta: `${metaText()} · ${project.cols} ${plural(project.cols, "ромб", "ромби", "ромбів")} завдовжки`,
         rows: project.rows,
         cols: project.cols,
+        labelScale: labelScale(project.side),
         total: `Усього бісерин: ${num(beadEls.size)} · купувати ≈ ${fmtGrams(totalGrams(c))} (${reserve})`,
         legend
       };
@@ -720,8 +729,15 @@ function syncCopy(): void {
   copy.innerHTML = svg.innerHTML;
 }
 
+/** «8-рядна силянка · 3 бісерини в комірці», «… 5 бісерин у комірці». */
+function metaText(): string {
+  const s = project.side;
+  const word = plural(s, "бісерина", "бісерини", "бісерин");
+  return `${project.rows}-рядна силянка · ${s} ${word} ${word.endsWith("н") ? "у" : "в"} комірці`;
+}
+
 function updateMeta(): void {
-  $("#meta").textContent = `${project.rows}-рядна силянка · ${project.side} бісерини в комірці`;
+  $("#meta").textContent = metaText();
   inRows.value = String(project.rows);
   inCols.value = String(project.cols);
   for (const b of $$<HTMLButtonElement>("button[data-s]")) {
@@ -1228,7 +1244,7 @@ const gapsIn = (g: GapAt): number[] => project.gaps[g.kind].filter((v) => v >= g
 /** Екранне положення лінії бісерин (шості частки ґратки). */
 function linePos(kind: "x" | "y", v: number): number {
   if (!geom) return 0;
-  return kind === "x" ? geom.px(v / 6) : geom.py(v / 6);
+  return kind === "x" ? geom.px(v / GAP_UNIT) : geom.py(v / GAP_UNIT);
 }
 
 /** Межа між сусідніми лініями бісерин, на яку показує точка p (або null поза сіткою). */
@@ -1236,8 +1252,8 @@ function boundaryNear(kind: "x" | "y", p: number): GapAt | null {
   if (!geom) return null;
   const n = kind === "x" ? project.cols : project.rows;
   const step = geom.step;
-  const last = (12 * n) / step;
-  if (p < linePos(kind, 0) || p > linePos(kind, 12 * n)) return null;
+  const last = knotLine(n) / step;
+  if (p < linePos(kind, 0) || p > linePos(kind, knotLine(n))) return null;
   let lo = 0;
   let hi = last;
   while (hi - lo > 1) {
@@ -1253,19 +1269,20 @@ function gutterAt(e: { clientX: number; clientY: number }): GapAt | null {
   if (!geom || ui.clean || settings.weave) return null;
   const pt = svgPoint(e);
   if (!pt) return null;
-  if (pt.y < -1 && pt.y >= -GUT_T) return boundaryNear("x", pt.x);
-  if (pt.x < -1 && pt.x >= -GUT_L) return boundaryNear("y", pt.y);
+  if (pt.y < -1 && pt.y >= -gutT()) return boundaryNear("x", pt.x);
+  if (pt.x < -1 && pt.x >= -gutL()) return boundaryNear("y", pt.y);
   return null;
 }
 
 /** Де межа: між ромбами (рядами) — поруч із вузловими бісеринами, або всередині ромба (ряду). */
 function gutterWhere(g: GapAt): string {
   const n = g.kind === "x" ? project.cols : project.rows;
-  const knot = g.at % 12 === 0 ? g.at / 12 : g.next % 12 === 0 ? g.next / 12 : -1;
+  const one = knotLine(1);
+  const knot = g.at % one === 0 ? g.at / one : g.next % one === 0 ? g.next / one : -1;
   if (knot >= 1 && knot < n) {
     return g.kind === "x" ? `між ромбами ${knot} і ${knot + 1}` : `між рядами ${knot} і ${knot + 1}`;
   }
-  const inner = Math.floor(g.at / 12) + 1;
+  const inner = Math.floor(g.at / one) + 1;
   return g.kind === "x" ? `між стовпчиками бісерин у ромбі ${inner}` : `між рядками бісерин у ряду ${inner}`;
 }
 
@@ -1282,12 +1299,12 @@ function setGutterHover(g: GapAt | null): void {
       if (g.kind === "x") {
         gapGuide.setAttribute("x1", m);
         gapGuide.setAttribute("x2", m);
-        gapGuide.setAttribute("y1", r2(-GUT_T + 3));
+        gapGuide.setAttribute("y1", r2(-gutT() + 3));
         gapGuide.setAttribute("y2", r2(geom.height + 3));
       } else {
         gapGuide.setAttribute("y1", m);
         gapGuide.setAttribute("y2", m);
-        gapGuide.setAttribute("x1", r2(-GUT_L + 3));
+        gapGuide.setAttribute("x1", r2(-gutL() + 3));
         gapGuide.setAttribute("x2", r2(geom.width + 3));
       }
     }
@@ -1298,9 +1315,9 @@ function setGutterHover(g: GapAt | null): void {
 }
 
 /** Змінює проміжки однією дією (можна скасувати). */
-function setGaps(next: Gaps): void {
+function setGaps(next: { x: number[]; y: number[] }): void {
   const norm = (v: number[]): number[] => [...new Set(v)].sort((a, b) => a - b);
-  const after: Gaps = { x: norm(next.x), y: norm(next.y) };
+  const after: Gaps = { unit: GAP_UNIT, x: norm(next.x), y: norm(next.y) };
   const before = cloneGaps(project.gaps);
   if (before.x.join() === after.x.join() && before.y.join() === after.y.join()) return;
   drawHistory.push({ kind: "gaps", before, after: cloneGaps(after) });
@@ -1360,8 +1377,9 @@ function numList(v: number[]): string {
 /** Підсумок у панелі: номери ромбів (рядів), якщо всі проміжки між ними, інакше — скільки проміжків. */
 function describeGaps(list: number[], kind: "x" | "y"): string {
   if (!list.length) return "";
-  if (list.every((g) => g > 0 && g % 12 === 0)) {
-    const where = numList(list.map((g) => g / 12));
+  const one = knotLine(1);
+  if (list.every((g) => g > 0 && g % one === 0)) {
+    const where = numList(list.map((g) => g / one));
     return kind === "x" ? `Вертикальні — після ромбів ${where}.` : `Горизонтальні — після рядів ${where}.`;
   }
   return kind === "x" ? `Вертикальних проміжків — ${list.length}.` : `Горизонтальних проміжків — ${list.length}.`;
@@ -1396,7 +1414,7 @@ function spreadGaps(kind: "x" | "y"): void {
   n = clamp(n, 1, total - 1);
   a.input.value = String(n);
   const list: number[] = [];
-  for (let v = n; v < total; v += n) list.push(12 * v);
+  for (let v = n; v < total; v += n) list.push(knotLine(v));
   setGaps(kind === "x" ? { x: list, y: project.gaps.y } : { x: project.gaps.x, y: list });
   syncGapsUi();
 }
@@ -2023,7 +2041,7 @@ function replaceList(list: string[], next: string[]): void {
 function applyAction(a: Action, useBefore: boolean): void {
   switch (a.kind) {
     case "paint": {
-      const f = project.fills[a.side];
+      const f = (project.fills[a.side] ??= {});
       const visible = a.side === sideKey(project.side);
       for (const [k, [before, after]] of a.changes) {
         const v = useBefore ? before : after;
@@ -2057,7 +2075,7 @@ function applyAction(a: Action, useBefore: boolean): void {
       relayout();
       break;
     case "mark": {
-      const list = project.woven[a.side];
+      const list = (project.woven[a.side] ??= []);
       if (useBefore) {
         // Позначки цієї дії — в кінці набору.
         const start = list.length - a.keys.length;
@@ -2074,7 +2092,7 @@ function applyAction(a: Action, useBefore: boolean): void {
       break;
     }
     case "unmark": {
-      const list = project.woven[a.side];
+      const list = (project.woven[a.side] ??= []);
       if (useBefore) {
         const have = new Set(list);
         for (let j = a.items.length - 1; j >= 0; j--) {
@@ -2162,10 +2180,14 @@ function setSize(name: "rows" | "cols", raw: string | number): void {
   let v = Math.round(Number(String(raw).replace(",", ".")));
   if (!Number.isFinite(v)) v = project[name];
   const other = name === "rows" ? project.cols : project.rows;
-  const cap = Math.min(MAX_SIDE, Math.floor(MAX_CELLS / other));
+  const cells = maxCells(project.side);
+  const cap = Math.min(MAX_SIDE, Math.floor(cells / other));
   const next = clamp(v, 1, cap);
   if (next < v) {
-    showWarn("Найбільше — 400 ромбів з кожного боку й до 12 000 ромбів разом, щоб програма не зависала.");
+    showWarn(
+      `Найбільше — 400 ромбів з кожного боку й до ${num(cells)} ромбів разом ` +
+        `(для ${project.side} бісерин на сторону), щоб програма не зависала.`
+    );
   }
   if (next === project[name]) {
     updateMeta();
@@ -2189,8 +2211,18 @@ inRows.addEventListener("change", () => setSize("rows", inRows.value));
 inCols.addEventListener("change", () => setSize("cols", inCols.value));
 for (const b of $$<HTMLButtonElement>("button[data-s]")) {
   b.addEventListener("click", () => {
-    const next: Side = Number(b.dataset.s) === 4 ? 4 : 3;
-    if (next === project.side) return;
+    const next: Side = Number(b.dataset.s);
+    if (!Number.isInteger(next) || next === project.side) return;
+    // Більші комірки — більше бісерин у кожному ромбі: завеликий трафарет спершу треба зменшити.
+    const cells = maxCells(next);
+    if (project.rows * project.cols > cells) {
+      showWarn(
+        `Для ${next} бісерин на сторону трафарет може мати до ${num(cells)} ромбів разом, ` +
+          `а зараз ${num(project.rows * project.cols)}. Зменште висоту чи ширину й спробуйте ще раз.`,
+        9000
+      );
+      return;
+    }
     drawHistory.push({ kind: "side", before: project.side, after: next });
     project.side = next;
     render();
@@ -2258,7 +2290,7 @@ clearBtn.addEventListener("click", () => {
   disarm();
   // Стираємо лише видиму сітку; візерунок для іншої кількості бісерин на стороні лишається.
   const key = sideKey(project.side);
-  if (Object.keys(project.fills[key]).length === 0) return;
+  if (Object.keys(project.fills[key] ?? {}).length === 0) return;
   const before = cloneFills(project.fills);
   const after = cloneFills(project.fills);
   after[key] = {};
@@ -2304,8 +2336,8 @@ async function upgradeProject(p: Project): Promise<boolean> {
 /** Кольори, що вже є на бісеринах, додаємо до палітри трафарету. */
 function includeUsedColors(p: Project): void {
   const seen = new Set(p.palette);
-  for (const side of ["3", "4"] as const) {
-    for (const id of Object.values(p.fills[side])) {
+  for (const side of Object.values(p.fills)) {
+    for (const id of Object.values(side)) {
       if (!seen.has(id) && seen.size < MAX_PALETTE) {
         seen.add(id);
         p.palette.push(id);
@@ -2380,7 +2412,7 @@ const dialog = initProjectsDialog({
       updatedAt: now
     };
     await dbPut(copyP);
-    return src.woven["3"].length + src.woven["4"].length > 0;
+    return Object.values(src.woven).some((list) => list.length > 0);
   },
   async remove(id) {
     await dbDelete(id);
@@ -2427,10 +2459,8 @@ const dialog = initProjectsDialog({
 function isPristine(p: Project): boolean {
   return (
     p.palette.length === 0 &&
-    Object.keys(p.fills["3"]).length === 0 &&
-    Object.keys(p.fills["4"]).length === 0 &&
-    p.woven["3"].length === 0 &&
-    p.woven["4"].length === 0 &&
+    Object.values(p.fills).every((f) => Object.keys(f).length === 0) &&
+    Object.values(p.woven).every((w) => w.length === 0) &&
     p.gaps.x.length === 0 &&
     p.gaps.y.length === 0
   );
@@ -2440,9 +2470,9 @@ function isPristine(p: Project): boolean {
 function decorate(p: Project): void {
   const g = buildGeometry(p.cols, p.rows, p.side, p.gaps);
   const key = sideKey(p.side);
-  p.thumb = makeThumb(g, p.fills[key], hexOf);
+  p.thumb = makeThumb(g, p.fills[key] ?? {}, hexOf);
   const exist = new Set(g.beads.map((b) => b.k));
-  p.progress = { done: p.woven[key].filter((k) => exist.has(k)).length, total: g.beads.length };
+  p.progress = { done: (p.woven[key] ?? []).filter((k) => exist.has(k)).length, total: g.beads.length };
 }
 
 /**

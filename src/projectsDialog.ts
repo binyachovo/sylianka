@@ -1,5 +1,5 @@
 import type { Project } from "./projects";
-import { $ } from "./util";
+import { $, plural } from "./util";
 
 export interface ProjectsApi {
   currentId(): string;
@@ -70,7 +70,9 @@ export function initProjectsDialog(api: ProjectsApi): { open(): Promise<void> } 
     name.textContent = p.name;
     const meta = document.createElement("span");
     meta.className = "card-meta";
-    meta.textContent = `${p.rows} × ${p.cols} ромбів · ${p.side} бісерини · ${dateFmt.format(p.updatedAt)}`;
+    meta.textContent =
+      `${p.rows} × ${p.cols} ромбів · ${p.side} ${plural(p.side, "бісерина", "бісерини", "бісерин")} · ` +
+      dateFmt.format(p.updatedAt);
     body.append(name, meta);
     if (p.progress && p.progress.done > 0) {
       const prog = document.createElement("span");

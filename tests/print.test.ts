@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildGeometry, type Gaps } from "../src/geometry";
+import { GAP_UNIT, buildGeometry, knotLine, type Gaps } from "../src/geometry";
 import { describePlan, planStrips, stripEnd, stripStart, tableHeightMm } from "../src/print";
 
 const frame = { left: 27, right: 9, top: 20, bottom: 9 };
+/** Проміжки за координатами ліній у ґратці. */
+const gaps = (x: number[], y: number[] = []): Gaps => ({
+  unit: GAP_UNIT,
+  x: x.map((v) => Math.round(v * GAP_UNIT)),
+  y: y.map((v) => Math.round(v * GAP_UNIT))
+});
 const sizes = (ranges: [number, number][]): number[] => ranges.map(([a, b]) => b - a);
 function covers(ranges: [number, number][], cols: number): boolean {
   let c = 0;
@@ -21,9 +27,9 @@ describe("друк смугами", () => {
   });
 
   it("смуги покривають усі ромби й уміщаються на аркуші", () => {
-    const gaps: Gaps = { x: [84, 156, 600, 612, 624, 1188], y: [24, 60] };
-    for (const side of [3, 4]) {
-      const g = buildGeometry(100, 10, side, gaps);
+    const some = gaps([14, 26, 100, 102, 104, 198], [4, 10]);
+    for (const side of [3, 4, 6]) {
+      const g = buildGeometry(100, 10, side, some);
       for (const bead of [2.3, 4, 6]) {
         const p = planStrips(g, 100, frame, bead, true);
         expect(covers(p.ranges, 100)).toBe(true);
@@ -36,13 +42,13 @@ describe("друк смугами", () => {
   });
 
   it("проміжки кожні 5 ромбів — ріжемо по них, якщо аркушів не більше", () => {
-    const x = Array.from({ length: 11 }, (_, i) => 60 * (i + 1));
-    const p = planStrips(buildGeometry(60, 8, 3, { x, y: [] }), 60, frame, 4, true);
+    const x = Array.from({ length: 11 }, (_, i) => knotLine(5 * (i + 1)));
+    const p = planStrips(buildGeometry(60, 8, 3, { unit: GAP_UNIT, x, y: [] }), 60, frame, 4, true);
     expect(p.ranges.slice(1).every(([a]) => a % 5 === 0)).toBe(true);
   });
 
   it("проміжок далеко від розрізу не заважає вирівнювати смуги", () => {
-    const g = buildGeometry(29, 4, 3, { x: [15], y: [] }); // усередині ромба 2
+    const g = buildGeometry(29, 4, 3, gaps([2.5])); // усередині ромба 2
     const p = planStrips(g, 29, frame, 5, true);
     // Жадібно вийшло б 8 + 9 + 9 + 3; вирівняні смуги — не довші за 8 ромбів.
     expect(p.strips).toBe(4);
@@ -50,12 +56,12 @@ describe("друк смугами", () => {
   });
 
   it("проміжок біля вузлових на розрізі не потрапляє в смугу", () => {
-    const before = buildGeometry(6, 2, 3, { x: [21], y: [] });
+    const before = buildGeometry(6, 2, 3, gaps([3.5]));
     const plain = buildGeometry(6, 2, 3);
     expect(stripEnd(before, 2)).toBeCloseTo(plain.colX[2]);
-    const after = buildGeometry(6, 2, 3, { x: [24], y: [] });
+    const after = buildGeometry(6, 2, 3, gaps([4]));
     expect(stripStart(after, 2)).toBeCloseTo(after.colX[2] + after.gap);
-    const edges = buildGeometry(6, 2, 3, { x: [0, 69], y: [] });
+    const edges = buildGeometry(6, 2, 3, gaps([0, 11.5]));
     expect(stripStart(edges, 0)).toBe(0);
     expect(stripEnd(edges, 6)).toBeCloseTo(edges.width);
   });

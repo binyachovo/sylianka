@@ -1,12 +1,20 @@
-import type { Gaps } from "./geometry";
+import { GAP_UNIT, knotLine, type Gaps } from "./geometry";
 import { clamp } from "./util";
 
-export type Side = 3 | 4;
-export type SideKey = "3" | "4";
-/** Кольори бісерин окремо для 3 і 4 бісерин на сторону ромба: ключ бісерини → ідентифікатор кольору. */
+/** Бісерин на сторону ромба разом із вузловими: від MIN_BEADS_SIDE до MAX_BEADS_SIDE. */
+export type Side = number;
+/** Ключ візерунка для кількості бісерин на сторону: "3", "4", … */
+export type SideKey = string;
+/** Кольори бісерин окремо для кожної кількості бісерин на сторону: ключ бісерини → ідентифікатор кольору. */
 export type Fills = Record<SideKey, Record<string, string>>;
-/** Нанизані бісерини в порядку позначення (окремо для 3 і 4): номер у наборі = позиція + 1. */
+/** Нанизані бісерини в порядку позначення (окремо для кожної кількості): номер у наборі = позиція + 1. */
 export type Woven = Record<SideKey, string[]>;
+
+export const MIN_BEADS_SIDE = 3;
+export const MAX_BEADS_SIDE = 10;
+export const SIDES = Array.from({ length: MAX_BEADS_SIDE - MIN_BEADS_SIDE + 1 }, (_, i) => MIN_BEADS_SIDE + i);
+const isSide = (v: unknown): v is Side => typeof v === "number" && Number.isInteger(v) && v >= MIN_BEADS_SIDE && v <= MAX_BEADS_SIDE;
+const isSideKey = (k: string): boolean => /^\d+$/.test(k) && isSide(Number(k));
 
 export interface ProjectData {
   name: string;
@@ -36,6 +44,13 @@ export interface Project extends ProjectData {
 
 export const MAX_SIDE = 400;
 export const MAX_CELLS = 12000;
+/** Скільки приблизно бісерин може бути в трафареті, щоб програма не гальмувала. */
+const MAX_BEADS = 130000;
+
+/** Найбільше ромбів разом для side бісерин на сторону: кожен ромб додає ≈ 4·(side − 2) + 2 бісерини. */
+export function maxCells(side: Side): number {
+  return Math.min(MAX_CELLS, Math.floor(MAX_BEADS / (4 * (side - 2) + 2)));
+}
 export const MAX_PALETTE = 300;
 export const MAX_WOVEN = 200000;
 export const DEFAULT_ROWS = 8;
@@ -48,19 +63,20 @@ export const COLOR_ID = /^(p:[0-9A-Za-z]{5}|u:[0-9a-z]{4,32})$/;
 const BEAD_KEY = /^\d+\.\d{3},\d+\.\d{3}$/;
 
 export const emptyFills = (): Fills => ({ "3": {}, "4": {} });
-export const cloneFills = (f: Fills): Fills => ({ "3": { ...f["3"] }, "4": { ...f["4"] } });
+export const cloneFills = (f: Fills): Fills => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, { ...v }]));
 export const emptyWoven = (): Woven => ({ "3": [], "4": [] });
-export const cloneWoven = (w: Woven): Woven => ({ "3": [...w["3"]], "4": [...w["4"]] });
-export const sideKey = (side: Side): SideKey => (side === 4 ? "4" : "3");
+export const cloneWoven = (w: Woven): Woven => Object.fromEntries(Object.entries(w).map(([k, v]) => [k, [...v]]));
+export const sideKey = (side: Side): SideKey => String(side);
 
 export function newId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function fitSize(p: { rows: number; cols: number }): void {
-  p.rows = clamp(Math.round(p.rows), 1, MAX_SIDE);
-  p.cols = clamp(Math.round(p.cols), 1, Math.min(MAX_SIDE, Math.floor(MAX_CELLS / p.rows)));
+export function fitSize(p: { rows: number; cols: number; side: Side }): void {
+  const cells = maxCells(p.side);
+  p.rows = clamp(Math.round(p.rows), 1, Math.min(MAX_SIDE, cells));
+  p.cols = clamp(Math.round(p.cols), 1, Math.min(MAX_SIDE, Math.floor(cells / p.rows)));
 }
 
 export function blankProject(name: string): Project {
@@ -99,7 +115,8 @@ export function isLegacyProject(p: Project): boolean {
  */
 export function ensureFields(p: Project): void {
   const w = (p as Partial<Project>).woven;
-  if (!w || !Array.isArray(w["3"]) || !Array.isArray(w["4"])) p.woven = emptyWoven();
+  if (!w || typeof w !== "object" || Object.values(w).some((list) => !Array.isArray(list))) p.woven = emptyWoven();
+  if (!isSide(p.side)) p.side = MIN_BEADS_SIDE;
   p.gaps = sanitizeGaps((p as Partial<Project>).gaps);
   p.repeat = sanitizeRepeat((p as Partial<Project>).repeat);
 }
@@ -109,14 +126,15 @@ export function sanitizeRepeat(raw: unknown): number {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= MAX_SIDE ? raw : DEFAULT_REPEAT;
 }
 
-export const emptyGaps = (): Gaps => ({ x: [], y: [] });
-export const cloneGaps = (g: Gaps): Gaps => ({ x: [...g.x], y: [...g.y] });
-/** Найдальша лінія проміжку (шості частки ґратки). */
-const MAX_GAP = 12 * MAX_SIDE;
+export const emptyGaps = (): Gaps => ({ unit: GAP_UNIT, x: [], y: [] });
+export const cloneGaps = (g: Gaps): Gaps => ({ unit: g.unit, x: [...g.x], y: [...g.y] });
+/** Найдальша лінія проміжку (у GAP_UNIT). */
+const MAX_GAP = knotLine(MAX_SIDE);
 
 /**
- * Перевіряє проміжки: цілі числа 0…MAX_GAP без повторів, за зростанням.
- * Перший вигляд (етап 6) зберігав номери ромбів і рядів: «після ромба j» — це лінія 12·j.
+ * Перевіряє проміжки: цілі числа 0…MAX_GAP без повторів, за зростанням, у GAP_UNIT.
+ * Старіші записи переводить: { cols, rows } — номери ромбів і рядів (після ромба j — межа j),
+ * { x, y } без unit — положення в шостих частках ґратки.
  */
 export function sanitizeGaps(raw: unknown): Gaps {
   if (!raw || typeof raw !== "object") return emptyGaps();
@@ -129,8 +147,11 @@ export function sanitizeGaps(raw: unknown): Gaps {
           )
         ].sort((a, b) => a - b)
       : [];
-  if (Array.isArray(o.x) || Array.isArray(o.y)) return { x: list(o.x, 1), y: list(o.y, 1) };
-  return { x: list(o.cols, 12).filter((n) => n > 0), y: list(o.rows, 12).filter((n) => n > 0) };
+  if (Array.isArray(o.x) || Array.isArray(o.y)) {
+    const k = o.unit === GAP_UNIT ? 1 : GAP_UNIT / 6;
+    return { unit: GAP_UNIT, x: list(o.x, k), y: list(o.y, k) };
+  }
+  return { unit: GAP_UNIT, x: list(o.cols, knotLine(1)).filter((n) => n > 0), y: list(o.rows, knotLine(1)).filter((n) => n > 0) };
 }
 
 /**
@@ -141,12 +162,13 @@ export function sanitizeFills(raw: unknown, mode: "id" | "hex"): Fills {
   const out = emptyFills();
   if (!raw || typeof raw !== "object") return out;
   const valid = mode === "id" ? COLOR_ID : HEX;
-  for (const side of ["3", "4"] as const) {
-    const src = (raw as Record<string, unknown>)[side];
-    if (!src || typeof src !== "object") continue;
+  for (const [side, src] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isSideKey(side) || !src || typeof src !== "object") continue;
+    const dst: Record<string, string> = {};
     for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
-      if (BEAD_KEY.test(k) && typeof v === "string" && valid.test(v)) out[side][k] = mode === "hex" ? v.toUpperCase() : v;
+      if (BEAD_KEY.test(k) && typeof v === "string" && valid.test(v)) dst[k] = mode === "hex" ? v.toUpperCase() : v;
     }
+    out[side] = dst;
   }
   return out;
 }
@@ -154,16 +176,17 @@ export function sanitizeFills(raw: unknown, mode: "id" | "hex"): Fills {
 export function sanitizeWoven(raw: unknown): Woven {
   const out = emptyWoven();
   if (!raw || typeof raw !== "object") return out;
-  for (const side of ["3", "4"] as const) {
-    const src = (raw as Record<string, unknown>)[side];
-    if (!Array.isArray(src)) continue;
+  for (const [side, src] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isSideKey(side) || !Array.isArray(src)) continue;
     const seen = new Set<string>();
+    const dst: string[] = [];
     for (const k of src) {
       if (typeof k !== "string" || !BEAD_KEY.test(k) || seen.has(k)) continue;
       seen.add(k);
-      out[side].push(k);
-      if (out[side].length >= MAX_WOVEN) break;
+      dst.push(k);
+      if (dst.length >= MAX_WOVEN) break;
     }
+    out[side] = dst;
   }
   return out;
 }
@@ -187,7 +210,7 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     name: typeof o.name === "string" && o.name.trim() ? o.name.trim().slice(0, 80) : fallbackName,
     rows: o.rows,
     cols: o.cols,
-    side: o.side === 4 ? 4 : 3,
+    side: isSide(o.side) ? o.side : MIN_BEADS_SIDE,
     fills: sanitizeFills(o.fills, mode),
     palette: mode === "id" ? sanitizePalette(o.palette) : [],
     woven: sanitizeWoven(o.woven),

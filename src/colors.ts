@@ -106,8 +106,8 @@ export function colorTitle(v: ColorView): string {
 export function customIdsIn(fills: Fills, palette: readonly string[]): string[] {
   const ids = new Set<string>();
   for (const id of palette) if (id.startsWith("u:")) ids.add(id);
-  for (const side of ["3", "4"] as const) {
-    for (const id of Object.values(fills[side])) if (id.startsWith("u:")) ids.add(id);
+  for (const side of Object.values(fills)) {
+    for (const id of Object.values(side)) if (id.startsWith("u:")) ids.add(id);
   }
   return [...ids];
 }

@@ -1,4 +1,4 @@
-import { BEAD_R, type Geometry } from "./geometry";
+import { BEAD_R, knotLine, type Geometry } from "./geometry";
 import { plural } from "./util";
 
 /**
@@ -110,20 +110,21 @@ function countIn(list: number[], from: number, to: number): number {
  */
 export function stripStart(geom: Geometry, c0: number): number {
   if (c0 === 0) return geom.colX[0];
-  return geom.colX[c0] + geom.gap * countIn(geom.gx, 12 * c0, 12 * c0 + geom.step);
+  return geom.colX[c0] + geom.gap * countIn(geom.gx, knotLine(c0), knotLine(c0) + geom.step);
 }
 
 /** Права межа смуги, що закінчується перед ромбом c1 (див. stripStart). */
 export function stripEnd(geom: Geometry, c1: number): number {
   const last = geom.colX.length - 1;
   if (c1 === last) return geom.colX[last];
-  return geom.colX[c1] - geom.gap * countIn(geom.gx, 12 * c1 - geom.step, 12 * c1);
+  return geom.colX[c1] - geom.gap * countIn(geom.gx, knotLine(c1) - geom.step, knotLine(c1));
 }
 
 const stripWidth = (geom: Geometry, c0: number, c1: number): number => stripEnd(geom, c1) - stripStart(geom, c0);
 
 /** Біля вузлових бісерин між ромбами c і c + 1 є проміжок — тут смугу зручно розрізати. */
-const gapAtCut = (geom: Geometry, c: number): boolean => countIn(geom.gx, 12 * c - geom.step, 12 * c + geom.step) > 0;
+const gapAtCut = (geom: Geometry, c: number): boolean =>
+  countIn(geom.gx, knotLine(c) - geom.step, knotLine(c) + geom.step) > 0;
 
 /**
  * Жадібний поділ на смуги не ширші за maxW (у кожній смузі щонайменше один ромб).

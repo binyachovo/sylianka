@@ -21,6 +21,8 @@ export interface ImageText {
   meta: string;
   rows: number;
   cols: number;
+  /** Збільшення номерів і смуг для них (див. labelScale). */
+  labelScale: number;
   /** «Усього бісерин: …» */
   total: string;
   legend: LegendRow[];
@@ -53,6 +55,7 @@ const FONTS = {
   mono: '500 15px "IBM Plex Mono", ui-monospace, monospace',
   label: '500 9.5px "IBM Plex Mono", ui-monospace, monospace'
 };
+const labelFont = (k: number): string => `500 ${9.5 * k}px "IBM Plex Mono", ui-monospace, monospace`;
 const ROW_H = 30;
 
 /** Чекаємо шрифтів (і кириличних частин), інакше canvas візьме запасні. */
@@ -63,13 +66,13 @@ async function fontsReady(): Promise<void> {
 }
 
 /** Поля навколо сітки в одиницях трафарету: з номерами чи без. */
-const frameFor = (labels: boolean): { l: number; r: number; t: number; b: number } =>
-  labels ? { l: 27, r: 9, t: 20, b: 9 } : { l: BEAD_R + 1, r: BEAD_R + 1, t: BEAD_R + 1, b: BEAD_R + 1 };
+const frameFor = (labels: number | null): { l: number; r: number; t: number; b: number } =>
+  labels ? { l: 27 * labels, r: 9, t: 20 * labels, b: 9 } : { l: BEAD_R + 1, r: BEAD_R + 1, t: BEAD_R + 1, b: BEAD_R + 1 };
 
 export async function renderStencilPng(o: ImageOptions): Promise<Blob | null> {
   await fontsReady();
   const { geom, text } = o;
-  const fr = frameFor(!!text);
+  const fr = frameFor(text ? text.labelScale : null);
   const uw = geom.width + fr.l + fr.r;
   const uh = geom.height + fr.t + fr.b;
   const scale = Math.min(MAX_SCALE, MAX_SIDE_PX / uw, MAX_SIDE_PX / uh, Math.sqrt(MAX_AREA_PX / (uw * uh)));
@@ -169,20 +172,21 @@ export async function renderStencilPng(o: ImageOptions): Promise<Blob | null> {
   ctx.stroke();
 
   if (text) {
+    const k = text.labelScale;
     ctx.fillStyle = MUTED;
-    ctx.font = FONTS.label;
+    ctx.font = labelFont(k);
     ctx.textAlign = "center";
     const colEvery = text.cols > 40 ? 5 : 1;
     for (let i = 0; i < text.cols; i++) {
       const n = i + 1;
-      if (colEvery === 1 || n === 1 || n % colEvery === 0) ctx.fillText(String(n), geom.px(2 * i + 1), -8);
+      if (colEvery === 1 || n === 1 || n % colEvery === 0) ctx.fillText(String(n), geom.px(2 * i + 1), -8 * k);
     }
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     const rowEvery = text.rows > 40 ? 5 : 1;
     for (let r = 0; r < text.rows; r++) {
       const n = r + 1;
-      if (rowEvery === 1 || n === 1 || n % rowEvery === 0) ctx.fillText(String(n), -7.5, geom.py(2 * r + 1));
+      if (rowEvery === 1 || n === 1 || n % rowEvery === 0) ctx.fillText(String(n), -7.5 * k, geom.py(2 * r + 1));
     }
   }
   ctx.restore();
