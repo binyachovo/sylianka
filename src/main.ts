@@ -28,7 +28,7 @@ import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Edge, type Gaps, t
 import { HitIndex } from "./hit";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
-import { applyPrintLayout, describePlan, fitScaleWithText, fmtMm, planStrips, stripStart, type Frame } from "./print";
+import { applyPrintLayout, describePlan, fitScaleWithText, fmtMm, planStrips, stripEnd, stripStart, type Frame } from "./print";
 import {
   MAX_CELLS,
   MAX_PALETTE,
@@ -37,7 +37,7 @@ import {
   cloneFills,
   cloneGaps,
   emptyWoven,
-  ensureWoven,
+  ensureFields,
   fitSize,
   forgetV1,
   isLegacyProject,
@@ -435,31 +435,35 @@ function updatePrintInfo(): void {
 
 /**
  * Одна смуга трафарету для друку: ромби з c0 до c1 (не включно).
- * Якщо смуга починається одразу після проміжку, проміжок у неї не потрапляє:
- * вузлові бісерини на її лівому краї стають поруч зі своїм ромбом.
+ * Проміжок одразу за вузловими бісеринами на початку смуги чи одразу перед ними в кінці
+ * в смугу не потрапляє: ці бісерини стають поруч зі своїм ромбом (див. stripStart / stripEnd).
  */
 function stripSvg(c0: number, c1: number, labels: boolean, scale: number): string {
   if (!geom) return "";
   const { H, height: HT, px, py } = geom;
   const x0 = stripStart(geom, c0);
-  const x1 = geom.colX[c1];
+  const x1 = stripEnd(geom, c1);
   const lo = 2 * c0 - 1e-9;
   const hi = 2 * c1 + 1e-9;
-  const shift = x0 - geom.colX[c0];
-  const onLeft = (lx: number): boolean => shift > 0 && Math.abs(lx - 2 * c0) < 1e-6;
+  const shiftL = x0 - geom.colX[c0];
+  const shiftR = x1 - geom.colX[c1];
+  const shiftAt = (lx: number): number =>
+    Math.abs(lx - 2 * c0) < 1e-6 ? shiftL : Math.abs(lx - 2 * c1) < 1e-6 ? shiftR : 0;
   const fr = frameFor(labels);
   const vb = [x0 - fr.left, -fr.top, x1 - x0 + fr.left + fr.right, HT + fr.top + fr.bottom];
   const parts: string[] = [];
   const edges: Edge[] = [];
   for (const e of geom.edges) {
     if (Math.min(e.lx0, e.lx1) < lo || Math.max(e.lx0, e.lx1) > hi) continue;
-    if (!onLeft(e.lx0) && !onLeft(e.lx1)) {
+    const a = shiftAt(e.lx0);
+    const b = shiftAt(e.lx1);
+    if (!a && !b) {
       edges.push(e);
       continue;
     }
     const pts = [...e.pts];
-    if (onLeft(e.lx0)) pts[0] += shift;
-    if (onLeft(e.lx1)) pts[pts.length - 2] += shift;
+    pts[0] += a;
+    pts[pts.length - 2] += b;
     edges.push({ ...e, pts });
   }
   parts.push(`<path class="thread" d="${threadPath(edges, H)}"/>`);
@@ -485,7 +489,7 @@ function stripSvg(c0: number, c1: number, labels: boolean, scale: number): strin
   for (const b of geom.beads) {
     if (b.lx < lo || b.lx > hi) continue;
     const id = f[b.k];
-    const x = onLeft(b.lx) ? b.x + shift : b.x;
+    const x = b.x + shiftAt(b.lx);
     parts.push(`<circle class="bd" cx="${r2(x)}" cy="${r2(b.y)}" r="${BEAD_R}"${id ? ` style="fill:${hexOf(id)}"` : ""}/>`);
   }
   return (
@@ -867,84 +871,86 @@ function beadAt(e: { clientX: number; clientY: number }): string | null {
   return i >= 0 ? geom.beads[i].k : null;
 }
 
-/* ---------- Проміжки: клік між номерами ромбів чи рядів ---------- */
+/* ---------- Проміжки: клік у смузі з номерами ---------- */
 
-/** Межа, де може бути проміжок: після ромба index (col) чи після ряду index (row), з 1. */
-type GapAt = { kind: "col" | "row"; index: number };
+/**
+ * Місце для проміжку — між двома сусідніми лініями бісерин: «x» — між стовпчиками
+ * (смуга з номерами ромбів згори), «y» — між рядками (смуга з номерами рядів зліва).
+ * at і next — положення цих ліній у шостих частках ґратки; проміжок записується як at.
+ */
+type GapAt = { kind: "x" | "y"; at: number; next: number };
 
-/** Екранне положення межі після ромба j (посередині проміжку, якщо він є). */
-function colBoundary(j: number): number {
+/** Проміжки між цими двома лініями (після зміни 3 ↔ 4 бісерини на сторону їх може бути кілька). */
+const gapsIn = (g: GapAt): number[] => project.gaps[g.kind].filter((v) => v >= g.at && v < g.next);
+
+/** Екранне положення лінії бісерин (шості частки ґратки). */
+function linePos(kind: "x" | "y", v: number): number {
   if (!geom) return 0;
-  return geom.colGaps.has(j) ? geom.colX[j] + geom.gap / 2 : geom.colX[j];
-}
-function rowBoundary(r: number): number {
-  if (!geom) return 0;
-  return geom.rowGaps.has(r) ? geom.rowY[r] + geom.gap / 2 : geom.rowY[r];
+  return kind === "x" ? geom.px(v / 6) : geom.py(v / 6);
 }
 
-/** Межа між номерами під мишею: над трафаретом — між ромбами, зліва — між рядами. */
+/** Межа між сусідніми лініями бісерин, на яку показує точка p (або null поза сіткою). */
+function boundaryNear(kind: "x" | "y", p: number): GapAt | null {
+  if (!geom) return null;
+  const n = kind === "x" ? project.cols : project.rows;
+  const step = geom.step;
+  const last = (12 * n) / step;
+  if (p < linePos(kind, 0) || p > linePos(kind, 12 * n)) return null;
+  let lo = 0;
+  let hi = last;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (linePos(kind, mid * step) <= p) lo = mid;
+    else hi = mid;
+  }
+  return { kind, at: lo * step, next: (lo + 1) * step };
+}
+
+/** Межа під мишею: над трафаретом — між стовпчиками бісерин, зліва — між рядками. */
 function gutterAt(e: { clientX: number; clientY: number }): GapAt | null {
   if (!geom || ui.clean || settings.weave) return null;
   const pt = svgPoint(e);
   if (!pt) return null;
-  // Лише між номерами: над самим номером підказка не заважає його прочитати.
-  const reach = geom.H * 0.65;
-  if (pt.y < -1 && pt.y >= -GUT_T && pt.x > -2 && pt.x < geom.width + 2) {
-    let best = -1;
-    let bestD = reach;
-    for (let j = 1; j < project.cols; j++) {
-      const d = Math.abs(colBoundary(j) - pt.x);
-      if (d < bestD) {
-        bestD = d;
-        best = j;
-      }
-    }
-    return best > 0 ? { kind: "col", index: best } : null;
-  }
-  if (pt.x < -1 && pt.x >= -GUT_L && pt.y > -2 && pt.y < geom.height + 2) {
-    let best = -1;
-    let bestD = reach;
-    for (let r = 1; r < project.rows; r++) {
-      const d = Math.abs(rowBoundary(r) - pt.y);
-      if (d < bestD) {
-        bestD = d;
-        best = r;
-      }
-    }
-    return best > 0 ? { kind: "row", index: best } : null;
-  }
+  if (pt.y < -1 && pt.y >= -GUT_T) return boundaryNear("x", pt.x);
+  if (pt.x < -1 && pt.x >= -GUT_L) return boundaryNear("y", pt.y);
   return null;
 }
 
-const hasGap = (g: GapAt): boolean =>
-  g.kind === "col" ? project.gaps.cols.includes(g.index) : project.gaps.rows.includes(g.index);
+/** Де межа: між ромбами (рядами) — поруч із вузловими бісеринами, або всередині ромба (ряду). */
+function gutterWhere(g: GapAt): string {
+  const n = g.kind === "x" ? project.cols : project.rows;
+  const knot = g.at % 12 === 0 ? g.at / 12 : g.next % 12 === 0 ? g.next / 12 : -1;
+  if (knot >= 1 && knot < n) {
+    return g.kind === "x" ? `між ромбами ${knot} і ${knot + 1}` : `між рядами ${knot} і ${knot + 1}`;
+  }
+  const inner = Math.floor(g.at / 12) + 1;
+  return g.kind === "x" ? `між стовпчиками бісерин у ромбі ${inner}` : `між рядками бісерин у ряду ${inner}`;
+}
 
 function gutterText(g: GapAt): string {
-  const what = g.kind === "col" ? `ромбами ${g.index} і ${g.index + 1}` : `рядами ${g.index} і ${g.index + 1}`;
-  return hasGap(g) ? `Клік — прибрати проміжок між ${what}` : `Клік — проміжок між ${what}`;
+  return gapsIn(g).length ? `Клік — прибрати проміжок ${gutterWhere(g)}` : `Клік — проміжок ${gutterWhere(g)}`;
 }
 
 function setGutterHover(g: GapAt | null): void {
-  if (g?.kind === hoverGutter?.kind && g?.index === hoverGutter?.index) return;
+  if (g?.kind === hoverGutter?.kind && g?.at === hoverGutter?.at) return;
   hoverGutter = g;
   if (gapGuide && geom) {
     if (g) {
-      if (g.kind === "col") {
-        const x = r2(colBoundary(g.index));
-        gapGuide.setAttribute("x1", x);
-        gapGuide.setAttribute("x2", x);
+      const m = r2((linePos(g.kind, g.at) + linePos(g.kind, g.next)) / 2);
+      if (g.kind === "x") {
+        gapGuide.setAttribute("x1", m);
+        gapGuide.setAttribute("x2", m);
         gapGuide.setAttribute("y1", r2(-GUT_T + 3));
         gapGuide.setAttribute("y2", r2(geom.height + 3));
       } else {
-        const y = r2(rowBoundary(g.index));
-        gapGuide.setAttribute("y1", y);
-        gapGuide.setAttribute("y2", y);
+        gapGuide.setAttribute("y1", m);
+        gapGuide.setAttribute("y2", m);
         gapGuide.setAttribute("x1", r2(-GUT_L + 3));
         gapGuide.setAttribute("x2", r2(geom.width + 3));
       }
     }
     gapGuide.classList.toggle("on", g !== null);
-    gapGuide.classList.toggle("del", g !== null && hasGap(g));
+    gapGuide.classList.toggle("del", g !== null && gapsIn(g).length > 0);
   }
   hitRect?.classList.toggle("over", hoverKey !== null || g !== null);
 }
@@ -952,9 +958,9 @@ function setGutterHover(g: GapAt | null): void {
 /** Змінює проміжки однією дією (можна скасувати). */
 function setGaps(next: Gaps): void {
   const norm = (v: number[]): number[] => [...new Set(v)].sort((a, b) => a - b);
-  const after: Gaps = { cols: norm(next.cols), rows: norm(next.rows) };
+  const after: Gaps = { x: norm(next.x), y: norm(next.y) };
   const before = cloneGaps(project.gaps);
-  if (before.cols.join() === after.cols.join() && before.rows.join() === after.rows.join()) return;
+  if (before.x.join() === after.x.join() && before.y.join() === after.y.join()) return;
   drawHistory.push({ kind: "gaps", before, after: cloneGaps(after) });
   project.gaps = after;
   render();
@@ -962,10 +968,11 @@ function setGaps(next: Gaps): void {
   markDirty();
 }
 
+/** Клік по межі: є там проміжок — прибрати, немає — вставити. */
 function toggleGap(g: GapAt): void {
-  const list = g.kind === "col" ? project.gaps.cols : project.gaps.rows;
-  const next = list.includes(g.index) ? list.filter((v) => v !== g.index) : [...list, g.index];
-  setGaps(g.kind === "col" ? { cols: next, rows: project.gaps.rows } : { cols: project.gaps.cols, rows: next });
+  const list = project.gaps[g.kind];
+  const next = gapsIn(g).length ? list.filter((v) => v < g.at || v >= g.next) : [...list, g.at];
+  setGaps(g.kind === "x" ? { x: next, y: project.gaps.y } : { x: project.gaps.x, y: next });
 }
 
 /* ---------- Проміжки: панель «Проміжки» над трафаретом ---------- */
@@ -975,7 +982,7 @@ const gapsPop = $("#gaps-pop");
 const gapsCount = $("#gaps-n");
 const gapsState = $("#gaps-state");
 const gapAxes = {
-  col: {
+  x: {
     input: $<HTMLInputElement>("#gap-cols-n"),
     lead: $("#gap-cols-lead"),
     unit: $("#gap-cols-unit"),
@@ -983,7 +990,7 @@ const gapAxes = {
     clear: $<HTMLButtonElement>("#gap-cols-clear"),
     fallback: 5
   },
-  row: {
+  y: {
     input: $<HTMLInputElement>("#gap-rows-n"),
     lead: $("#gap-rows-lead"),
     unit: $("#gap-rows-unit"),
@@ -994,58 +1001,66 @@ const gapAxes = {
 };
 
 /** «Після кожних 5 ромбів», але «після кожного 21 ромба». */
-function syncEveryWords(kind: "col" | "row"): void {
+function syncEveryWords(kind: "x" | "y"): void {
   const a = gapAxes[kind];
   const n = Math.round(Number(a.input.value));
   const one = n % 10 === 1 && n % 100 !== 11;
   a.lead.textContent = one ? "Після кожного" : "Після кожних";
-  a.unit.textContent = kind === "col" ? (one ? "ромба" : "ромбів") : one ? "ряду" : "рядів";
+  a.unit.textContent = kind === "x" ? (one ? "ромба" : "ромбів") : one ? "ряду" : "рядів";
 }
 
-/** «після 5, 10, 15» — перші кілька проміжків. */
-function gapList(v: number[]): string {
+/** «5, 10, 15» — перші кілька номерів. */
+function numList(v: number[]): string {
   const head = v.slice(0, 8).join(", ");
   return v.length > 8 ? `${head} … (усього ${v.length})` : head;
+}
+
+/** Підсумок у панелі: номери ромбів (рядів), якщо всі проміжки між ними, інакше — скільки проміжків. */
+function describeGaps(list: number[], kind: "x" | "y"): string {
+  if (!list.length) return "";
+  if (list.every((g) => g > 0 && g % 12 === 0)) {
+    const where = numList(list.map((g) => g / 12));
+    return kind === "x" ? `Вертикальні — після ромбів ${where}.` : `Горизонтальні — після рядів ${where}.`;
+  }
+  return kind === "x" ? `Вертикальних проміжків — ${list.length}.` : `Горизонтальних проміжків — ${list.length}.`;
 }
 
 /** Лічильник на кнопці, стан кнопок і підсумок у панелі. */
 function syncGapsUi(): void {
   if (!geom) return;
-  const cols = [...geom.colGaps].sort((a, b) => a - b);
-  const rows = [...geom.rowGaps].sort((a, b) => a - b);
-  gapsCount.textContent = cols.length + rows.length ? ` · ${cols.length + rows.length}` : "";
-  for (const kind of ["col", "row"] as const) {
+  const nx = geom.gx.length;
+  const ny = geom.gy.length;
+  gapsCount.textContent = nx + ny ? ` · ${nx + ny}` : "";
+  for (const kind of ["x", "y"] as const) {
     const a = gapAxes[kind];
-    const total = kind === "col" ? project.cols : project.rows;
+    const total = kind === "x" ? project.cols : project.rows;
     a.input.max = String(Math.max(1, total - 1));
     a.input.disabled = total < 2;
     a.set.disabled = total < 2;
-    a.clear.disabled = (kind === "col" ? cols : rows).length === 0;
+    a.clear.disabled = (kind === "x" ? nx : ny) === 0;
     syncEveryWords(kind);
   }
-  const parts: string[] = [];
-  if (cols.length) parts.push(`між ромбами — після ${gapList(cols)}`);
-  if (rows.length) parts.push(`між рядами — після ${gapList(rows)}`);
-  gapsState.textContent = parts.length ? `Зараз проміжки ${parts.join("; ")}.` : "Проміжків ще немає.";
+  const text = [describeGaps(geom.gx, "x"), describeGaps(geom.gy, "y")].filter(Boolean).join(" ");
+  gapsState.textContent = text || "Проміжків ще немає.";
 }
 
-/** Рівномірні проміжки: після кожних n ромбів (рядів). Попередні проміжки цього напрямку замінюються. */
-function spreadGaps(kind: "col" | "row"): void {
+/** Рівномірні проміжки: після кожних n ромбів (рядів). Інші проміжки цього напрямку прибираються. */
+function spreadGaps(kind: "x" | "y"): void {
   const a = gapAxes[kind];
-  const total = kind === "col" ? project.cols : project.rows;
+  const total = kind === "x" ? project.cols : project.rows;
   if (total < 2) return;
   let n = Math.round(Number(a.input.value));
   if (!Number.isFinite(n) || n < 1) n = a.fallback;
   n = clamp(n, 1, total - 1);
   a.input.value = String(n);
   const list: number[] = [];
-  for (let v = n; v < total; v += n) list.push(v);
-  setGaps(kind === "col" ? { cols: list, rows: project.gaps.rows } : { cols: project.gaps.cols, rows: list });
+  for (let v = n; v < total; v += n) list.push(12 * v);
+  setGaps(kind === "x" ? { x: list, y: project.gaps.y } : { x: project.gaps.x, y: list });
   syncGapsUi();
 }
 
-function clearGaps(kind: "col" | "row"): void {
-  setGaps(kind === "col" ? { cols: [], rows: project.gaps.rows } : { cols: project.gaps.cols, rows: [] });
+function clearGaps(kind: "x" | "y"): void {
+  setGaps(kind === "x" ? { x: [], y: project.gaps.y } : { x: project.gaps.x, y: [] });
   syncGapsUi();
 }
 
@@ -1057,7 +1072,7 @@ function showGapsPop(open: boolean): void {
 }
 
 gapsBtn.addEventListener("click", () => showGapsPop(gapsPop.hidden));
-for (const kind of ["col", "row"] as const) {
+for (const kind of ["x", "y"] as const) {
   const a = gapAxes[kind];
   a.set.addEventListener("click", () => spreadGaps(kind));
   a.clear.addEventListener("click", () => clearGaps(kind));
@@ -1736,7 +1751,7 @@ async function openProject(p: Project): Promise<void> {
   }
   stopPainting();
   const upgraded = await upgradeProject(p);
-  ensureWoven(p);
+  ensureFields(p);
   project = p;
   fitSize(project);
   drawHistory.clear();
@@ -1778,7 +1793,7 @@ const dialog = initProjectsDialog({
     const src = id === project.id ? project : await dbGet(id);
     if (!src) return false;
     await upgradeProject(src);
-    ensureWoven(src);
+    ensureFields(src);
     const now = Date.now();
     // Копію плетуть заново, тож позначки плетіння в неї не переносимо.
     const copyP: Project = {
@@ -1808,7 +1823,7 @@ const dialog = initProjectsDialog({
     const p = id === project.id ? project : await dbGet(id);
     if (!p) return;
     await upgradeProject(p);
-    ensureWoven(p);
+    ensureFields(p);
     await saveProjectToFile(p);
   },
   async importFile(file) {
@@ -1831,7 +1846,7 @@ const dialog = initProjectsDialog({
     const list = await allProjects();
     for (const p of list) {
       await upgradeProject(p);
-      ensureWoven(p);
+      ensureFields(p);
     }
     return saveBackupToFile(list);
   }
@@ -1845,8 +1860,8 @@ function isPristine(p: Project): boolean {
     Object.keys(p.fills["4"]).length === 0 &&
     p.woven["3"].length === 0 &&
     p.woven["4"].length === 0 &&
-    p.gaps.cols.length === 0 &&
-    p.gaps.rows.length === 0
+    p.gaps.x.length === 0 &&
+    p.gaps.y.length === 0
   );
 }
 

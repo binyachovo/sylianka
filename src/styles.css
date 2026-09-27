@@ -374,9 +374,17 @@ body.weaving .gaps-wrap { display: none; }
 }
 .pop p { margin: 0; }
 .pop-lead, .pop-hint { font-size: 13.5px; line-height: 1.35; color: var(--muted); }
-.pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-.pop-row label { min-width: 7.5em; }
-.pop-unit { min-width: 3.4em; }
+.pop-grid {
+  display: grid;
+  grid-template-columns: max-content 58px max-content max-content max-content;
+  align-items: center;
+  gap: 8px;
+}
+.pop-row { display: contents; }
+@media (max-width: 560px) {
+  .pop-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+}
 .pop-state { font-size: 13.5px; line-height: 1.35; }
 .num-in {
   width: 58px;

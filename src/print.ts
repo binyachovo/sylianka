@@ -81,12 +81,42 @@ export interface StripPlan {
   ranges: [number, number][];
 }
 
-/** Ліва межа смуги, що починається з ромба c0: якщо перед ним проміжок, смуга його не містить. */
-export function stripStart(geom: Geometry, c0: number): number {
-  return geom.colX[c0] + (geom.colGaps.has(c0) ? geom.gap : 0);
+/** Скільки проміжків (відсортований список) лежить у [from, to). */
+function countIn(list: number[], from: number, to: number): number {
+  const lower = (v: number): number => {
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid] < v) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  return lower(to) - lower(from);
 }
 
-const stripWidth = (geom: Geometry, c0: number, c1: number): number => geom.colX[c1] - stripStart(geom, c0);
+/**
+ * Смуги ріжуться між ромбами — по стовпчику вузлових бісерин, який друкується на обох смугах.
+ * Проміжок одразу за цим стовпчиком не потрапляє на початок наступної смуги, а проміжок
+ * одразу перед ним — у кінець попередньої: вузлові бісерини стають поруч зі своїм ромбом.
+ */
+export function stripStart(geom: Geometry, c0: number): number {
+  if (c0 === 0) return geom.colX[0];
+  return geom.colX[c0] + geom.gap * countIn(geom.gx, 12 * c0, 12 * c0 + geom.step);
+}
+
+/** Права межа смуги, що закінчується перед ромбом c1 (див. stripStart). */
+export function stripEnd(geom: Geometry, c1: number): number {
+  const last = geom.colX.length - 1;
+  if (c1 === last) return geom.colX[last];
+  return geom.colX[c1] - geom.gap * countIn(geom.gx, 12 * c1 - geom.step, 12 * c1);
+}
+
+const stripWidth = (geom: Geometry, c0: number, c1: number): number => stripEnd(geom, c1) - stripStart(geom, c0);
+
+/** Біля вузлових бісерин між ромбами c і c + 1 є проміжок — тут смугу зручно розрізати. */
+const gapAtCut = (geom: Geometry, c: number): boolean => countIn(geom.gx, 12 * c - geom.step, 12 * c + geom.step) > 0;
 
 /**
  * Жадібний поділ на смуги не ширші за maxW (у кожній смузі щонайменше один ромб).
@@ -100,7 +130,7 @@ function split(geom: Geometry, cols: number, maxW: number, alignGaps: boolean): 
     while (c1 < cols && stripWidth(geom, c0, c1 + 1) <= maxW + 1e-9) c1++;
     if (alignGaps && c1 < cols) {
       let g = c1;
-      while (g > c0 && !geom.colGaps.has(g)) g--;
+      while (g > c0 && !gapAtCut(geom, g)) g--;
       if (g > c0) c1 = g;
     }
     out.push([c0, c1]);
@@ -117,7 +147,7 @@ function stripRanges(geom: Geometry, cols: number, maxW: number, perPage: number
   const greedy = split(geom, cols, maxW, false);
   const n = greedy.length;
   if (n === 1) return greedy;
-  if (geom.colGaps.size) {
+  if (geom.gx.length) {
     const aligned = split(geom, cols, maxW, true);
     if (Math.ceil(aligned.length / perPage) <= Math.ceil(n / perPage)) return aligned;
   }

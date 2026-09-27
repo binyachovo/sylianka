@@ -25,11 +25,19 @@ export interface Edge {
   pts: number[];
 }
 
-/** Проміжки для вигляду: після якого ромба (по довжині) і після якого ряду (по висоті), з 1. */
+/**
+ * Проміжки для вигляду: після якої лінії бісерин вставлено розрив — окремо по x (вертикальні
+ * проміжки між стовпчиками бісерин) і по y (горизонтальні — між рядками). Положення лінії —
+ * координата ґратки в шостих частках: так однаково записуються лінії і для 3 (крок 1/2),
+ * і для 4 бісерин на сторону (крок 1/3). Межа ромбів j — це 12·j.
+ */
 export interface Gaps {
-  cols: number[];
-  rows: number[];
+  x: number[];
+  y: number[];
 }
+
+/** Відстань між сусідніми лініями бісерин у шостих частках ґратки: 3 для 3 бісерин на сторону, 2 — для 4. */
+export const lineStep = (side: number): number => 6 / (side - 1);
 
 export interface Geometry {
   beads: Bead[];
@@ -40,21 +48,23 @@ export interface Geometry {
   gap: number;
   width: number;
   height: number;
-  /** Екранне x межі ромбів j (ґратка 2j), j = 0…cols; проміжок після ромба j лежить праворуч від неї. */
+  /** Екранне x вузлових бісерин на межі ромбів j (ґратка 2j), j = 0…cols. */
   colX: number[];
-  /** Екранне y межі рядів r (ґратка 2r), r = 0…rows; проміжок після ряду r лежить нижче від неї. */
+  /** Екранне y вузлових бісерин на межі рядів r (ґратка 2r), r = 0…rows. */
   rowY: number[];
-  /** Проміжки, що є в межах сітки. */
-  colGaps: Set<number>;
-  rowGaps: Set<number>;
+  /** Відстань між сусідніми лініями бісерин (шості частки ґратки). */
+  step: number;
+  /** Проміжки в межах сітки за зростанням (шості частки ґратки). */
+  gx: number[];
+  gy: number[];
   /** Координати ґратки → екран. */
   px(lx: number): number;
   py(ly: number): number;
 }
 
-export const noGaps = (): Gaps => ({ cols: [], rows: [] });
+export const noGaps = (): Gaps => ({ x: [], y: [] });
 
-/** Скільки меж зі списку (відсортованого) лежить строго лівіше/вище від v. */
+/** Скільки проміжків зі списку (відсортованого, шості частки ґратки) лежить строго лівіше/вище від v. */
 function countBefore(bounds: number[], v: number): number {
   let lo = 0;
   let hi = bounds.length;
@@ -66,23 +76,26 @@ function countBefore(bounds: number[], v: number): number {
   return lo;
 }
 
+/** Проміжки, що лежать усередині сітки (після лінії від 0 до передостанньої), без повторів і за зростанням. */
+function inside(list: number[], n: number): number[] {
+  return [...new Set(list.filter((g) => Number.isInteger(g) && g >= 0 && g < 12 * n))].sort((a, b) => a - b);
+}
+
 /**
  * Сіточка з ромбів: cols ромбів у ширину, rows рядів у висоту.
  * side — бісерин на сторону ромба разом із вузловими (3 або 4).
  * Вузлові бісерини стоять у вершинах ромбів, між ними — side − 2 бісерини сторони.
- * Проміжки розсувають сітку лише на екрані й у друці: вузлова бісерина на межі
- * лишається з лівого (верхнього) боку, а нитка перетинає розрив.
+ * Проміжки розсувають сітку лише на екрані й у друці: усе, що правіше (нижче) від лінії
+ * проміжку, зсувається, а нитки перетинають розрив.
  */
 export function buildGeometry(cols: number, rows: number, side: number, gaps: Gaps = noGaps()): Geometry {
   const m = side - 2;
   const H = ((side - 1) / Math.SQRT2) * U;
   const gap = H;
-  const colGaps = new Set(gaps.cols.filter((c) => Number.isInteger(c) && c >= 1 && c < cols));
-  const rowGaps = new Set(gaps.rows.filter((r) => Number.isInteger(r) && r >= 1 && r < rows));
-  const xb = [...colGaps].sort((a, b) => a - b).map((c) => 2 * c);
-  const yb = [...rowGaps].sort((a, b) => a - b).map((r) => 2 * r);
-  const px = (lx: number): number => lx * H + gap * countBefore(xb, lx);
-  const py = (ly: number): number => ly * H + gap * countBefore(yb, ly);
+  const gx = inside(gaps.x, cols);
+  const gy = inside(gaps.y, rows);
+  const px = (lx: number): number => lx * H + gap * countBefore(gx, lx * 6);
+  const py = (ly: number): number => ly * H + gap * countBefore(gy, ly * 6);
 
   const beads: Bead[] = [];
   const edges: Edge[] = [];
@@ -127,7 +140,8 @@ export function buildGeometry(cols: number, rows: number, side: number, gaps: Ga
 
   const colX = Array.from({ length: cols + 1 }, (_, j) => px(2 * j));
   const rowY = Array.from({ length: rows + 1 }, (_, r) => py(2 * r));
-  return { beads, edges, H, gap, width: px(2 * cols), height: py(2 * rows), colX, rowY, colGaps, rowGaps, px, py };
+  const step = lineStep(side);
+  return { beads, edges, H, gap, width: px(2 * cols), height: py(2 * rows), colX, rowY, step, gx, gy, px, py };
 }
 
 /** Бісерина, дзеркальна відносно горизонтальної осі смужки. */

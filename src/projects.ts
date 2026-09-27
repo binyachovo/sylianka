@@ -71,7 +71,7 @@ export function blankProject(name: string): Project {
     fills: emptyFills(),
     palette: [],
     woven: emptyWoven(),
-    gaps: { cols: [], rows: [] },
+    gaps: emptyGaps(),
     createdAt: now,
     updatedAt: now
   };
@@ -89,25 +89,38 @@ export function isLegacyProject(p: Project): boolean {
   return !Array.isArray((p as Partial<Project>).palette);
 }
 
-/** Трафарети, збережені до режиму плетіння чи проміжків, не мають цих полів — додаємо порожні. */
-export function ensureWoven(p: Project): void {
+/**
+ * Трафарети зі старіших версій: без позначок плетіння чи проміжків — додаємо порожні;
+ * проміжки першого вигляду (номери ромбів і рядів) переводимо в лінії бісерин.
+ */
+export function ensureFields(p: Project): void {
   const w = (p as Partial<Project>).woven;
   if (!w || !Array.isArray(w["3"]) || !Array.isArray(w["4"])) p.woven = emptyWoven();
-  const g = (p as Partial<Project>).gaps;
-  if (!g || !Array.isArray(g.cols) || !Array.isArray(g.rows)) p.gaps = { cols: [], rows: [] };
+  p.gaps = sanitizeGaps((p as Partial<Project>).gaps);
 }
 
-export const cloneGaps = (g: Gaps): Gaps => ({ cols: [...g.cols], rows: [...g.rows] });
+export const emptyGaps = (): Gaps => ({ x: [], y: [] });
+export const cloneGaps = (g: Gaps): Gaps => ({ x: [...g.x], y: [...g.y] });
+/** Найдальша лінія проміжку (шості частки ґратки). */
+const MAX_GAP = 12 * MAX_SIDE;
 
-/** Перевіряє проміжки: цілі числа 1…MAX_SIDE, без повторів, за зростанням. */
+/**
+ * Перевіряє проміжки: цілі числа 0…MAX_GAP без повторів, за зростанням.
+ * Перший вигляд (етап 6) зберігав номери ромбів і рядів: «після ромба j» — це лінія 12·j.
+ */
 export function sanitizeGaps(raw: unknown): Gaps {
-  const list = (v: unknown): number[] =>
-    Array.isArray(v)
-      ? [...new Set(v.filter((n): n is number => Number.isInteger(n) && n >= 1 && n < MAX_SIDE))].sort((a, b) => a - b)
-      : [];
-  if (!raw || typeof raw !== "object") return { cols: [], rows: [] };
+  if (!raw || typeof raw !== "object") return emptyGaps();
   const o = raw as Record<string, unknown>;
-  return { cols: list(o.cols), rows: list(o.rows) };
+  const list = (v: unknown, k: number): number[] =>
+    Array.isArray(v)
+      ? [
+          ...new Set(
+            v.filter((n): n is number => Number.isInteger(n)).map((n) => n * k).filter((n) => n >= 0 && n < MAX_GAP)
+          )
+        ].sort((a, b) => a - b)
+      : [];
+  if (Array.isArray(o.x) || Array.isArray(o.y)) return { x: list(o.x, 1), y: list(o.y, 1) };
+  return { x: list(o.cols, 12).filter((n) => n > 0), y: list(o.rows, 12).filter((n) => n > 0) };
 }
 
 /**

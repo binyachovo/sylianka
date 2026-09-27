@@ -170,34 +170,36 @@
     </section>
 
     <p class="warn" id="warn" role="status" hidden></p>
-    <p class="hint hint-draw">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Клавіші 1–9 вибирають кольори трафарету, E — гумку. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині; клік між номерами додає проміжок для вигляду.</p>
+    <p class="hint hint-draw">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Клавіші 1–9 вибирають кольори трафарету, E — гумку. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині. Клік у смузі з номерами вставляє проміжок для вигляду між будь-якими рядками чи стовпчиками бісерин.</p>
     <p class="hint hint-weave">Нанизали бісеринку — клікніть по ній: вона отримає наступний номер у наборі. Протягніть мишею, щоб позначити кілька бісерин поспіль у тому порядку, як ведете. Повторний клік знімає позначку, а «Скасувати» (Ctrl+Z) повертає останню дію. Наведіть на бісеринку — побачите її номер, код і колір.</p>
 
     <section class="board" aria-label="Трафарет">
       <div class="board-tools" role="group" aria-label="Вигляд трафарету">
         <div class="gaps-wrap">
-          <button type="button" class="tbtn small" id="gaps-btn" aria-expanded="false" aria-controls="gaps-pop" title="Проміжки між ромбами чи рядами — лише для вигляду">
+          <button type="button" class="tbtn small" id="gaps-btn" aria-expanded="false" aria-controls="gaps-pop" title="Проміжки між будь-якими рядками чи стовпчиками бісерин — лише для вигляду">
             <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="4.5" height="9" rx="1"/><rect x="10" y="3.5" width="4.5" height="9" rx="1"/><path d="M8 2v12" stroke-dasharray="1.4 1.8"/></svg>
             Проміжки<span class="gaps-n" id="gaps-n"></span>
           </button>
           <div class="pop" id="gaps-pop" role="group" aria-label="Проміжки" hidden>
             <p class="pop-lead">Проміжки лише для вигляду: бісерини й нитки не змінюються. На папері проміжки теж будуть.</p>
-            <div class="pop-row">
-              <label for="gap-cols-n" id="gap-cols-lead">Після кожних</label>
-              <input class="num-in" id="gap-cols-n" type="number" min="1" value="5" inputmode="numeric">
-              <span class="pop-unit" id="gap-cols-unit">ромбів</span>
-              <button type="button" class="tbtn small" id="gap-cols-set" title="Замінити проміжки між ромбами на рівномірні">Розставити</button>
-              <button type="button" class="tbtn small" id="gap-cols-clear">Прибрати</button>
-            </div>
-            <div class="pop-row">
-              <label for="gap-rows-n" id="gap-rows-lead">Після кожних</label>
-              <input class="num-in" id="gap-rows-n" type="number" min="1" value="4" inputmode="numeric">
-              <span class="pop-unit" id="gap-rows-unit">рядів</span>
-              <button type="button" class="tbtn small" id="gap-rows-set" title="Замінити проміжки між рядами на рівномірні">Розставити</button>
-              <button type="button" class="tbtn small" id="gap-rows-clear">Прибрати</button>
+            <div class="pop-grid">
+              <div class="pop-row">
+                <label for="gap-cols-n" id="gap-cols-lead">Після кожних</label>
+                <input class="num-in" id="gap-cols-n" type="number" min="1" value="5" inputmode="numeric">
+                <span class="pop-unit" id="gap-cols-unit">ромбів</span>
+                <button type="button" class="tbtn small" id="gap-cols-set" title="Замінити всі вертикальні проміжки рівномірними">Розставити</button>
+                <button type="button" class="tbtn small" id="gap-cols-clear" title="Прибрати всі вертикальні проміжки">Прибрати</button>
+              </div>
+              <div class="pop-row">
+                <label for="gap-rows-n" id="gap-rows-lead">Після кожних</label>
+                <input class="num-in" id="gap-rows-n" type="number" min="1" value="4" inputmode="numeric">
+                <span class="pop-unit" id="gap-rows-unit">рядів</span>
+                <button type="button" class="tbtn small" id="gap-rows-set" title="Замінити всі горизонтальні проміжки рівномірними">Розставити</button>
+                <button type="button" class="tbtn small" id="gap-rows-clear" title="Прибрати всі горизонтальні проміжки">Прибрати</button>
+              </div>
             </div>
             <p class="pop-state" id="gaps-state" aria-live="polite"></p>
-            <p class="pop-hint">Окремий проміжок — клік між номерами ромбів над трафаретом чи між номерами рядів зліва. Повторний клік прибирає його.</p>
+            <p class="pop-hint">Окремий проміжок — клік у смузі з номерами: згори — між будь-якими стовпчиками бісерин, зліва — між будь-якими рядками. Пунктир показує, де він буде; повторний клік прибирає.</p>
           </div>
         </div>
         <span class="zoom-label">Масштаб <b id="zoom-value">авто</b></span>
