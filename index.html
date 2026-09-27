@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Трафарет силянки</title>
+  <meta name="description" content="Трафарети для силянок: розфарбовування бісерин, підрахунок бісеру й друк.">
+  <meta name="theme-color" content="#2B45A6">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <style id="page-size">@page { size: A4 landscape; margin: 0; }</style>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>Трафарет силянки</h1>
+      <p class="meta" id="meta">8-рядна силянка · 3 бісерини в комірці</p>
+      <button type="button" class="tbtn install" id="install" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8"/><path d="M4.5 6.8L8 10.3l3.5-3.5"/><path d="M2.5 13.5h11"/></svg>
+        Встановити як програму
+      </button>
+    </header>
+
+    <section class="bar" aria-label="Налаштування">
+      <div class="grp">
+        <span class="glabel" id="l-color">Колір: <b id="cur-name">червоний</b></span>
+        <div class="palette" id="palette" role="group" aria-labelledby="l-color"></div>
+      </div>
+
+      <div class="grp">
+        <span class="glabel">Інструменти</span>
+        <div class="row">
+          <button type="button" class="tbtn" id="erase" aria-pressed="false">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.4l4.4 4.4-6.2 6.7H4.6L2.3 11.2z"/><path d="M5.6 6.3l4.2 4.2"/><path d="M8.5 13.5h5.2"/></svg>
+            Гумка
+          </button>
+          <button type="button" class="tbtn" id="mirror" aria-pressed="false">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13" stroke-dasharray="1.6 1.9"/><path d="M4.2 5.8L11.8 2v3.8z"/><path d="M4.2 10.2l7.6 3.8v-3.8z"/></svg>
+            Дзеркально
+          </button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <span class="glabel">Розмір, ромбів</span>
+        <div class="row">
+          <div class="field">
+            <label for="in-rows">У висоту</label>
+            <div class="stepper">
+              <button type="button" data-step="rows" data-d="-1" aria-label="Менше рядів">−</button>
+              <input id="in-rows" type="number" min="1" inputmode="numeric">
+              <button type="button" data-step="rows" data-d="1" aria-label="Більше рядів">+</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="in-cols">У ширину</label>
+            <div class="stepper">
+              <button type="button" data-step="cols" data-d="-1" aria-label="Менше ромбів у ширину">−</button>
+              <input id="in-cols" type="number" min="1" inputmode="numeric">
+              <button type="button" data-step="cols" data-d="1" aria-label="Більше ромбів у ширину">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <span class="glabel" id="l-s">Бісерин на сторону ромба</span>
+        <div class="seg" role="group" aria-labelledby="l-s">
+          <button type="button" id="seg-3" data-s="3" aria-pressed="true">3</button>
+          <button type="button" id="seg-4" data-s="4" aria-pressed="false">4</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <span class="glabel">Друк</span>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="clean"> Лише трафарет, без тексту</label>
+          <label class="check"><input type="checkbox" id="two"> Два трафарети на аркуші</label>
+        </div>
+      </div>
+    </section>
+
+    <p class="warn" id="warn" hidden>Найбільше — 400 ромбів з кожного боку й до 12 000 ромбів разом, щоб програма не зависала.</p>
+    <p class="hint">Клік по бісеринці зафарбовує її, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Номери зліва — ряди, згори — ромби по довжині.</p>
+
+    <section class="board" aria-label="Трафарет">
+      <div class="scroller">
+        <svg id="strip" class="stencil" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Сітка силянки"></svg>
+        <svg id="strip2" class="stencil" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Підрахунок бісеру">
+      <span class="stat">Усього бісерин: <b id="st-total">—</b></span>
+      <span class="stat">На один ромб довжини: <b id="st-step">—</b></span>
+      <ul class="counts" id="st-colors"></ul>
+      <button type="button" class="tbtn danger" id="clear">Стерти все</button>
+    </section>
+  </main>
+
+  <div class="clean-bar" id="clean-bar">
+    <label class="check"><input type="checkbox" id="two-float"> Два на аркуші</label>
+    <button type="button" class="tbtn" id="exit-clean">Повернути налаштування</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
