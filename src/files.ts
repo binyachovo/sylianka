@@ -4,7 +4,8 @@ import { sanitizeProjectData, type Project, type ProjectData } from "./projects"
 /**
  * Формат файлу трафарету. Номер формату дозволяє змінювати структуру без втрати старих файлів:
  *   1 — кольори бісерин як HEX (до каталогу Preciosa);
- *   2 — ідентифікатори кольорів, палітра трафарету й дані своїх кольорів.
+ *   2 — ідентифікатори кольорів, палітра трафарету й дані своїх кольорів
+ *       (з етапу 4 — ще й позначки плетіння «woven», необов'язкові).
  */
 const APP = "sylianka";
 const FORMAT = 2;
@@ -20,6 +21,7 @@ export function serializeProject(p: Project): string {
       side: p.side,
       palette: p.palette,
       fills: p.fills,
+      woven: p.woven,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     },

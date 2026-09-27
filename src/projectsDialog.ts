@@ -6,7 +6,8 @@ export interface ProjectsApi {
   list(): Promise<Project[]>;
   open(id: string): Promise<void>;
   create(): Promise<void>;
-  duplicate(id: string): Promise<void>;
+  /** Повертає true, якщо в оригіналі були позначки плетіння (у копію вони не переносяться). */
+  duplicate(id: string): Promise<boolean>;
   remove(id: string): Promise<void>;
   exportFile(id: string): Promise<void>;
   importFile(file: File): Promise<void>;
@@ -68,6 +69,13 @@ export function initProjectsDialog(api: ProjectsApi): { open(): Promise<void> } 
     meta.className = "card-meta";
     meta.textContent = `${p.rows} × ${p.cols} ромбів · ${p.side} бісерини · ${dateFmt.format(p.updatedAt)}`;
     body.append(name, meta);
+    if (p.progress && p.progress.done > 0) {
+      const prog = document.createElement("span");
+      prog.className = "card-meta";
+      const pct = Math.floor((p.progress.done / Math.max(1, p.progress.total)) * 100);
+      prog.textContent = `Нанизано ${p.progress.done.toLocaleString("uk-UA")} з ${p.progress.total.toLocaleString("uk-UA")} (${pct} %)`;
+      body.append(prog);
+    }
     if (isCurrent) {
       const badge = document.createElement("span");
       badge.className = "badge";
@@ -101,11 +109,12 @@ export function initProjectsDialog(api: ProjectsApi): { open(): Promise<void> } 
         if (id !== api.currentId()) await api.open(id);
         dlg.close();
         break;
-      case "dup":
-        await api.duplicate(id);
+      case "dup": {
+        const hadProgress = await api.duplicate(id);
         await refresh();
-        showNote("Копію додано до списку.");
+        showNote(hadProgress ? "Копію додано до списку — без позначок плетіння." : "Копію додано до списку.");
         break;
+      }
       case "export":
         await api.exportFile(id);
         break;

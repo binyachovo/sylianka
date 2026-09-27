@@ -103,6 +103,40 @@ button, input { font: inherit; color: inherit; }
 .save-state.error { color: var(--danger); font-weight: 700; }
 .project-actions { margin-left: auto; }
 
+/* Перемикач режимів */
+.mode-switch {
+  display: inline-flex;
+  justify-self: start;
+  gap: 4px;
+  margin-bottom: -4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px 7px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font-size: 15.5px;
+  cursor: pointer;
+}
+.mode-tab svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mode-tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+
 /* Панель налаштувань */
 .bar {
   display: flex;
@@ -245,6 +279,29 @@ button, input { font: inherit; color: inherit; }
 .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 
 .hint, .warn { margin: 0; font-size: 14.5px; }
+.hint-weave, body.weaving .hint-draw { display: none; }
+body.weaving .hint-weave { display: block; }
+
+/* Панель плетіння */
+.weave-bar { align-items: flex-start; }
+.grp-progress { flex: 1 1 300px; max-width: 440px; }
+.prog-head { display: flex; align-items: baseline; gap: 12px; }
+.prog-count { font-family: var(--mono); font-size: 24px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.prog-of { font-family: var(--sans); font-size: 18px; font-weight: 400; color: var(--muted); }
+.prog-pct { font-family: var(--mono); font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--hover);
+}
+.progress i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--accent); }
+.prog-last { font-size: 14.5px; color: var(--muted); }
+.prog-last b { color: var(--ink); font-family: var(--mono); font-weight: 500; }
+.grp-end { align-self: flex-end; margin-left: auto; }
+body.weaving #clear { display: none; }
 .hint { color: var(--muted); }
 .warn { color: var(--danger); }
 
@@ -282,6 +339,13 @@ button, input { font: inherit; color: inherit; }
 .stencil .bd { fill: var(--bead-empty); stroke: var(--bead-stroke); stroke-width: 0.6; }
 #strip .bd { cursor: pointer; }
 #strip.erasing .bd { cursor: cell; }
+/* Плетіння: нанизані приглушені (заливку змішує код), остання — з обводкою «де зупинилися» */
+.stencil.weaving.dim .bd.done { stroke-opacity: 0.3; }
+.stencil.weaving .bd.last, .stencil.weaving.dim .bd.last { stroke: var(--accent); stroke-width: 2.2; stroke-opacity: 1; }
+.stencil.weaving .bd.flash { animation: flash 0.65s ease-in-out 4; }
+@keyframes flash {
+  50% { stroke: var(--danger-strong, #D92D20); stroke-width: 4.5; }
+}
 #strip2 { display: none; pointer-events: none; }
 
 /* Підрахунок бісеру */
@@ -336,6 +400,9 @@ button, input { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .cnt-replace:disabled { opacity: 0.45; cursor: default; }
+.cnt-prog { align-items: center; gap: 10px; }
+.cnt-prog .progress { flex: 1 1 auto; height: 6px; }
+.cnt-prog-n { font-family: var(--mono); font-size: 13.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* Підказка над бісеринкою */
 .tip {
@@ -387,7 +454,7 @@ body.clean {
   --bead-empty: #FFFFFF;
   --bead-stroke: #7F858E;
 }
-body.clean .top, body.clean .project-row, body.clean .bar, body.clean .hint, body.clean .warn, body.clean .stats, body.clean .tip { display: none; }
+body.clean .top, body.clean .project-row, body.clean .mode-switch, body.clean .bar, body.clean .hint, body.clean .warn, body.clean .stats, body.clean .tip { display: none !important; }
 body.clean .app { max-width: none; padding-block: 72px 24px; }
 body.clean .board { padding: 0; border: 0; border-radius: 0; }
 body.clean .scroller { display: flex; flex-direction: column; gap: 24px; overflow: visible; }
@@ -654,6 +721,7 @@ body.clean .clean-bar { display: flex; }
 .cform-note:empty { display: none; }
 
 @media (hover: hover) {
+  .mode-tab[aria-selected="false"]:hover { background: var(--hover); color: var(--ink); }
   .pill:hover, .ci:hover, .fchip:hover { border-color: var(--accent); }
   .fchip[aria-pressed="true"]:hover { border-color: var(--ink); }
   .pill-x:hover { background: var(--surface); color: var(--danger); }
@@ -667,10 +735,12 @@ body.clean .clean-bar { display: flex; }
   body.clean #strip .bd:hover { stroke: var(--bead-stroke); stroke-width: 0.6; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .pill, .ci, .fchip, .tbtn, .seg button { transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease; }
+  .pill, .ci, .fchip, .tbtn, .seg button, .mode-tab { transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease; }
+  .progress i { transition: width 0.2s ease; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pal-add.pulse { animation: none; outline: 2px solid var(--accent); }
+  .stencil.weaving .bd.flash { animation: none; stroke-width: 4; }
 }
 @media (max-width: 640px) {
   .bar { gap: 14px 20px; padding: 12px; }
@@ -686,6 +756,8 @@ body.clean .clean-bar { display: flex; }
   .app, body.clean .app { max-width: none; padding: 10mm; }
   .clean-bar, .top, .bar, .hint, .warn, .tip, .project-actions, .save-state, .cnt-act, #clear { display: none !important; }
   .board, .stats { border: 0; padding: 0; }
+  .mode-switch { display: none !important; }
+  .stencil .bd.done, .stencil .bd.last { stroke: var(--bead-stroke) !important; stroke-width: 0.6 !important; stroke-opacity: 1 !important; }
   body:not(.clean) .stencil { max-height: 118mm; }
   .stats { gap: 4px; }
   .stats-title { font-size: 16px; }

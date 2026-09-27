@@ -33,6 +33,8 @@ import {
   blankProject,
   cloneFills,
   emptyFills,
+  emptyWoven,
+  ensureWoven,
   fitSize,
   forgetV1,
   isLegacyProject,
@@ -48,6 +50,7 @@ import { legacyBrushHex, loadSettings, rememberRecent, saveSettings } from "./se
 import { makeThumb } from "./thumb";
 import { initBeadTooltip } from "./tooltip";
 import { $, $$, clamp, esc, num, r2 } from "./util";
+import { Weave } from "./weave";
 
 registerSW({ immediate: true });
 
@@ -68,8 +71,8 @@ const copy = $<SVGSVGElement>("#strip2");
 const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
-const undoBtn = $<HTMLButtonElement>("#undo");
-const redoBtn = $<HTMLButtonElement>("#redo");
+const undoBtns = $$<HTMLButtonElement>("[data-undo]");
+const redoBtns = $$<HTMLButtonElement>("[data-redo]");
 const clearBtn = $<HTMLButtonElement>("#clear");
 const inRows = $<HTMLInputElement>("#in-rows");
 const inCols = $<HTMLInputElement>("#in-cols");
@@ -83,13 +86,52 @@ const installBtn = $<HTMLButtonElement>("#install");
 const nameInput = $<HTMLInputElement>("#project-name");
 const saveState = $("#save-state");
 const countsList = $("#st-colors");
+const modeDraw = $<HTMLButtonElement>("#mode-draw");
+const modeWeave = $<HTMLButtonElement>("#mode-weave");
+const barDraw = $("#bar-draw");
+const barWeave = $("#bar-weave");
+const wvCount = $("#wv-count");
+const wvPct = $("#wv-pct");
+const wvBar = $("#wv-bar");
+const wvLast = $("#wv-last");
+const wvFind = $<HTMLButtonElement>("#wv-find");
+const wvReset = $<HTMLButtonElement>("#wv-reset");
+const wvDim = $<HTMLInputElement>("#wv-dim");
 
 let beadEls = new Map<string, SVGElement>();
 const viewBoxes = { normal: "0 0 1 1", clean: "0 0 1 1" };
 let cleanDims: [number, number] = [1, 1];
 
 const fills = (): Record<string, string> => project.fills[sideKey(project.side)];
-const paintFill = (id: string | undefined): string => (id ? hexOf(id) : "");
+/** Позначки плетіння поточної сітки (3 чи 4 бісерини на сторону). */
+const weave = new Weave();
+const wovenList = (): string[] => project.woven[sideKey(project.side)];
+
+/** Приглушувати нанизані бісерини (режим плетіння з галочкою, не під час друку). */
+let fadeDone = false;
+const EMPTY_FILL = "#EEF0EB";
+const fadeCache = new Map<string, string>();
+
+/** Колір, змішаний з білим: так нанизані бісерини відступають на задній план, а нитки під ними не просвічують. */
+function fade(hex: string): string {
+  let out = fadeCache.get(hex);
+  if (!out) {
+    const mix = (i: number): string =>
+      Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.3 + 255 * 0.7)
+        .toString(16)
+        .padStart(2, "0");
+    out = `#${mix(1)}${mix(3)}${mix(5)}`;
+    fadeCache.set(hex, out);
+  }
+  return out;
+}
+
+/** Заливка бісерини з урахуванням приглушення нанизаних ("" — типова заливка з CSS). */
+function fillFor(k: string): string {
+  const id = fills()[k];
+  if (fadeDone && k !== weave.last && weave.has(k)) return fade(id ? hexOf(id) : EMPTY_FILL);
+  return id ? hexOf(id) : "";
+}
 
 /* ---------- Автозбереження ---------- */
 
@@ -109,7 +151,10 @@ async function flushSave(): Promise<void> {
   if (!dirty) return;
   dirty = false;
   project.updatedAt = Date.now();
-  if (geom) project.thumb = makeThumb(geom, fills(), hexOf);
+  if (geom) {
+    project.thumb = makeThumb(geom, fills(), hexOf);
+    project.progress = { done: weave.done, total: geom.beads.length };
+  }
   try {
     await dbPut(project);
     if (!dirty) saveState.textContent = "Збережено";
@@ -149,7 +194,8 @@ function render(): void {
   viewBoxes.clean = vbc.map(r2).join(" ");
   cleanDims = [vbc[2], vbc[3]];
 
-  const f = fills();
+  const existing = new Set(geom.beads.map((b) => b.k));
+  weave.bind(wovenList(), (k) => existing.has(k));
   const parts: string[] = [];
   let d = "";
   for (const s of geom.segs) d += `M${r2(s[0] * H)} ${r2(s[1] * H)}L${r2(s[2] * H)} ${r2(s[3] * H)}`;
@@ -174,9 +220,10 @@ function render(): void {
     }
   }
   for (const b of geom.beads) {
-    const id = f[b.k];
+    const cls = weave.has(b.k) ? (b.k === weave.last ? "bd done last" : "bd done") : "bd";
+    const fill = fillFor(b.k);
     parts.push(
-      `<circle class="bd" data-k="${b.k}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${id ? ` style="fill:${hexOf(id)}"` : ""}/>`
+      `<circle class="${cls}" data-k="${b.k}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${fill ? ` style="fill:${fill}"` : ""}/>`
     );
   }
 
@@ -192,13 +239,14 @@ function render(): void {
   syncTools();
   updateMeta();
   updateStats();
+  updateWeaveInfo();
   printLayout();
 }
 
 /** Перефарбовує бісерини без перебудови сітки (коли змінився відтінок свого кольору). */
 function repaintBeads(): void {
   const f = fills();
-  for (const [k, el] of beadEls) el.style.fill = paintFill(f[k]);
+  for (const [k, el] of beadEls) el.style.fill = fillFor(k);
   syncCopy();
 }
 
@@ -223,8 +271,24 @@ function updateMeta(): void {
 
 /* ---------- Підрахунок бісеру ---------- */
 
-function countRow(id: string | null, count: number): string {
+/** Нанизано з кількох — для режиму плетіння. */
+function progressCell(done: number, count: number): string {
+  const pct = count ? (done / count) * 100 : 0;
+  return (
+    `<span class="cnt-act cnt-prog" title="Нанизано ${num(done)} з ${num(count)}">` +
+    `<span class="progress"><i style="width:${r2(pct)}%"></i></span>` +
+    `<span class="cnt-prog-n">${num(done)} з ${num(count)}</span></span>`
+  );
+}
+
+function countRow(id: string | null, count: number, done: number): string {
   if (!id) {
+    if (settings.weave) {
+      return (
+        `<li class="cnt cnt-empty"><span class="chip chip-empty"></span><span class="cnt-code"></span>` +
+        `<span class="cnt-name">Не зафарбовано</span><span class="n">${num(count)}</span>${progressCell(done, count)}</li>`
+      );
+    }
     const canFill = count > 0 && !!settings.color;
     const cur = settings.color ? colorView(settings.color) : null;
     return (
@@ -244,19 +308,30 @@ function countRow(id: string | null, count: number): string {
     `<li class="cnt" title="${esc(colorTitle(v))}"><span class="chip" style="--c:${v.hex}"></span>` +
     `<span class="cnt-code">${esc(v.code)}</span><span class="cnt-name">${esc(v.name)}</span>` +
     `<span class="n">${num(count)}</span>` +
-    `<span class="cnt-act"><select class="cnt-replace" data-replace="${esc(id)}" aria-label="Замінити ${esc(fullLabel(v))} на інший колір"${others.length ? "" : " disabled"}>` +
-    `<option value="">Замінити на…</option>${options}</select></span></li>`
+    (settings.weave
+      ? progressCell(done, count)
+      : `<span class="cnt-act"><select class="cnt-replace" data-replace="${esc(id)}" aria-label="Замінити ${esc(fullLabel(v))} на інший колір"${others.length ? "" : " disabled"}>` +
+        `<option value="">Замінити на…</option>${options}</select></span>`) +
+    `</li>`
   );
 }
 
 function updateStats(): void {
   const f = fills();
   const counts = new Map<string, number>();
+  const done = new Map<string, number>();
   let empty = 0;
+  let emptyDone = 0;
   for (const k of beadEls.keys()) {
     const id = f[k];
-    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
-    else empty++;
+    const strung = weave.has(k);
+    if (id) {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+      if (strung) done.set(id, (done.get(id) ?? 0) + 1);
+    } else {
+      empty++;
+      if (strung) emptyDone++;
+    }
   }
   $("#st-total").textContent = num(beadEls.size);
   $("#st-step").textContent = num(beadsPerStep(project.rows, project.side));
@@ -265,7 +340,8 @@ function updateStats(): void {
   const used = Array.from(counts.keys()).sort(
     (a, b) => (order.get(a) ?? 1e6) - (order.get(b) ?? 1e6) || a.localeCompare(b)
   );
-  countsList.innerHTML = used.map((id) => countRow(id, counts.get(id) ?? 0)).join("") + countRow(null, empty);
+  countsList.innerHTML =
+    used.map((id) => countRow(id, counts.get(id) ?? 0, done.get(id) ?? 0)).join("") + countRow(null, empty, emptyDone);
   syncCopy();
 }
 
@@ -306,7 +382,7 @@ function applyChanges(changes: Map<string, [string | undefined, string | undefin
     if (after) f[k] = after;
     else delete f[k];
     const el = beadEls.get(k);
-    if (el) el.style.fill = paintFill(after);
+    if (el) el.style.fill = fillFor(k);
   }
   history.push({ kind: "paint", side: sideKey(project.side), changes });
   syncHistory();
@@ -352,8 +428,8 @@ function syncTools(): void {
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
   mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
-  svg.classList.toggle("erasing", ui.erase);
-  svg.classList.toggle("mirror-on", settings.mirror);
+  svg.classList.toggle("erasing", ui.erase && !settings.weave);
+  svg.classList.toggle("mirror-on", settings.mirror && !settings.weave);
   const cur = $("#cur-name");
   if (ui.erase) cur.textContent = "гумка";
   else if (settings.color) cur.textContent = fullLabel(colorView(settings.color));
@@ -474,7 +550,7 @@ function setBead(k: string, c: string | null): void {
     else stroke.set(k, [before, after]);
   }
   const el = beadEls.get(k);
-  if (el) el.style.fill = paintFill(after);
+  if (el) el.style.fill = fillFor(k);
 }
 
 function paint(k: string, c: string | null): void {
@@ -492,12 +568,219 @@ const beadKey = (target: EventTarget | null): string | null =>
 let painting: { mode: string | null } | null = null;
 let lastPointer = "";
 
+/* ---------- Плетіння: позначки нанизаних бісерин ---------- */
+
+/** Поточний рух миші в режимі плетіння: позначаємо чи знімаємо позначки. */
+let weaving: { mode: "mark" | "unmark"; keys: string[]; items: [number, string][] } | null = null;
+
+/** Оновлює позначку й заливку однієї бісерини. */
+function refreshBead(k: string): void {
+  const el = beadEls.get(k);
+  if (!el) return;
+  el.classList.toggle("done", weave.has(k));
+  el.classList.toggle("last", k === weave.last);
+  el.style.fill = fillFor(k);
+}
+
+/** Переносить підсвітку «де зупинилися» на нову останню бісерину. */
+function moveLast(prev: string | null): void {
+  if (prev && prev !== weave.last) refreshBead(prev);
+  if (weave.last) refreshBead(weave.last);
+}
+
+/** Оновлює позначки всіх бісерин (після скасування, скидання чи зміни вигляду). */
+function refreshWeaveMarks(): void {
+  for (const k of beadEls.keys()) refreshBead(k);
+  syncCopy();
+}
+
+function startWeave(k: string): void {
+  weaving = { mode: weave.has(k) ? "unmark" : "mark", keys: [], items: [] };
+  weaveAt(k);
+}
+
+function weaveAt(k: string): void {
+  if (!weaving) return;
+  const prev = weave.last;
+  if (weaving.mode === "mark") {
+    if (!weave.mark(k)) return;
+    weaving.keys.push(k);
+  } else {
+    const i = weave.unmark(k);
+    if (i < 0) return;
+    weaving.items.push([i, k]);
+  }
+  refreshBead(k);
+  moveLast(prev);
+  scheduleWeaveInfo();
+}
+
+function endWeave(): void {
+  if (!weaving) return;
+  const w = weaving;
+  weaving = null;
+  const side = sideKey(project.side);
+  if (w.mode === "mark" && w.keys.length > 0) history.push({ kind: "mark", side, keys: w.keys });
+  else if (w.mode === "unmark" && w.items.length > 0) history.push({ kind: "unmark", side, items: w.items });
+  else return;
+  syncHistory();
+  markDirty();
+  scheduleStats();
+  scheduleWeaveInfo();
+}
+
+let weaveInfoQueued = false;
+function scheduleWeaveInfo(): void {
+  if (weaveInfoQueued) return;
+  weaveInfoQueued = true;
+  requestAnimationFrame(() => {
+    weaveInfoQueued = false;
+    updateWeaveInfo();
+  });
+}
+
+const pctFmt = new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 1 });
+
+/** Лічильник «нанизано N з M», смужка прогресу й остання бісерина. */
+function updateWeaveInfo(): void {
+  const total = beadEls.size;
+  const done = weave.done;
+  const pct = total ? (done / total) * 100 : 0;
+  wvCount.innerHTML = `${num(done)} <span class="prog-of">з</span> ${num(total)}`;
+  wvPct.textContent = `${pctFmt.format(pct >= 10 ? Math.floor(pct) : Math.floor(pct * 10) / 10)} %`;
+  wvBar.style.width = `${r2(pct)}%`;
+  const last = weave.last;
+  if (last) {
+    const id = fills()[last];
+    wvLast.innerHTML =
+      `Остання: № <b>${num(weave.number(last) ?? done)}</b> · ` +
+      esc(id ? fullLabel(colorView(id)) : "не зафарбована");
+  } else {
+    wvLast.textContent = "Ще нічого не позначено.";
+  }
+  wvFind.disabled = !last;
+  wvReset.disabled = wovenList().length === 0;
+}
+
+let printing = false;
+
+/** Класи сітки: режим плетіння (приглушення, підсвітка) не діє в режимі «лише трафарет» і під час друку. */
+function syncStencilClasses(): void {
+  const weavingView = settings.weave && !ui.clean && !printing;
+  svg.classList.toggle("weaving", weavingView);
+  svg.classList.toggle("dim", settings.dim);
+  const fadeNow = weavingView && settings.dim;
+  if (fadeNow !== fadeDone) {
+    fadeDone = fadeNow;
+    for (const [k, el] of beadEls) el.style.fill = fillFor(k);
+  }
+  syncTools();
+}
+
+// Друкуємо трафарет без позначок плетіння.
+window.addEventListener("beforeprint", () => {
+  printing = true;
+  syncStencilClasses();
+  syncCopy();
+});
+window.addEventListener("afterprint", () => {
+  printing = false;
+  syncStencilClasses();
+  syncCopy();
+});
+
+function setMode(weaveMode: boolean): void {
+  if (painting) stopPainting();
+  if (weaving) endWeave();
+  settings.weave = weaveMode;
+  modeDraw.setAttribute("aria-selected", String(!weaveMode));
+  modeWeave.setAttribute("aria-selected", String(weaveMode));
+  modeDraw.tabIndex = weaveMode ? -1 : 0;
+  modeWeave.tabIndex = weaveMode ? 0 : -1;
+  barDraw.hidden = weaveMode;
+  barWeave.hidden = !weaveMode;
+  document.body.classList.toggle("weaving", weaveMode);
+  syncStencilClasses();
+  updateStats();
+  updateWeaveInfo();
+  saveSettings(settings);
+}
+
+modeDraw.addEventListener("click", () => setMode(false));
+modeWeave.addEventListener("click", () => setMode(true));
+for (const tab of [modeDraw, modeWeave]) {
+  tab.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const next = tab === modeDraw ? modeWeave : modeDraw;
+    next.focus();
+    setMode(next === modeWeave);
+  });
+}
+
+wvDim.addEventListener("change", () => {
+  settings.dim = wvDim.checked;
+  syncStencilClasses();
+  saveSettings(settings);
+});
+
+wvFind.addEventListener("click", () => {
+  const el = weave.last ? beadEls.get(weave.last) : undefined;
+  if (!el) return;
+  el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+  el.classList.remove("flash");
+  void el.getBoundingClientRect();
+  el.classList.add("flash");
+  window.setTimeout(() => el.classList.remove("flash"), 2600);
+});
+
+let resetTimer = 0;
+function disarmReset(): void {
+  window.clearTimeout(resetTimer);
+  wvReset.classList.remove("armed");
+  wvReset.textContent = "Скинути позначки";
+}
+wvReset.addEventListener("click", () => {
+  if (!wvReset.classList.contains("armed")) {
+    wvReset.classList.add("armed");
+    wvReset.textContent = "Натисніть ще раз, щоб скинути";
+    resetTimer = window.setTimeout(disarmReset, 3500);
+    return;
+  }
+  disarmReset();
+  const list = wovenList();
+  if (list.length === 0) return;
+  // Знімаємо з кінця, щоб «Скасувати» повернуло все в тому самому порядку.
+  const items: [number, string][] = [];
+  for (let i = list.length - 1; i >= 0; i--) items.push([i, list[i]]);
+  list.length = 0;
+  history.push({ kind: "unmark", side: sideKey(project.side), items });
+  afterWeaveChange();
+  syncHistory();
+  markDirty();
+  showWarn("Позначки плетіння скинуто. «Скасувати» поверне їх.", 5000);
+});
+
+/** Після зміни масиву позначок поза звичайним рухом миші. */
+function afterWeaveChange(): void {
+  weave.rebuild();
+  refreshWeaveMarks();
+  scheduleStats();
+  updateWeaveInfo();
+}
+
+/* ---------- Події миші на сітці ---------- */
+
 svg.addEventListener("pointerdown", (e) => {
   lastPointer = e.pointerType;
   if (e.pointerType !== "mouse" || e.button !== 0) return;
   const k = beadKey(e.target);
   if (!k) return;
   e.preventDefault();
+  if (settings.weave) {
+    startWeave(k);
+    return;
+  }
   const mode = modeFor(k);
   if (mode === undefined) {
     needColor();
@@ -508,11 +791,14 @@ svg.addEventListener("pointerdown", (e) => {
   paint(k, mode);
 });
 svg.addEventListener("pointerover", (e) => {
-  if (!painting) return;
+  if (!painting && !weaving) return;
   const k = beadKey(e.target);
-  if (k) paint(k, painting.mode);
+  if (!k) return;
+  if (weaving) weaveAt(k);
+  else if (painting) paint(k, painting.mode);
 });
 const stopPainting = (): void => {
+  if (weaving) endWeave();
   if (!painting) return;
   painting = null;
   endStroke();
@@ -523,6 +809,11 @@ svg.addEventListener("click", (e) => {
   if (lastPointer === "mouse") return;
   const k = beadKey(e.target);
   if (!k) return;
+  if (settings.weave) {
+    startWeave(k);
+    endWeave();
+    return;
+  }
   const mode = modeFor(k);
   if (mode === undefined) {
     needColor();
@@ -535,14 +826,24 @@ svg.addEventListener("click", (e) => {
 
 initBeadTooltip(svg, $("#tip"), (k) => {
   const id = fills()[k];
-  return id ? fullLabel(colorView(id)) : "Не зафарбована";
+  const color = id ? fullLabel(colorView(id)) : "не зафарбована";
+  const n = weave.number(k);
+  if (n) return `№ ${num(n)} · ${color}`;
+  if (settings.weave) return `Не нанизана · ${color}`;
+  return id ? color : "Не зафарбована";
 });
 
 /* ---------- Скасувати / повторити ---------- */
 
 function syncHistory(): void {
-  undoBtn.disabled = !history.canUndo;
-  redoBtn.disabled = !history.canRedo;
+  for (const b of undoBtns) b.disabled = !history.canUndo;
+  for (const b of redoBtns) b.disabled = !history.canRedo;
+}
+
+/** Масив позначок змінюється на місці, щоб не загубити прив'язку до Weave. */
+function replaceList(list: string[], next: string[]): void {
+  list.length = 0;
+  for (const k of next) list.push(k);
 }
 
 function applyAction(a: Action, useBefore: boolean): void {
@@ -556,7 +857,7 @@ function applyAction(a: Action, useBefore: boolean): void {
         else delete f[k];
         if (visible) {
           const el = beadEls.get(k);
-          if (el) el.style.fill = paintFill(v);
+          if (el) el.style.fill = fillFor(k);
         }
       }
       scheduleStats();
@@ -577,25 +878,61 @@ function applyAction(a: Action, useBefore: boolean): void {
       project.fills = cloneFills(useBefore ? a.before : a.after);
       render();
       break;
+    case "mark": {
+      const list = project.woven[a.side];
+      if (useBefore) {
+        // Позначки цієї дії — в кінці набору.
+        const start = list.length - a.keys.length;
+        if (start >= 0 && a.keys.every((k, j) => list[start + j] === k)) list.length = start;
+        else {
+          const drop = new Set(a.keys);
+          replaceList(list, list.filter((k) => !drop.has(k)));
+        }
+      } else {
+        const have = new Set(list);
+        for (const k of a.keys) if (!have.has(k)) list.push(k);
+      }
+      if (a.side === sideKey(project.side)) afterWeaveChange();
+      break;
+    }
+    case "unmark": {
+      const list = project.woven[a.side];
+      if (useBefore) {
+        const have = new Set(list);
+        for (let j = a.items.length - 1; j >= 0; j--) {
+          const [i, k] = a.items[j];
+          if (have.has(k)) continue;
+          list.splice(Math.min(i, list.length), 0, k);
+          have.add(k);
+        }
+      } else {
+        for (const [i, k] of a.items) {
+          const at = list[i] === k ? i : list.indexOf(k);
+          if (at >= 0) list.splice(at, 1);
+        }
+      }
+      if (a.side === sideKey(project.side)) afterWeaveChange();
+      break;
+    }
   }
   syncHistory();
   markDirty();
 }
 
 function undo(): void {
-  if (painting) stopPainting();
+  stopPainting();
   const a = history.undo();
   if (a) applyAction(a, true);
 }
 
 function redo(): void {
-  if (painting) stopPainting();
+  stopPainting();
   const a = history.redo();
   if (a) applyAction(a, false);
 }
 
-undoBtn.addEventListener("click", undo);
-redoBtn.addEventListener("click", redo);
+for (const b of undoBtns) b.addEventListener("click", undo);
+for (const b of redoBtns) b.addEventListener("click", redo);
 
 document.addEventListener("keydown", (e) => {
   if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
@@ -662,6 +999,7 @@ function setClean(on: boolean): void {
   cleanBox.checked = on;
   document.body.classList.toggle("clean", on);
   svg.setAttribute("viewBox", on ? viewBoxes.clean : viewBoxes.normal);
+  syncStencilClasses();
   syncCopy();
   if (on) window.scrollTo(0, 0);
 }
@@ -759,8 +1097,9 @@ function includeUsedColors(p: Project): void {
 
 async function openProject(p: Project): Promise<void> {
   await flushSave();
-  if (painting) stopPainting();
+  stopPainting();
   const upgraded = await upgradeProject(p);
+  ensureWoven(p);
   project = p;
   fitSize(project);
   history.clear();
@@ -799,19 +1138,24 @@ const dialog = initProjectsDialog({
   create: createProject,
   async duplicate(id) {
     const src = id === project.id ? project : await dbGet(id);
-    if (!src) return;
+    if (!src) return false;
     await upgradeProject(src);
+    ensureWoven(src);
     const now = Date.now();
+    // Копію плетуть заново, тож позначки плетіння в неї не переносимо.
     const copyP: Project = {
       ...src,
       id: newId(),
       name: `${src.name} (копія)`.slice(0, 80),
       fills: cloneFills(src.fills),
       palette: [...src.palette],
+      woven: emptyWoven(),
+      progress: undefined,
       createdAt: now,
       updatedAt: now
     };
     await dbPut(copyP);
+    return src.woven["3"].length + src.woven["4"].length > 0;
   },
   async remove(id) {
     await dbDelete(id);
@@ -825,6 +1169,7 @@ const dialog = initProjectsDialog({
     const p = id === project.id ? project : await dbGet(id);
     if (!p) return;
     await upgradeProject(p);
+    ensureWoven(p);
     await saveProjectToFile(p);
   },
   async importFile(file) {
@@ -901,6 +1246,8 @@ async function start(): Promise<void> {
   twoBox.checked = settings.two;
   twoFloat.checked = settings.two;
   document.body.classList.toggle("two", settings.two);
+  wvDim.checked = settings.dim;
+  setMode(settings.weave);
 
   let list: Project[] = [];
   let storageOk = true;

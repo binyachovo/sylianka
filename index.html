@@ -36,7 +36,18 @@
       </div>
     </section>
 
-    <section class="bar" aria-label="Налаштування">
+    <div class="mode-switch" role="tablist" aria-label="Режим роботи">
+      <button type="button" role="tab" class="mode-tab" id="mode-draw" aria-selected="true" aria-controls="bar-draw">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.8l2.4 2.4-7.4 7.4-3.1.7.7-3.1z"/><path d="M9.3 4.3l2.4 2.4"/></svg>
+        Малювання
+      </button>
+      <button type="button" role="tab" class="mode-tab" id="mode-weave" aria-selected="false" aria-controls="bar-weave">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 14.2L14.2 1.8"/><circle cx="4.3" cy="11.7" r="1.9"/><circle cx="8" cy="8" r="1.9"/><circle cx="11.7" cy="4.3" r="1.9"/></svg>
+        Плетіння
+      </button>
+    </div>
+
+    <section class="bar" id="bar-draw" role="tabpanel" aria-labelledby="mode-draw">
       <div class="grp grp-colors">
         <span class="glabel" id="l-color">Кольори трафарету · зараз: <b id="cur-name">не вибрано</b></span>
         <div class="palette" id="palette" role="group" aria-labelledby="l-color"></div>
@@ -53,11 +64,11 @@
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13" stroke-dasharray="1.6 1.9"/><path d="M4.2 5.8L11.8 2v3.8z"/><path d="M4.2 10.2l7.6 3.8v-3.8z"/></svg>
             Дзеркально
           </button>
-          <button type="button" class="tbtn" id="undo" title="Скасувати (Ctrl+Z)" disabled>
+          <button type="button" class="tbtn" id="undo" data-undo title="Скасувати (Ctrl+Z)" disabled>
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
             Скасувати
           </button>
-          <button type="button" class="tbtn" id="redo" title="Повторити (Ctrl+Y)" disabled>
+          <button type="button" class="tbtn" id="redo" data-redo title="Повторити (Ctrl+Y)" disabled>
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 4l3 3-3 3"/><path d="M13.5 7h-7a4 4 0 000 8H9"/></svg>
             Повторити
           </button>
@@ -103,8 +114,48 @@
       </div>
     </section>
 
+    <section class="bar weave-bar" id="bar-weave" role="tabpanel" aria-labelledby="mode-weave" hidden>
+      <div class="grp grp-progress">
+        <span class="glabel">Нанизано</span>
+        <div class="prog-head">
+          <b class="prog-count" id="wv-count">0 з 0</b>
+          <span class="prog-pct" id="wv-pct">0 %</span>
+        </div>
+        <div class="progress" aria-hidden="true"><i id="wv-bar"></i></div>
+        <span class="prog-last" id="wv-last">Ще нічого не позначено.</span>
+      </div>
+
+      <div class="grp">
+        <span class="glabel">Дії</span>
+        <div class="row">
+          <button type="button" class="tbtn" id="wv-find" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/><path d="M8 .8v2.4M8 12.8v2.4M.8 8h2.4M12.8 8h2.4"/></svg>
+            Показати, де зупинилися
+          </button>
+          <button type="button" class="tbtn" data-undo title="Скасувати (Ctrl+Z)" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
+            Скасувати
+          </button>
+          <button type="button" class="tbtn" data-redo title="Повторити (Ctrl+Y)" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 4l3 3-3 3"/><path d="M13.5 7h-7a4 4 0 000 8H9"/></svg>
+            Повторити
+          </button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <span class="glabel">Вигляд</span>
+        <label class="check"><input type="checkbox" id="wv-dim" checked> Приглушувати нанизані</label>
+      </div>
+
+      <div class="grp grp-end">
+        <button type="button" class="tbtn danger" id="wv-reset" disabled>Скинути позначки</button>
+      </div>
+    </section>
+
     <p class="warn" id="warn" role="status" hidden></p>
-    <p class="hint">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині.</p>
+    <p class="hint hint-draw">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині.</p>
+    <p class="hint hint-weave">Нанизали бісеринку — клікніть по ній: вона отримає наступний номер у наборі. Протягніть мишею, щоб позначити кілька бісерин поспіль у тому порядку, як ведете. Повторний клік знімає позначку, а «Скасувати» (Ctrl+Z) повертає останню дію. Наведіть на бісеринку — побачите її номер, код і колір.</p>
 
     <section class="board" aria-label="Трафарет">
       <div class="scroller">

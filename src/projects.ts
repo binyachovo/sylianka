@@ -4,6 +4,8 @@ export type Side = 3 | 4;
 export type SideKey = "3" | "4";
 /** Кольори бісерин окремо для 3 і 4 бісерин на сторону ромба: ключ бісерини → ідентифікатор кольору. */
 export type Fills = Record<SideKey, Record<string, string>>;
+/** Нанизані бісерини в порядку позначення (окремо для 3 і 4): номер у наборі = позиція + 1. */
+export type Woven = Record<SideKey, string[]>;
 
 export interface ProjectData {
   name: string;
@@ -13,6 +15,8 @@ export interface ProjectData {
   fills: Fills;
   /** Кольори для швидкого вибору в цьому трафареті (ідентифікатори). */
   palette: string[];
+  /** Позначки плетіння. */
+  woven: Woven;
 }
 
 export interface Project extends ProjectData {
@@ -21,11 +25,14 @@ export interface Project extends ProjectData {
   updatedAt: number;
   /** Мініатюра для списку трафаретів (data URL). */
   thumb?: string;
+  /** Скільки бісерин нанизано — для списку трафаретів. */
+  progress?: { done: number; total: number };
 }
 
 export const MAX_SIDE = 400;
 export const MAX_CELLS = 12000;
 export const MAX_PALETTE = 300;
+export const MAX_WOVEN = 200000;
 export const DEFAULT_ROWS = 8;
 export const DEFAULT_COLS = 20;
 
@@ -36,6 +43,8 @@ const BEAD_KEY = /^\d+\.\d{3},\d+\.\d{3}$/;
 
 export const emptyFills = (): Fills => ({ "3": {}, "4": {} });
 export const cloneFills = (f: Fills): Fills => ({ "3": { ...f["3"] }, "4": { ...f["4"] } });
+export const emptyWoven = (): Woven => ({ "3": [], "4": [] });
+export const cloneWoven = (w: Woven): Woven => ({ "3": [...w["3"]], "4": [...w["4"]] });
 export const sideKey = (side: Side): SideKey => (side === 4 ? "4" : "3");
 
 export function newId(): string {
@@ -58,6 +67,7 @@ export function blankProject(name: string): Project {
     side: 3,
     fills: emptyFills(),
     palette: [],
+    woven: emptyWoven(),
     createdAt: now,
     updatedAt: now
   };
@@ -75,6 +85,12 @@ export function isLegacyProject(p: Project): boolean {
   return !Array.isArray((p as Partial<Project>).palette);
 }
 
+/** Трафарети, збережені до режиму плетіння, не мають позначок — додаємо порожні. */
+export function ensureWoven(p: Project): void {
+  const w = (p as Partial<Project>).woven;
+  if (!w || !Array.isArray(w["3"]) || !Array.isArray(w["4"])) p.woven = emptyWoven();
+}
+
 /**
  * Перевіряє кольори бісерин. mode "id" — формат з каталогом (ідентифікатори кольорів),
  * "hex" — старий формат, де зберігався сам колір.
@@ -88,6 +104,23 @@ export function sanitizeFills(raw: unknown, mode: "id" | "hex"): Fills {
     if (!src || typeof src !== "object") continue;
     for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
       if (BEAD_KEY.test(k) && typeof v === "string" && valid.test(v)) out[side][k] = mode === "hex" ? v.toUpperCase() : v;
+    }
+  }
+  return out;
+}
+
+export function sanitizeWoven(raw: unknown): Woven {
+  const out = emptyWoven();
+  if (!raw || typeof raw !== "object") return out;
+  for (const side of ["3", "4"] as const) {
+    const src = (raw as Record<string, unknown>)[side];
+    if (!Array.isArray(src)) continue;
+    const seen = new Set<string>();
+    for (const k of src) {
+      if (typeof k !== "string" || !BEAD_KEY.test(k) || seen.has(k)) continue;
+      seen.add(k);
+      out[side].push(k);
+      if (out[side].length >= MAX_WOVEN) break;
     }
   }
   return out;
@@ -114,7 +147,8 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     cols: o.cols,
     side: o.side === 4 ? 4 : 3,
     fills: sanitizeFills(o.fills, mode),
-    palette: mode === "id" ? sanitizePalette(o.palette) : []
+    palette: mode === "id" ? sanitizePalette(o.palette) : [],
+    woven: sanitizeWoven(o.woven)
   };
   fitSize(data);
   return data;

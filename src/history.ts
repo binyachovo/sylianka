@@ -5,7 +5,11 @@ export type Action =
   | { kind: "paint"; side: SideKey; changes: Map<string, [string | undefined, string | undefined]> }
   | { kind: "size"; before: [number, number]; after: [number, number] }
   | { kind: "side"; before: Side; after: Side }
-  | { kind: "clear"; before: Fills; after: Fills };
+  | { kind: "clear"; before: Fills; after: Fills }
+  /** Позначено нанизаними (додано в кінець набору в цьому порядку). */
+  | { kind: "mark"; side: SideKey; keys: string[] }
+  /** Знято позначки: [позиція в наборі на момент зняття, ключ] у порядку зняття. */
+  | { kind: "unmark"; side: SideKey; items: [number, string][] };
 
 export class History {
   private done: Action[] = [];
