@@ -6,7 +6,8 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   plugins: [
     VitePWA({
-      registerType: "autoUpdate",
+      // Нова версія ставиться за кнопкою «Оновити», щоб не перезавантажувати сторінку посеред роботи.
+      registerType: "prompt",
       injectRegister: false,
       includeAssets: ["favicon.svg", "icons/apple-touch-icon.png"],
       manifest: {

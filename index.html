@@ -105,12 +105,28 @@
         </div>
       </div>
 
-      <div class="grp">
+      <div class="grp grp-print">
         <span class="glabel">Друк</span>
         <div class="checks">
           <label class="check"><input type="checkbox" id="clean"> Лише трафарет, без тексту</label>
           <label class="check"><input type="checkbox" id="two"> Два трафарети на аркуші</label>
         </div>
+        <div class="row">
+          <label class="field" for="print-bead">Бісеринки на папері</label>
+          <select id="print-bead" class="select">
+            <option value="">вмістити на аркуш</option>
+            <option value="2.3">як справжні, 2,3 мм</option>
+            <option value="3">3 мм</option>
+            <option value="4">4 мм</option>
+            <option value="5">5 мм</option>
+            <option value="6">6 мм</option>
+          </select>
+        </div>
+        <p class="print-info" id="print-info"></p>
+        <button type="button" class="tbtn" data-print>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1"/><path d="M4.5 9.5h7v4h-7z"/></svg>
+          Друкувати…
+        </button>
       </div>
     </section>
 
@@ -154,15 +170,28 @@
     </section>
 
     <p class="warn" id="warn" role="status" hidden></p>
-    <p class="hint hint-draw">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині.</p>
+    <p class="hint hint-draw">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Клавіші 1–9 вибирають кольори трафарету, E — гумку. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині.</p>
     <p class="hint hint-weave">Нанизали бісеринку — клікніть по ній: вона отримає наступний номер у наборі. Протягніть мишею, щоб позначити кілька бісерин поспіль у тому порядку, як ведете. Повторний клік знімає позначку, а «Скасувати» (Ctrl+Z) повертає останню дію. Наведіть на бісеринку — побачите її номер, код і колір.</p>
 
     <section class="board" aria-label="Трафарет">
-      <div class="scroller">
+      <div class="board-tools" role="group" aria-label="Масштаб трафарету">
+        <span class="zoom-label">Масштаб <b id="zoom-value">авто</b></span>
+        <button type="button" class="tbtn small icon-btn" id="zoom-out" aria-label="Зменшити" title="Зменшити">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9"/></svg>
+        </button>
+        <button type="button" class="tbtn small icon-btn" id="zoom-in" aria-label="Збільшити" title="Збільшити">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9"/><path d="M3.5 8h9"/></svg>
+        </button>
+        <button type="button" class="tbtn small" id="zoom-fit" title="Показати весь трафарет у ширину вікна">Весь трафарет</button>
+        <button type="button" class="tbtn small" id="zoom-auto" title="Звичайний розмір: по ширині, але не дрібніше, ніж зручно клікати">Авто</button>
+      </div>
+      <div class="scroller" id="scroller">
         <svg id="strip" class="stencil" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Сітка силянки"></svg>
         <svg id="strip2" class="stencil" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
       </div>
     </section>
+
+    <div class="print-pages" id="print-pages" aria-hidden="true"></div>
 
     <section class="stats" aria-labelledby="stats-title">
       <div class="stats-head">
@@ -177,8 +206,15 @@
 
   <div class="tip" id="tip" role="tooltip" hidden></div>
 
+  <div class="update-bar" id="update-bar" role="status" hidden>
+    <span>Є нова версія програми.</span>
+    <button type="button" class="tbtn primary" id="update-now">Оновити</button>
+    <button type="button" class="tbtn" id="update-later">Пізніше</button>
+  </div>
+
   <div class="clean-bar" id="clean-bar">
     <label class="check"><input type="checkbox" id="two-float"> Два на аркуші</label>
+    <button type="button" class="tbtn" data-print>Друкувати…</button>
     <button type="button" class="tbtn" id="exit-clean">Повернути налаштування</button>
   </div>
 
@@ -196,12 +232,17 @@
             Відкрити з файлу
           </button>
           <input type="file" id="file-input" accept=".json,application/json" hidden>
+          <button type="button" class="tbtn" id="backup-all" title="Усі трафарети й «Мої кольори» одним файлом">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8"/><path d="M4.8 6.9L8 10.1l3.2-3.2"/><path d="M2.5 11v2.5h11V11"/></svg>
+            Резервна копія
+          </button>
           <button type="button" class="tbtn icon-btn" id="close-dlg" aria-label="Закрити">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8"/><path d="M12 4l-8 8"/></svg>
           </button>
         </div>
       </div>
       <p class="dlg-note" id="dlg-note" hidden></p>
+      <p class="dlg-hint">Трафарети зберігаються лише в цьому браузері. Час від часу робіть резервну копію: вона відновлюється через «Відкрити з файлу».</p>
       <ul class="cards" id="project-list"></ul>
     </div>
   </dialog>

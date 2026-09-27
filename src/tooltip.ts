@@ -2,6 +2,7 @@
 export function initBeadTooltip(
   svg: SVGSVGElement,
   tip: HTMLElement,
+  keyAt: (e: MouseEvent) => string | null,
   textFor: (key: string) => string | null
 ): { hide(): void } {
   let current = "";
@@ -28,7 +29,7 @@ export function initBeadTooltip(
       if (!tip.hidden) hide();
       return;
     }
-    const key = (e.target as Element | null)?.closest?.(".bd")?.getAttribute("data-k") ?? null;
+    const key = keyAt(e);
     if (!key) {
       if (!tip.hidden) hide();
       return;
@@ -47,7 +48,7 @@ export function initBeadTooltip(
   });
   svg.addEventListener("pointerleave", hide);
   svg.addEventListener("pointerdown", hide);
-  window.addEventListener("scroll", hide, { passive: true });
+  window.addEventListener("scroll", hide, { passive: true, capture: true });
 
   return { hide };
 }

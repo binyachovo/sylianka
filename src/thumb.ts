@@ -22,11 +22,28 @@ export function makeThumb(
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, w, h);
   ctx.translate(e, e);
+
+  // Малюємо однаковий колір одним контуром — у рази швидше на великих трафаретах.
+  const groups = new Map<string, { x: number; y: number }[]>();
   for (const b of geom.beads) {
     const id = fills[b.k];
+    const color = id ? hexOf(id) : "#E4E7E1";
+    const list = groups.get(color);
+    if (list) list.push(b);
+    else groups.set(color, [b]);
+  }
+  // Бісерини, менші за піксель-два, досить позначити квадратиком.
+  const tiny = BEAD_R * k * dpr < 1.5;
+  for (const [color, list] of groups) {
     ctx.beginPath();
-    ctx.arc(b.x, b.y, BEAD_R, 0, Math.PI * 2);
-    ctx.fillStyle = id ? hexOf(id) : "#E4E7E1";
+    for (const b of list) {
+      if (tiny) ctx.rect(b.x - BEAD_R, b.y - BEAD_R, 2 * BEAD_R, 2 * BEAD_R);
+      else {
+        ctx.moveTo(b.x + BEAD_R, b.y);
+        ctx.arc(b.x, b.y, BEAD_R, 0, Math.PI * 2);
+      }
+    }
+    ctx.fillStyle = color;
     ctx.fill();
   }
   const webp = canvas.toDataURL("image/webp", 0.85);

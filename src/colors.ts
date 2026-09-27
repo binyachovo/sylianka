@@ -34,7 +34,7 @@ export interface ColorView {
 
 const MISSING_HEX = "#9AA0A6";
 const customs = new Map<string, CustomColor>();
-const listeners = new Set<() => void>();
+const listeners = new Set<(id: string) => void>();
 
 export const preciosaId = (code: string): string => `p:${code}`;
 
@@ -44,13 +44,13 @@ export function newCustomId(): string {
   return `u:${Array.from(bytes, (b) => (b % 36).toString(36)).join("")}`;
 }
 
-/** Підписка на зміни «Моїх кольорів». */
-export function onCustomsChange(fn: () => void): void {
+/** Підписка на зміни «Моїх кольорів»: слухач отримує ідентифікатор зміненого кольору. */
+export function onCustomsChange(fn: (id: string) => void): void {
   listeners.add(fn);
 }
 
-function changed(): void {
-  for (const fn of listeners) fn();
+function changed(id: string): void {
+  for (const fn of listeners) fn(id);
 }
 
 export async function loadCustomColors(): Promise<void> {
@@ -70,7 +70,7 @@ export function getCustom(id: string): CustomColor | undefined {
 
 export async function putCustom(c: CustomColor): Promise<void> {
   customs.set(c.id, c);
-  changed();
+  changed(c.id);
   await dbPutColor(c);
 }
 
@@ -144,6 +144,34 @@ export async function adoptCustomColors(raw: unknown): Promise<void> {
       createdAt: t++
     });
   }
+}
+
+/** Усі свої кольори, зокрема сховані, — для резервної копії. */
+export function allCustomsForBackup(): CustomColor[] {
+  return [...customs.values()].map((c) => ({ ...c }));
+}
+
+/** Відновлює свої кольори з резервної копії: додає відсутні, наявні лишає як є. Повертає, скільки додано. */
+export async function restoreCustomColors(raw: unknown): Promise<number> {
+  if (!Array.isArray(raw)) return 0;
+  let added = 0;
+  let t = Date.now();
+  for (const item of raw.slice(0, 2000)) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o.id !== "string" || !o.id.startsWith("u:") || !COLOR_ID.test(o.id) || customs.has(o.id)) continue;
+    if (typeof o.hex !== "string" || !HEX.test(o.hex)) continue;
+    await putCustom({
+      id: o.id,
+      name: cleanName(o.name) || `Колір ${o.hex.toUpperCase()}`,
+      hex: o.hex.toUpperCase(),
+      code: cleanCode(o.code),
+      createdAt: typeof o.createdAt === "number" && Number.isFinite(o.createdAt) ? o.createdAt : t++,
+      deleted: o.deleted === true ? true : undefined
+    });
+    added++;
+  }
+  return added;
 }
 
 /** Свій колір із таким самим відтінком і назвою або новий — для старих трафаретів з HEX-кольорами. */

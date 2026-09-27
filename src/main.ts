@@ -17,22 +17,24 @@ import {
   customColors,
   fullLabel,
   hexOf,
+  customIdsIn,
   loadCustomColors,
-  onCustomsChange
+  onCustomsChange,
+  restoreCustomColors
 } from "./colors";
 import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
-import { parseProjectFile, saveProjectToFile } from "./files";
+import { parseProjectFile, saveBackupToFile, saveProjectToFile, type ParsedBackup } from "./files";
 import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Geometry } from "./geometry";
+import { HitIndex } from "./hit";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
-import { applyPrintLayout } from "./print";
+import { applyPrintLayout, describePlan, fitScaleWithText, fmtMm, planStrips, type Frame } from "./print";
 import {
   MAX_CELLS,
   MAX_PALETTE,
   MAX_SIDE,
   blankProject,
   cloneFills,
-  emptyFills,
   emptyWoven,
   ensureWoven,
   fitSize,
@@ -52,7 +54,22 @@ import { initBeadTooltip } from "./tooltip";
 import { $, $$, clamp, esc, num, r2 } from "./util";
 import { Weave } from "./weave";
 
-registerSW({ immediate: true });
+/* ---------- Оновлення програми ---------- */
+
+const updateBar = $("#update-bar");
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateBar.hidden = false;
+  }
+});
+$("#update-now").addEventListener("click", async () => {
+  await flushSave();
+  void updateSW(true);
+});
+$("#update-later").addEventListener("click", () => {
+  updateBar.hidden = true;
+});
 
 const GUT_L = 27;
 const GUT_T = 20;
@@ -60,7 +77,10 @@ const PAD = 9;
 
 const settings = loadSettings();
 const ui = { erase: false, clean: false };
-const history = new History(200);
+/** «Скасувати» в малюванні й у плетінні — окремі: кожне скасовує лише свої дії. */
+const drawHistory = new History(200);
+const weaveHistory = new History(200);
+const history = (): History => (settings.weave ? weaveHistory : drawHistory);
 let project: Project = blankProject("Трафарет 1");
 let geom: Geometry | null = null;
 /** Стає true, коли відкрито перший трафарет. */
@@ -97,10 +117,26 @@ const wvLast = $("#wv-last");
 const wvFind = $<HTMLButtonElement>("#wv-find");
 const wvReset = $<HTMLButtonElement>("#wv-reset");
 const wvDim = $<HTMLInputElement>("#wv-dim");
+const scroller = $("#scroller");
+const zoomValue = $("#zoom-value");
+const zoomOutBtn = $<HTMLButtonElement>("#zoom-out");
+const zoomInBtn = $<HTMLButtonElement>("#zoom-in");
 
 let beadEls = new Map<string, SVGElement>();
+/** Пошук бісерини під курсором за координатами (див. hit.ts). */
+let hitIndex: HitIndex | null = null;
+/** Бісерина під мишею (підсвічена). */
+let hoverKey: string | null = null;
+/** Прозорий шар над сіткою, що ловить мишу. */
+let hitRect: SVGElement | null = null;
+/** Кільця підсвітки: під мишею й «де зупинилися». Окремі елементи, щоб не змінювати розмір самих бісерин. */
+let ringHover: SVGElement | null = null;
+let ringLast: SVGElement | null = null;
 const viewBoxes = { normal: "0 0 1 1", clean: "0 0 1 1" };
 let cleanDims: [number, number] = [1, 1];
+/** Ширина трафарету в одиницях SVG (звичайний вигляд, з номерами). */
+let vbWidth = 1;
+let vbHeight = 1;
 
 const fills = (): Record<string, string> => project.fills[sideKey(project.side)];
 /** Позначки плетіння поточної сітки (3 чи 4 бісерини на сторону). */
@@ -146,9 +182,10 @@ function markDirty(): void {
   saveTimer = window.setTimeout(() => void flushSave(), 600);
 }
 
-async function flushSave(): Promise<void> {
+/** Зберігає відкритий трафарет, якщо є зміни. false — зберегти не вдалося. */
+async function flushSave(): Promise<boolean> {
   window.clearTimeout(saveTimer);
-  if (!dirty) return;
+  if (!dirty) return true;
   dirty = false;
   project.updatedAt = Date.now();
   if (geom) {
@@ -158,10 +195,12 @@ async function flushSave(): Promise<void> {
   try {
     await dbPut(project);
     if (!dirty) saveState.textContent = "Збережено";
+    return true;
   } catch {
     dirty = true;
     saveState.textContent = "Не вдалося зберегти";
     saveState.classList.add("error");
+    return false;
   }
 }
 
@@ -219,22 +258,39 @@ function render(): void {
       );
     }
   }
+  // Бісерини в окремій групі: зміни поза нею не змушують браузер перераховувати межі всіх кіл.
+  parts.push(`<g class="beads">`);
   for (const b of geom.beads) {
-    const cls = weave.has(b.k) ? (b.k === weave.last ? "bd done last" : "bd done") : "bd";
     const fill = fillFor(b.k);
     parts.push(
-      `<circle class="${cls}" data-k="${b.k}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${fill ? ` style="fill:${fill}"` : ""}/>`
+      `<circle class="${weave.has(b.k) ? "bd done" : "bd"}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${fill ? ` style="fill:${fill}"` : ""}/>`
     );
   }
+  parts.push(`</g>`);
+  parts.push(
+    `<g class="marks"><circle class="ring ring-last" cx="0" cy="0" r="${BEAD_R + 1.1}"/>` +
+      `<circle class="ring ring-hover" cx="0" cy="0" r="${BEAD_R + 0.9}"/></g>`
+  );
+  // Прозорий шар зверху ловить мишу; бісерину під курсором шукаємо за координатами.
+  parts.push(`<rect class="hit" x="${r2(vb[0])}" y="${r2(vb[1])}" width="${r2(vb[2])}" height="${r2(vb[3])}"/>`);
 
   svg.setAttribute("viewBox", ui.clean ? viewBoxes.clean : viewBoxes.normal);
-  svg.style.minWidth = `${Math.round(vb[2] * 1.2)}px`;
-  svg.style.maxWidth = `${Math.round(vb[2] * 3)}px`;
+  vbWidth = vb[2];
+  vbHeight = vb[3];
+  applyZoom();
   svg.innerHTML = parts.join("");
   svg.setAttribute("aria-label", `Сітка силянки: ${project.rows} у висоту, ${project.cols} у ширину`);
 
+  // Кола йдуть у тому самому порядку, що й geom.beads.
   beadEls = new Map();
-  for (const el of $$<SVGElement>(".bd", svg)) beadEls.set(el.getAttribute("data-k") ?? "", el);
+  const els = $$<SVGElement>(".bd", svg);
+  for (let i = 0; i < els.length; i++) beadEls.set(geom.beads[i].k, els[i]);
+  hitIndex = new HitIndex(geom.beads, W);
+  hitRect = svg.querySelector<SVGElement>(".hit");
+  ringHover = svg.querySelector<SVGElement>(".ring-hover");
+  ringLast = svg.querySelector<SVGElement>(".ring-last");
+  hoverKey = null;
+  placeRing(ringLast, weave.last);
 
   syncTools();
   updateMeta();
@@ -245,13 +301,202 @@ function render(): void {
 
 /** Перефарбовує бісерини без перебудови сітки (коли змінився відтінок свого кольору). */
 function repaintBeads(): void {
-  const f = fills();
   for (const [k, el] of beadEls) el.style.fill = fillFor(k);
   syncCopy();
 }
 
+/* ---------- Масштаб на екрані ---------- */
+
+/** Відсотки масштабу: 100 % — бісеринка 16 px (2 px на одиницю SVG). */
+const ZOOMS = [10, 15, 20, 25, 35, 50, 65, 80, 100, 125, 150, 200, 250, 300];
+const pxPerUnit = (pct: number): number => pct / 50;
+
+function applyZoom(): void {
+  const z = settings.zoom;
+  if (z === null) {
+    // «Авто»: по ширині, але не дрібніше, ніж зручно клікати, і не завеликі.
+    svg.style.width = "";
+    svg.style.minWidth = `${Math.round(vbWidth * 1.2)}px`;
+    svg.style.maxWidth = `${Math.round(vbWidth * 3)}px`;
+  } else {
+    svg.style.width = `${Math.round(vbWidth * pxPerUnit(z))}px`;
+    svg.style.minWidth = "0";
+    svg.style.maxWidth = "none";
+  }
+  updateZoomLabel();
+}
+
+/** Поточний масштаб у відсотках (для «Авто» — фактичний). */
+function effectiveZoom(): number {
+  const w = svg.getBoundingClientRect().width;
+  return w > 0 ? (w / vbWidth) * 50 : 100;
+}
+
+function updateZoomLabel(): void {
+  zoomValue.textContent = settings.zoom === null ? "авто" : `${Math.round(settings.zoom)} %`;
+  const z = settings.zoom ?? effectiveZoom();
+  zoomOutBtn.disabled = z <= ZOOMS[0] + 0.5;
+  zoomInBtn.disabled = z >= ZOOMS[ZOOMS.length - 1] - 0.5;
+}
+
+/** Змінює масштаб, лишаючи на місці те, що було посередині видимої частини. */
+function setZoom(z: number | null): void {
+  const oldW = svg.getBoundingClientRect().width;
+  const center = oldW > 0 ? (scroller.scrollLeft + scroller.clientWidth / 2) / oldW : 0.5;
+  settings.zoom = z === null ? null : Math.min(400, Math.max(5, z));
+  applyZoom();
+  const newW = svg.getBoundingClientRect().width;
+  scroller.scrollLeft = Math.max(0, center * newW - scroller.clientWidth / 2);
+  saveSettings(settings);
+}
+
+function stepZoom(dir: 1 | -1): void {
+  const cur = settings.zoom ?? effectiveZoom();
+  const next = dir > 0 ? ZOOMS.find((z) => z > cur + 0.5) : [...ZOOMS].reverse().find((z) => z < cur - 0.5);
+  if (next !== undefined) setZoom(next);
+}
+
+zoomInBtn.addEventListener("click", () => stepZoom(1));
+zoomOutBtn.addEventListener("click", () => stepZoom(-1));
+$("#zoom-auto").addEventListener("click", () => setZoom(null));
+$("#zoom-fit").addEventListener("click", () => {
+  const room = scroller.clientWidth;
+  if (room > 0) setZoom((room / vbWidth) * 50);
+});
+new ResizeObserver(() => {
+  if (settings.zoom === null) updateZoomLabel();
+}).observe(scroller);
+
+/* ---------- Друк ---------- */
+
+const printBead = $<HTMLSelectElement>("#print-bead");
+const printInfo = $("#print-info");
+const printPages = $("#print-pages");
+
+/** Поля навколо сітки: з номерами рядів і ромбів (друк з текстом) або без. */
+function frameFor(labels: boolean): Frame {
+  if (labels) return { left: GUT_L, right: PAD, top: GUT_T, bottom: PAD };
+  const e = BEAD_R + 1;
+  return { left: e, right: e, top: e, bottom: e };
+}
+
+let fitK = 0;
+let fitOrient: "landscape" | "portrait" = "landscape";
+
 function printLayout(): void {
-  applyPrintLayout(cleanDims[0], cleanDims[1], settings.two ? 2 : 1, pageSize);
+  const fit = applyPrintLayout(cleanDims[0], cleanDims[1], settings.two ? 2 : 1, pageSize);
+  fitK = fit.k;
+  fitOrient = fit.orient;
+  updatePrintInfo();
+}
+
+/** Підказка в панелі «Друк»: скільки аркушів і якого розміру вийдуть бісеринки. */
+function updatePrintInfo(): void {
+  const strips = settings.printBead !== null;
+  twoBox.disabled = strips;
+  twoFloat.disabled = strips;
+  twoBox.closest("label")?.classList.toggle("disabled", strips);
+  printBead.value = settings.printBead === null ? "" : String(settings.printBead);
+  if (!geom) return;
+  if (strips) {
+    printInfo.textContent = describePlan(planStrips(geom, project.cols, frameFor(!ui.clean), settings.printBead ?? 4, !ui.clean));
+    return;
+  }
+  const k = ui.clean ? fitK : fitScaleWithText(vbWidth, vbHeight, fitOrient);
+  const bead = 2 * BEAD_R * k;
+  printInfo.textContent =
+    `На одному аркуші, бісеринки ≈ ${fmtMm(bead)}.` +
+    (bead < 2 ? " Задрібно — виберіть розмір бісеринок, і трафарет поділиться на смуги." : "");
+}
+
+/** Одна смуга трафарету для друку: ромби з c0 до c1 (не включно). */
+function stripSvg(c0: number, c1: number, labels: boolean, scale: number): string {
+  if (!geom) return "";
+  const { H, height: HT } = geom;
+  const x0 = 2 * c0 * H;
+  const x1 = 2 * c1 * H;
+  const fr = frameFor(labels);
+  const vb = [x0 - fr.left, -fr.top, x1 - x0 + fr.left + fr.right, HT + fr.top + fr.bottom];
+  const parts: string[] = [];
+  let d = "";
+  for (const sg of geom.segs) {
+    const lo = Math.min(sg[0], sg[2]);
+    const hi = Math.max(sg[0], sg[2]);
+    if (lo >= 2 * c0 - 1e-9 && hi <= 2 * c1 + 1e-9) d += `M${r2(sg[0] * H)} ${r2(sg[1] * H)}L${r2(sg[2] * H)} ${r2(sg[3] * H)}`;
+  }
+  parts.push(`<path class="thread" d="${d}"/>`);
+  if (labels) {
+    const colEvery = c1 - c0 > 40 ? 5 : 1;
+    for (let i = c0; i < c1; i++) {
+      const label = i + 1;
+      if (colEvery === 1 || i === c0 || label % colEvery === 0) {
+        parts.push(`<text class="lc" x="${r2((2 * i + 1) * H)}" y="-8" text-anchor="middle">${label}</text>`);
+      }
+    }
+    const rowEvery = project.rows > 40 ? 5 : 1;
+    for (let r = 0; r < project.rows; r++) {
+      const label = r + 1;
+      if (rowEvery === 1 || label === 1 || label % rowEvery === 0) {
+        parts.push(
+          `<text class="lr" x="${r2(x0 - 7.5)}" y="${r2((2 * r + 1) * H)}" text-anchor="end" dominant-baseline="central">${label}</text>`
+        );
+      }
+    }
+  }
+  const f = fills();
+  for (const b of geom.beads) {
+    if (b.x < x0 - 0.01 || b.x > x1 + 0.01) continue;
+    const id = f[b.k];
+    parts.push(`<circle class="bd" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${id ? ` style="fill:${hexOf(id)}"` : ""}/>`);
+  }
+  return (
+    `<svg class="stencil print-strip" xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map(r2).join(" ")}"` +
+    ` style="width:${r2(vb[2] * scale)}mm;height:${r2(vb[3] * scale)}mm">${parts.join("")}</svg>`
+  );
+}
+
+/** Перед друком смугами будуємо аркуші; після друку прибираємо. */
+function buildPrintPages(): void {
+  if (!geom || settings.printBead === null) {
+    clearPrintPages();
+    return;
+  }
+  const labels = !ui.clean;
+  const plan = planStrips(geom, project.cols, frameFor(labels), settings.printBead, labels);
+  pageSize.textContent = `@page { size: A4 ${plan.orient}; margin: 0; }`;
+  const meta = `${project.rows}-рядна силянка · ${project.side} бісерини в комірці`;
+  const pages: string[] = [];
+  for (let p = 0; p < plan.pages; p++) {
+    const strips: string[] = [];
+    const last = Math.min(plan.strips, (p + 1) * plan.stripsPerPage);
+    for (let st = p * plan.stripsPerPage; st < last; st++) {
+      const c0 = st * plan.perStrip;
+      strips.push(stripSvg(c0, Math.min(project.cols, c0 + plan.perStrip), labels, plan.scale));
+    }
+    const head = labels
+      ? `<p class="print-head"><b>${esc(project.name)}</b> · ${esc(meta)} · аркуш ${p + 1} з ${plan.pages}</p>`
+      : "";
+    pages.push(`<section class="print-page">${head}${strips.join("")}</section>`);
+  }
+  printPages.innerHTML = pages.join("");
+  document.body.classList.add("print-strips");
+}
+
+function clearPrintPages(): void {
+  printPages.textContent = "";
+  document.body.classList.remove("print-strips");
+}
+
+printBead.addEventListener("change", () => {
+  const v = Number(printBead.value);
+  settings.printBead = printBead.value && Number.isFinite(v) ? v : null;
+  if (settings.printBead !== null && settings.two) setTwo(false);
+  saveSettings(settings);
+  updatePrintInfo();
+});
+
+for (const b of $$<HTMLButtonElement>("[data-print]")) {
+  b.addEventListener("click", () => window.print());
 }
 
 function syncCopy(): void {
@@ -349,10 +594,13 @@ let statsQueued = false;
 function scheduleStats(): void {
   if (statsQueued) return;
   statsQueued = true;
-  requestAnimationFrame(() => {
+  const run = (): void => {
     statsQueued = false;
     updateStats();
-  });
+  };
+  // На дуже великих сітках підрахунок під час руху миші оновлюємо рідше, щоб малювання не гальмувало.
+  if (beadEls.size > 20000 && (painting || weaving)) window.setTimeout(run, 300);
+  else requestAnimationFrame(run);
 }
 
 /** Замінює колір на всіх бісеринах поточної сітки (можна скасувати). */
@@ -384,7 +632,7 @@ function applyChanges(changes: Map<string, [string | undefined, string | undefin
     const el = beadEls.get(k);
     if (el) el.style.fill = fillFor(k);
   }
-  history.push({ kind: "paint", side: sideKey(project.side), changes });
+  drawHistory.push({ kind: "paint", side: sideKey(project.side), changes });
   syncHistory();
   updateStats();
   markDirty();
@@ -402,11 +650,12 @@ countsList.addEventListener("click", (e) => {
 /* ---------- Кольори трафарету й інструменти ---------- */
 
 function renderPalette(): void {
-  const parts = project.palette.map((id) => {
+  const parts = project.palette.map((id, i) => {
     const v = colorView(id);
     const label = v.code || v.name;
+    const title = colorTitle(v) + (i < 9 ? `\nКлавіша ${i + 1}` : "");
     return (
-      `<button type="button" class="pill" data-id="${esc(id)}" aria-pressed="false" title="${esc(colorTitle(v))}">` +
+      `<button type="button" class="pill" data-id="${esc(id)}" aria-pressed="false" title="${esc(title)}">` +
       `<span class="chip" style="--c:${v.hex}"></span>` +
       `<span class="pill-code${v.code ? "" : " pill-name"}">${esc(label)}</span></button>`
     );
@@ -515,7 +764,7 @@ function endStroke(): void {
   const changes = new Map([...stroke].filter(([, [before, after]]) => before !== after));
   stroke = null;
   if (changes.size === 0) return;
-  history.push({ kind: "paint", side: sideKey(project.side), changes });
+  drawHistory.push({ kind: "paint", side: sideKey(project.side), changes });
   syncHistory();
   markDirty();
 }
@@ -562,8 +811,38 @@ function paint(k: string, c: string | null): void {
   scheduleStats();
 }
 
-const beadKey = (target: EventTarget | null): string | null =>
-  (target as Element | null)?.closest?.(".bd")?.getAttribute("data-k") ?? null;
+/** Бісерина під курсором (за координатами) або null. */
+function beadAt(e: { clientX: number; clientY: number }): string | null {
+  if (!geom || !hitIndex) return null;
+  const m = svg.getScreenCTM();
+  if (!m) return null;
+  const inv = m.inverse();
+  const x = inv.a * e.clientX + inv.c * e.clientY + inv.e;
+  const y = inv.b * e.clientX + inv.d * e.clientY + inv.f;
+  const i = hitIndex.nearest(x, y);
+  return i >= 0 ? geom.beads[i].k : null;
+}
+
+/** Ставить кільце підсвітки на бісерину (або ховає, якщо k — null). */
+function placeRing(ring: SVGElement | null, k: string | null): void {
+  if (!ring) return;
+  const el = k ? beadEls.get(k) : undefined;
+  if (!el) {
+    ring.classList.remove("on");
+    return;
+  }
+  ring.setAttribute("cx", el.getAttribute("cx") ?? "0");
+  ring.setAttribute("cy", el.getAttribute("cy") ?? "0");
+  ring.classList.add("on");
+}
+
+function setHover(k: string | null): void {
+  if (k === hoverKey) return;
+  hoverKey = k;
+  placeRing(ringHover, k);
+  // Клас на прозорому шарі, а не на всій сітці: інакше браузер перераховує стилі всіх бісерин.
+  hitRect?.classList.toggle("over", k !== null);
+}
 
 let painting: { mode: string | null } | null = null;
 let lastPointer = "";
@@ -578,7 +857,6 @@ function refreshBead(k: string): void {
   const el = beadEls.get(k);
   if (!el) return;
   el.classList.toggle("done", weave.has(k));
-  el.classList.toggle("last", k === weave.last);
   el.style.fill = fillFor(k);
 }
 
@@ -586,11 +864,13 @@ function refreshBead(k: string): void {
 function moveLast(prev: string | null): void {
   if (prev && prev !== weave.last) refreshBead(prev);
   if (weave.last) refreshBead(weave.last);
+  placeRing(ringLast, weave.last);
 }
 
 /** Оновлює позначки всіх бісерин (після скасування, скидання чи зміни вигляду). */
 function refreshWeaveMarks(): void {
   for (const k of beadEls.keys()) refreshBead(k);
+  placeRing(ringLast, weave.last);
   syncCopy();
 }
 
@@ -620,8 +900,8 @@ function endWeave(): void {
   const w = weaving;
   weaving = null;
   const side = sideKey(project.side);
-  if (w.mode === "mark" && w.keys.length > 0) history.push({ kind: "mark", side, keys: w.keys });
-  else if (w.mode === "unmark" && w.items.length > 0) history.push({ kind: "unmark", side, items: w.items });
+  if (w.mode === "mark" && w.keys.length > 0) weaveHistory.push({ kind: "mark", side, keys: w.keys });
+  else if (w.mode === "unmark" && w.items.length > 0) weaveHistory.push({ kind: "unmark", side, items: w.items });
   else return;
   syncHistory();
   markDirty();
@@ -677,16 +957,19 @@ function syncStencilClasses(): void {
   syncTools();
 }
 
-// Друкуємо трафарет без позначок плетіння.
+// Друкуємо трафарет без позначок плетіння; смуги будуємо лише на час друку.
 window.addEventListener("beforeprint", () => {
   printing = true;
   syncStencilClasses();
   syncCopy();
+  buildPrintPages();
 });
 window.addEventListener("afterprint", () => {
   printing = false;
   syncStencilClasses();
   syncCopy();
+  clearPrintPages();
+  printLayout();
 });
 
 function setMode(weaveMode: boolean): void {
@@ -701,6 +984,7 @@ function setMode(weaveMode: boolean): void {
   barWeave.hidden = !weaveMode;
   document.body.classList.toggle("weaving", weaveMode);
   syncStencilClasses();
+  syncHistory();
   updateStats();
   updateWeaveInfo();
   saveSettings(settings);
@@ -724,14 +1008,17 @@ wvDim.addEventListener("change", () => {
   saveSettings(settings);
 });
 
+let flashTimer = 0;
 wvFind.addEventListener("click", () => {
   const el = weave.last ? beadEls.get(weave.last) : undefined;
-  if (!el) return;
+  const ring = ringLast;
+  if (!el || !ring) return;
   el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
-  el.classList.remove("flash");
-  void el.getBoundingClientRect();
-  el.classList.add("flash");
-  window.setTimeout(() => el.classList.remove("flash"), 2600);
+  ring.classList.remove("flash");
+  void ring.getBoundingClientRect();
+  ring.classList.add("flash");
+  window.clearTimeout(flashTimer);
+  flashTimer = window.setTimeout(() => ring.classList.remove("flash"), 2600);
 });
 
 let resetTimer = 0;
@@ -754,7 +1041,7 @@ wvReset.addEventListener("click", () => {
   const items: [number, string][] = [];
   for (let i = list.length - 1; i >= 0; i--) items.push([i, list[i]]);
   list.length = 0;
-  history.push({ kind: "unmark", side: sideKey(project.side), items });
+  weaveHistory.push({ kind: "unmark", side: sideKey(project.side), items });
   afterWeaveChange();
   syncHistory();
   markDirty();
@@ -771,12 +1058,21 @@ function afterWeaveChange(): void {
 
 /* ---------- Події миші на сітці ---------- */
 
+/** Остання бісерина, через яку пройшла миша під час малювання чи позначення. */
+let strokeKey: string | null = null;
+
 svg.addEventListener("pointerdown", (e) => {
   lastPointer = e.pointerType;
-  if (e.pointerType !== "mouse" || e.button !== 0) return;
-  const k = beadKey(e.target);
+  if (e.pointerType !== "mouse" || e.button !== 0 || ui.clean) return;
+  const k = beadAt(e);
   if (!k) return;
   e.preventDefault();
+  try {
+    svg.setPointerCapture(e.pointerId);
+  } catch {
+    // не критично
+  }
+  strokeKey = k;
   if (settings.weave) {
     startWeave(k);
     return;
@@ -790,13 +1086,24 @@ svg.addEventListener("pointerdown", (e) => {
   beginStroke();
   paint(k, mode);
 });
-svg.addEventListener("pointerover", (e) => {
-  if (!painting && !weaving) return;
-  const k = beadKey(e.target);
-  if (!k) return;
-  if (weaving) weaveAt(k);
-  else if (painting) paint(k, painting.mode);
+svg.addEventListener("pointermove", (e) => {
+  if (e.pointerType !== "mouse") return;
+  if (!painting && !weaving) {
+    setHover(ui.clean ? null : beadAt(e));
+    return;
+  }
+  // Проміжні положення миші, щоб швидкий рух не пропускав бісерини.
+  const moves = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+  for (const ev of moves.length > 0 ? moves : [e]) {
+    const k = beadAt(ev);
+    if (!k || k === strokeKey) continue;
+    strokeKey = k;
+    if (weaving) weaveAt(k);
+    else if (painting) paint(k, painting.mode);
+  }
+  setHover(strokeKey);
 });
+svg.addEventListener("pointerleave", () => setHover(null));
 const stopPainting = (): void => {
   if (weaving) endWeave();
   if (!painting) return;
@@ -806,8 +1113,8 @@ const stopPainting = (): void => {
 window.addEventListener("pointerup", stopPainting);
 window.addEventListener("pointercancel", stopPainting);
 svg.addEventListener("click", (e) => {
-  if (lastPointer === "mouse") return;
-  const k = beadKey(e.target);
+  if (lastPointer === "mouse" || ui.clean) return;
+  const k = beadAt(e);
   if (!k) return;
   if (settings.weave) {
     startWeave(k);
@@ -824,7 +1131,7 @@ svg.addEventListener("click", (e) => {
   endStroke();
 });
 
-initBeadTooltip(svg, $("#tip"), (k) => {
+initBeadTooltip(svg, $("#tip"), beadAt, (k) => {
   const id = fills()[k];
   const color = id ? fullLabel(colorView(id)) : "не зафарбована";
   const n = weave.number(k);
@@ -836,8 +1143,8 @@ initBeadTooltip(svg, $("#tip"), (k) => {
 /* ---------- Скасувати / повторити ---------- */
 
 function syncHistory(): void {
-  for (const b of undoBtns) b.disabled = !history.canUndo;
-  for (const b of redoBtns) b.disabled = !history.canRedo;
+  for (const b of undoBtns) b.disabled = !history().canUndo;
+  for (const b of redoBtns) b.disabled = !history().canRedo;
 }
 
 /** Масив позначок змінюється на місці, щоб не загубити прив'язку до Weave. */
@@ -921,18 +1228,38 @@ function applyAction(a: Action, useBefore: boolean): void {
 
 function undo(): void {
   stopPainting();
-  const a = history.undo();
+  const a = history().undo();
   if (a) applyAction(a, true);
 }
 
 function redo(): void {
   stopPainting();
-  const a = history.redo();
+  const a = history().redo();
   if (a) applyAction(a, false);
 }
 
 for (const b of undoBtns) b.addEventListener("click", undo);
 for (const b of redoBtns) b.addEventListener("click", redo);
+
+/** Клавіші малювання: 1–9 — кольори трафарету, E — гумка (незалежно від розкладки). */
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat || settings.weave || ui.clean) return;
+  const t = e.target as HTMLElement | null;
+  if (t?.closest("input, textarea, select, [contenteditable=true]")) return;
+  if (document.querySelector("dialog[open]")) return;
+  const digit = /^Digit([1-9])$/.exec(e.code) ?? /^Numpad([1-9])$/.exec(e.code);
+  if (digit) {
+    const id = project.palette[Number(digit[1]) - 1];
+    if (id) {
+      e.preventDefault();
+      selectColor(id);
+    }
+  } else if (e.code === "KeyE") {
+    e.preventDefault();
+    ui.erase = !ui.erase;
+    syncTools();
+  }
+});
 
 document.addEventListener("keydown", (e) => {
   if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
@@ -952,7 +1279,12 @@ document.addEventListener("keydown", (e) => {
 /* ---------- Розмір і сторона ромба ---------- */
 
 function setSize(name: "rows" | "cols", raw: string | number): void {
-  let v = Math.round(Number(raw));
+  // Порожнє чи незрозуміле поле — лишаємо як було.
+  if (typeof raw === "string" && !/^\s*-?\d+([.,]\d+)?\s*$/.test(raw)) {
+    updateMeta();
+    return;
+  }
+  let v = Math.round(Number(String(raw).replace(",", ".")));
   if (!Number.isFinite(v)) v = project[name];
   const other = name === "rows" ? project.cols : project.rows;
   const cap = Math.min(MAX_SIDE, Math.floor(MAX_CELLS / other));
@@ -966,7 +1298,7 @@ function setSize(name: "rows" | "cols", raw: string | number): void {
   }
   const before: [number, number] = [project.rows, project.cols];
   project[name] = next;
-  history.push({ kind: "size", before, after: [project.rows, project.cols] });
+  drawHistory.push({ kind: "size", before, after: [project.rows, project.cols] });
   render();
   syncHistory();
   markDirty();
@@ -984,7 +1316,7 @@ for (const b of $$<HTMLButtonElement>("button[data-s]")) {
   b.addEventListener("click", () => {
     const next: Side = Number(b.dataset.s) === 4 ? 4 : 3;
     if (next === project.side) return;
-    history.push({ kind: "side", before: project.side, after: next });
+    drawHistory.push({ kind: "side", before: project.side, after: next });
     project.side = next;
     render();
     syncHistory();
@@ -996,11 +1328,13 @@ for (const b of $$<HTMLButtonElement>("button[data-s]")) {
 
 function setClean(on: boolean): void {
   ui.clean = on;
+  setHover(null);
   cleanBox.checked = on;
   document.body.classList.toggle("clean", on);
   svg.setAttribute("viewBox", on ? viewBoxes.clean : viewBoxes.normal);
   syncStencilClasses();
   syncCopy();
+  updatePrintInfo();
   if (on) window.scrollTo(0, 0);
 }
 
@@ -1041,10 +1375,14 @@ clearBtn.addEventListener("click", () => {
     return;
   }
   disarm();
+  // Стираємо лише видиму сітку; візерунок для іншої кількості бісерин на стороні лишається.
+  const key = sideKey(project.side);
+  if (Object.keys(project.fills[key]).length === 0) return;
   const before = cloneFills(project.fills);
-  if (Object.keys(before["3"]).length === 0 && Object.keys(before["4"]).length === 0) return;
-  history.push({ kind: "clear", before, after: emptyFills() });
-  project.fills = emptyFills();
+  const after = cloneFills(project.fills);
+  after[key] = {};
+  drawHistory.push({ kind: "clear", before, after });
+  project.fills = cloneFills(after);
   render();
   syncHistory();
   markDirty();
@@ -1096,13 +1434,18 @@ function includeUsedColors(p: Project): void {
 }
 
 async function openProject(p: Project): Promise<void> {
-  await flushSave();
+  if (!(await flushSave())) {
+    // Не перемикаємо, щоб не загубити незбережені зміни.
+    showWarn("Не вдалося зберегти відкритий трафарет, тож інший не відкрито. Збережіть його у файл і спробуйте ще раз.", 10000);
+    return;
+  }
   stopPainting();
   const upgraded = await upgradeProject(p);
   ensureWoven(p);
   project = p;
   fitSize(project);
-  history.clear();
+  drawHistory.clear();
+  weaveHistory.clear();
   settings.lastProjectId = p.id;
   fitBrush();
   saveSettings(settings);
@@ -1174,6 +1517,7 @@ const dialog = initProjectsDialog({
   },
   async importFile(file) {
     const parsed = parseProjectFile(await file.text(), file.name);
+    if (parsed.kind === "backup") return restoreBackup(parsed);
     const p: Project = { ...blankProject(parsed.data.name), ...parsed.data };
     if (parsed.legacyHex) {
       const conv = await convertHexFills(p.fills);
@@ -1185,8 +1529,88 @@ const dialog = initProjectsDialog({
     includeUsedColors(p);
     await dbPut(p);
     await openProject(p);
+    return null;
+  },
+  async backup() {
+    const list = await allProjects();
+    for (const p of list) {
+      await upgradeProject(p);
+      ensureWoven(p);
+    }
+    return saveBackupToFile(list);
   }
 });
+
+/** Трафарет, у якому ще нічого не робили: без кольорів, палітри й позначок. */
+function isPristine(p: Project): boolean {
+  return (
+    p.palette.length === 0 &&
+    Object.keys(p.fills["3"]).length === 0 &&
+    Object.keys(p.fills["4"]).length === 0 &&
+    p.woven["3"].length === 0 &&
+    p.woven["4"].length === 0
+  );
+}
+
+/** Мініатюра й прогрес для трафарету, що не відкривався в цьому браузері. */
+function decorate(p: Project): void {
+  const g = buildGeometry(p.cols, p.rows, p.side);
+  const key = sideKey(p.side);
+  p.thumb = makeThumb(g, p.fills[key], hexOf);
+  const exist = new Set(g.beads.map((b) => b.k));
+  p.progress = { done: p.woven[key].filter((k) => exist.has(k)).length, total: g.beads.length };
+}
+
+/**
+ * Відновлення з резервної копії: трафарети, яких тут немає, додаються; наявні оновлюються,
+ * лише якщо в копії вони новіші. Нічого не видаляється.
+ */
+async function restoreBackup(b: ParsedBackup): Promise<string> {
+  await flushSave();
+  const addedColors = await restoreCustomColors(b.colors);
+  // Відкритий трафарет під час відновлення не змінювався — не даємо автозбереженню перезаписати копію.
+  window.clearTimeout(saveTimer);
+  dirty = false;
+  const local = new Map((await dbGetAll()).map((p) => [p.id, p]));
+  let added = 0;
+  let updated = 0;
+  let same = 0;
+  let reopen = false;
+  for (const bp of b.projects) {
+    const cur = local.get(bp.id);
+    if (cur && cur.updatedAt >= bp.updatedAt) {
+      same++;
+      continue;
+    }
+    const p: Project = { ...bp };
+    decorate(p);
+    await dbPut(p);
+    if (cur) updated++;
+    else added++;
+    if (p.id === project.id) reopen = true;
+  }
+  if (reopen) {
+    const p = await dbGet(project.id);
+    if (p) {
+      dirty = false;
+      await openProject(p);
+    }
+  } else if (added > 0 && isPristine(project)) {
+    // Порожній трафарет, створений у новому браузері, після відновлення не потрібен.
+    const blankId = project.id;
+    dirty = false;
+    await dbDelete(blankId);
+    const rest = (await dbGetAll()).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (rest[0]) await openProject(rest[0]);
+  }
+  if (added + updated === 0 && addedColors === 0) {
+    return "Усе з резервної копії вже є тут — нічого не змінилося.";
+  }
+  const parts = [`нових трафаретів — ${added}`, `оновлених — ${updated}`];
+  if (same) parts.push(`без змін — ${same}`);
+  if (addedColors) parts.push(`своїх кольорів додано — ${addedColors}`);
+  return `Відновлено з резервної копії: ${parts.join(", ")}.`;
+}
 
 $("#open-projects").addEventListener("click", () => void dialog.open());
 $("#export-project").addEventListener("click", async () => {
@@ -1204,13 +1628,30 @@ const catalog = initCatalogDialog({
   currentHex: () => (settings.color ? hexOf(settings.color) : null)
 });
 
-onCustomsChange(() => {
+onCustomsChange((id) => {
   if (!ready) return;
   renderPalette();
   repaintBeads();
   scheduleStats();
-  markDirty();
+  // Зберігаємо трафарет (мініатюру) лише тоді, коли змінився колір, що в ньому є.
+  if (project.palette.includes(id) || customIdsIn(project.fills, project.palette).includes(id)) markDirty();
 });
+
+/* ---------- Друга вкладка з програмою ---------- */
+
+// Якщо програму відкрито в кількох вкладках, збереження з однієї може перезаписати іншу.
+if ("BroadcastChannel" in window) {
+  const channel = new BroadcastChannel("sylianka");
+  const warnOther = (): void =>
+    showWarn("Програму відкрито ще в іншій вкладці чи вікні. Працюйте в одній, щоб зміни не перезаписали одна одну.", 12000);
+  channel.addEventListener("message", (e) => {
+    if (e.data === "hello") {
+      channel.postMessage("here");
+      warnOther();
+    } else if (e.data === "here") warnOther();
+  });
+  channel.postMessage("hello");
+}
 
 /* ---------- Встановлення як програми ---------- */
 

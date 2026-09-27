@@ -10,7 +10,10 @@ export interface ProjectsApi {
   duplicate(id: string): Promise<boolean>;
   remove(id: string): Promise<void>;
   exportFile(id: string): Promise<void>;
-  importFile(file: File): Promise<void>;
+  /** Відкриває файл трафарету або відновлює резервну копію; повертає підсумок для показу або null. */
+  importFile(file: File): Promise<string | null>;
+  /** Зберігає резервну копію всіх трафаретів; true — збережено. */
+  backup(): Promise<boolean>;
 }
 
 const dateFmt = new Intl.DateTimeFormat("uk-UA", {
@@ -73,7 +76,9 @@ export function initProjectsDialog(api: ProjectsApi): { open(): Promise<void> } 
       const prog = document.createElement("span");
       prog.className = "card-meta";
       const pct = Math.floor((p.progress.done / Math.max(1, p.progress.total)) * 100);
-      prog.textContent = `Нанизано ${p.progress.done.toLocaleString("uk-UA")} з ${p.progress.total.toLocaleString("uk-UA")} (${pct} %)`;
+      prog.textContent =
+        `Нанизано ${p.progress.done.toLocaleString("uk-UA")} з ${p.progress.total.toLocaleString("uk-UA")}` +
+        ` (${pct === 0 ? "менше 1" : pct} %)`;
       body.append(prog);
     }
     if (isCurrent) {
@@ -144,10 +149,21 @@ export function initProjectsDialog(api: ProjectsApi): { open(): Promise<void> } 
     fileInput.value = "";
     if (!file) return;
     try {
-      await api.importFile(file);
-      dlg.close();
+      const summary = await api.importFile(file);
+      if (summary) {
+        await refresh();
+        showNote(summary);
+      } else dlg.close();
     } catch (err) {
       showNote(err instanceof Error ? err.message : "Не вдалося відкрити файл.", true);
+    }
+  });
+  $("#backup-all").addEventListener("click", async () => {
+    showNote("");
+    try {
+      if (await api.backup()) showNote("Резервну копію збережено. Зберігайте її поза браузером — на диску чи в хмарі.");
+    } catch {
+      showNote("Не вдалося зберегти резервну копію.", true);
     }
   });
   $("#close-dlg").addEventListener("click", () => dlg.close());
