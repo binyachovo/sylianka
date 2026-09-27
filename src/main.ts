@@ -28,7 +28,17 @@ import { BEAD_R, beadsPerStep, buildGeometry, symmetryClosure, type Bead, type E
 import { HitIndex } from "./hit";
 import { History, type Action } from "./history";
 import { convertHexFills } from "./legacy";
-import { applyPrintLayout, describePlan, fitScaleWithText, fmtMm, planStrips, stripEnd, stripStart, type Frame } from "./print";
+import {
+  applyPrintLayout,
+  describePlan,
+  fitScaleWithText,
+  fmtMm,
+  planStrips,
+  stripEnd,
+  stripStart,
+  tableHeightMm,
+  type Frame
+} from "./print";
 import {
   MAX_CELLS,
   MAX_PALETTE,
@@ -139,6 +149,8 @@ let hitIndex: HitIndex | null = null;
 let hoverKey: string | null = null;
 /** Прозорий шар над сіткою, що ловить мишу. */
 let hitRect: SVGElement | null = null;
+/** Група під бісеринами: нитки, осі, межі повторів, номери. */
+let underGroup: SVGElement | null = null;
 /** Кільця підсвітки: під мишею й «де зупинилися». Окремі елементи, щоб не змінювати розмір самих бісерин. */
 let ringHover: SVGElement | null = null;
 let ringLast: SVGElement | null = null;
@@ -255,18 +267,26 @@ function threadPath(edges: Edge[], H: number, keep: (e: Edge) => boolean = () =>
   return d;
 }
 
-function render(): void {
-  geom = buildGeometry(project.cols, project.rows, project.side, project.gaps);
-  const { H, width: W, height: HT, px, py } = geom;
+/** Рамка сітки (viewBox) з номерами й без них за поточною геометрією. Повертає рамку з номерами. */
+function frameGeometry(): number[] {
+  if (!geom) return [0, 0, 1, 1];
+  const { width: W, height: HT } = geom;
   const vb = [-GUT_L, -GUT_T, W + GUT_L + PAD, HT + GUT_T + PAD];
   const e = BEAD_R + 1;
   const vbc = [-e, -e, W + 2 * e, HT + 2 * e];
   viewBoxes.normal = vb.map(r2).join(" ");
   viewBoxes.clean = vbc.map(r2).join(" ");
   cleanDims = [vbc[2], vbc[3]];
+  vbWidth = vb[2];
+  vbHeight = vb[3];
+  svg.setAttribute("viewBox", ui.clean ? viewBoxes.clean : viewBoxes.normal);
+  return vb;
+}
 
-  const existing = new Set(geom.beads.map((b) => b.k));
-  weave.bind(wovenList(), (k) => existing.has(k));
+/** Усе, що лежить під бісеринами й залежить від проміжків: нитки, осі дзеркал, межі повторів, номери. */
+function underParts(): string {
+  if (!geom) return "";
+  const { H, width: W, height: HT, px, py } = geom;
   const parts: string[] = [];
   parts.push(`<path class="thread" d="${threadPath(geom.edges, H)}"/>`);
   // Осі дзеркал — посередині висоти й довжини (якщо там проміжок — посередині проміжку).
@@ -275,7 +295,6 @@ function render(): void {
   parts.push(`<line class="axis axis-tb" x1="-6" y1="${axisY}" x2="${r2(W + 6)}" y2="${axisY}"/>`);
   parts.push(`<line class="axis axis-lr" x1="${axisX}" y1="-6" x2="${axisX}" y2="${r2(HT + 6)}"/>`);
   parts.push(`<g class="periods">${periodLines()}</g>`);
-
   const colEvery = project.cols > 40 ? 5 : 1;
   const rowEvery = project.rows > 40 ? 5 : 1;
   for (let i = 0; i < project.cols; i++) {
@@ -292,6 +311,17 @@ function render(): void {
       );
     }
   }
+  return parts.join("");
+}
+
+function render(): void {
+  geom = buildGeometry(project.cols, project.rows, project.side, project.gaps);
+  const vb = frameGeometry();
+
+  const existing = new Set(geom.beads.map((b) => b.k));
+  weave.bind(wovenList(), (k) => existing.has(k));
+  const parts: string[] = [];
+  parts.push(`<g class="under">${underParts()}</g>`);
   // Бісерини в окремій групі: зміни поза нею не змушують браузер перераховувати межі всіх кіл.
   parts.push(`<g class="beads">`);
   for (const b of geom.beads) {
@@ -310,9 +340,6 @@ function render(): void {
   // Прозорий шар зверху ловить мишу; бісерину під курсором шукаємо за координатами.
   parts.push(`<rect class="hit" x="${r2(vb[0])}" y="${r2(vb[1])}" width="${r2(vb[2])}" height="${r2(vb[3])}"/>`);
 
-  svg.setAttribute("viewBox", ui.clean ? viewBoxes.clean : viewBoxes.normal);
-  vbWidth = vb[2];
-  vbHeight = vb[3];
   applyZoom();
   svg.innerHTML = parts.join("");
   svg.setAttribute("aria-label", `Сітка силянки: ${project.rows} у висоту, ${project.cols} у ширину`);
@@ -323,12 +350,14 @@ function render(): void {
   for (let i = 0; i < els.length; i++) beadEls.set(geom.beads[i].k, els[i]);
   beadPos = new Map(geom.beads.map((b) => [b.k, b]));
   neighbors = null;
-  hitIndex = new HitIndex(geom.beads, W);
-  hitRect = svg.querySelector<SVGElement>(".hit");
-  ringHover = svg.querySelector<SVGElement>(".ring-hover");
-  ringLast = svg.querySelector<SVGElement>(".ring-last");
-  gapGuide = svg.querySelector<SVGElement>(".gap-guide");
-  pathGroup = svg.querySelector<SVGElement>(".path");
+  hitIndex = new HitIndex(geom.beads, geom.width);
+  underGroup = svg.firstElementChild as SVGElement | null;
+  hitRect = svg.lastElementChild as SVGElement | null;
+  const marks = hitRect?.previousElementSibling ?? null;
+  ringLast = marks?.querySelector<SVGElement>(".ring-last") ?? null;
+  ringHover = marks?.querySelector<SVGElement>(".ring-hover") ?? null;
+  gapGuide = marks?.querySelector<SVGElement>(".gap-guide") ?? null;
+  pathGroup = (marks?.previousElementSibling as SVGElement | null) ?? null;
   hoverKey = null;
   hoverGutter = null;
   placeRing(ringLast, weave.last);
@@ -340,6 +369,41 @@ function render(): void {
   syncGapsUi();
   syncRepeatUi();
   drawPath();
+  printLayout();
+}
+
+/**
+ * Змінилися лише проміжки: бісерини ті самі, тож переставляємо наявні кола й перемальовуємо
+ * те, що під ними, — без повної перебудови сітки (на великих трафаретах це в рази швидше).
+ */
+function relayout(): void {
+  const old = geom;
+  geom = buildGeometry(project.cols, project.rows, project.side, project.gaps);
+  if (!old || !underGroup || !hitRect || old.beads.length !== geom.beads.length) {
+    render();
+    return;
+  }
+  const vb = frameGeometry();
+  applyZoom();
+  underGroup.innerHTML = underParts();
+  for (const b of geom.beads) {
+    const el = beadEls.get(b.k);
+    if (!el) continue;
+    el.setAttribute("cx", r2(b.x));
+    el.setAttribute("cy", r2(b.y));
+  }
+  hitRect.setAttribute("x", r2(vb[0]));
+  hitRect.setAttribute("y", r2(vb[1]));
+  hitRect.setAttribute("width", r2(vb[2]));
+  hitRect.setAttribute("height", r2(vb[3]));
+  beadPos = new Map(geom.beads.map((b) => [b.k, b]));
+  hitIndex = new HitIndex(geom.beads, geom.width);
+  setHover(null);
+  setGutterHover(null);
+  placeRing(ringLast, weave.last);
+  drawPath();
+  syncCopy();
+  syncGapsUi();
   printLayout();
 }
 
@@ -461,14 +525,25 @@ function updatePrintInfo(): void {
   printBead.value = settings.printBead === null ? "" : String(settings.printBead);
   if (!geom) return;
   if (strips) {
-    printInfo.textContent = describePlan(planStrips(geom, project.cols, frameFor(!ui.clean), settings.printBead ?? 4, !ui.clean));
+    printInfo.textContent = describePlan(
+      planStrips(geom, project.cols, frameFor(!ui.clean), settings.printBead ?? 4, !ui.clean, tableMm())
+    );
     return;
   }
   const k = ui.clean ? fitK : fitScaleWithText(vbWidth, vbHeight, fitOrient);
   const bead = 2 * BEAD_R * k;
+  // Друк з текстом: назва (~17 мм разом із відступами), трафарет і таблиця бісеру на одному аркуші A4.
+  const room = (fitOrient === "landscape" ? 210 : 297) - 2 * 10 - 3;
+  const tableApart = !ui.clean && 17 + vbHeight * k + tableMm() > room;
   printInfo.textContent =
-    `На одному аркуші, бісеринки ≈ ${fmtMm(bead)}.` +
+    (tableApart ? "Трафарет на одному аркуші, таблиця бісеру — на другому" : "На одному аркуші") +
+    `, бісеринки ≈ ${fmtMm(bead)}.` +
     (bead < 2 ? " Задрібно — виберіть розмір бісеринок, і трафарет поділиться на смуги." : "");
+}
+
+/** Скільки місця на папері займе таблиця бісеру (0 — друк без тексту). */
+function tableMm(): number {
+  return ui.clean ? 0 : tableHeightMm(countsList.children.length);
 }
 
 /**
@@ -543,7 +618,7 @@ function buildPrintPages(): void {
     return;
   }
   const labels = !ui.clean;
-  const plan = planStrips(geom, project.cols, frameFor(labels), settings.printBead, labels);
+  const plan = planStrips(geom, project.cols, frameFor(labels), settings.printBead, labels, tableMm());
   pageSize.textContent = `@page { size: A4 ${plan.orient}; margin: 0; }`;
   const meta = `${project.rows}-рядна силянка · ${project.side} бісерини в комірці`;
   const pages: string[] = [];
@@ -669,7 +744,13 @@ function updateStats(): void {
   countsList.innerHTML =
     used.map((id) => countRow(id, counts.get(id) ?? 0, done.get(id) ?? 0)).join("") + countRow(null, empty, emptyDone);
   syncCopy();
+  // Від кількості рядків таблиці залежить, чи вміститься вона на аркуші з трафаретом.
+  if (used.length !== tableRows) {
+    tableRows = used.length;
+    updatePrintInfo();
+  }
 }
+let tableRows = -1;
 
 let statsQueued = false;
 function scheduleStats(): void {
@@ -874,6 +955,15 @@ function setRepeat(raw: string | number): void {
 }
 
 repeatInput.addEventListener("change", () => setRepeat(repeatInput.value));
+// Правильне число діє одразу, ще поки друкують (поле не переписуємо, щоб не заважати).
+repeatInput.addEventListener("input", () => {
+  const n = Number(repeatInput.value);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_SIDE || n === project.repeat) return;
+  project.repeat = n;
+  markDirty();
+  drawPeriods();
+  syncRepeatUi();
+});
 repeatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") repeatInput.blur();
 });
@@ -1121,7 +1211,7 @@ function setGaps(next: Gaps): void {
   if (before.x.join() === after.x.join() && before.y.join() === after.y.join()) return;
   drawHistory.push({ kind: "gaps", before, after: cloneGaps(after) });
   project.gaps = after;
-  render();
+  relayout();
   syncHistory();
   markDirty();
 }
@@ -1257,6 +1347,11 @@ function popover(btn: HTMLButtonElement, pop: HTMLElement, onOpen: () => void): 
     show(false);
     btn.focus();
   });
+  // Фокус клавіатурою пішов за межі панелі — закриваємо її.
+  pop.addEventListener("focusout", (e) => {
+    const t = e.relatedTarget as Node | null;
+    if (t && !pop.contains(t) && !btn.contains(t)) show(false);
+  });
   return show;
 }
 
@@ -1317,7 +1412,8 @@ function syncMultiply(): void {
 }
 
 function openMultiply(): void {
-  if (!mulFrom.value || !mulTo.value) {
+  const r = mulRange();
+  if (!r || r[1] >= project.cols) {
     mulFrom.value = "1";
     mulTo.value = String(Math.max(1, Math.min(project.repeat, project.cols - 1)));
   }
@@ -1438,7 +1534,8 @@ function weaveAt(k: string): void {
     const i = weave.unmark(k);
     if (i < 0) return;
     weaving.items.push([i, k]);
-    schedulePath();
+    // Шлях перемалюємо, коли відпустять мишу: під час руху повне перемальовування гальмує.
+    pathStale = true;
   }
   refreshBead(k);
   moveLast(prev);
@@ -1449,6 +1546,8 @@ function endWeave(): void {
   if (!weaving) return;
   const w = weaving;
   weaving = null;
+  // Після руху миші — один раз увесь шлях (якщо щось знімали чи дописаних відрізків уже багато).
+  if (pathStale || pathExtra >= 300) drawPath();
   const side = sideKey(project.side);
   if (w.mode === "mark" && w.keys.length > 0) weaveHistory.push({ kind: "mark", side, keys: w.keys });
   else if (w.mode === "unmark" && w.items.length > 0) weaveHistory.push({ kind: "unmark", side, items: w.items });
@@ -1619,10 +1718,14 @@ function afterWeaveChange(): void {
 /** Шлях видно лише в режимі плетіння з галочкою, не в «лише трафарет» і не під час друку. */
 const pathVisible = (): boolean => settings.weave && settings.path && !ui.clean && !printing;
 
-/** Стан намальованого шляху: скільки в ньому бісерин, остання з них і скільки відрізків дописано окремо. */
+/**
+ * Стан намальованого шляху: скільки в ньому бісерин, остання з них, скільки відрізків дописано
+ * окремими елементами і чи шлях застарів (його перемалюють, коли закінчиться рух миші).
+ */
 let pathCount = 0;
 let pathPrev: Bead | undefined;
 let pathExtra = 0;
+let pathStale = false;
 
 /** Стрілка напрямку (на кожному п'ятому відрізку) і номер (першої бісерини й кожної десятої). */
 function pathMarks(n: number, prev: Bead | undefined, b: Bead): string {
@@ -1643,6 +1746,7 @@ function drawPath(): void {
   pathCount = 0;
   pathPrev = undefined;
   pathExtra = 0;
+  pathStale = false;
   if (!g) return;
   if (!pathVisible()) {
     if (g.firstChild) g.textContent = "";
@@ -1661,26 +1765,16 @@ function drawPath(): void {
   g.innerHTML = pathCount ? `<path class="pl" d="${d}"/>${marks}` : "";
 }
 
-let pathQueued = false;
-function schedulePath(): void {
-  if (pathQueued || !pathVisible()) return;
-  pathQueued = true;
-  requestAnimationFrame(() => {
-    pathQueued = false;
-    drawPath();
-  });
-}
-
 /**
  * Нанизали ще одну бісерину в кінці набору: дописуємо до шляху один відрізок, а не малюємо
  * весь шлях наново — так на великих трафаретах браузер перемальовує лише малу ділянку.
  */
 function extendPath(k: string): void {
-  if (!pathGroup || !pathVisible() || pathQueued) return;
+  if (!pathGroup || !pathVisible() || pathStale) return;
   const b = beadPos.get(k);
   if (!b) return;
-  if (weave.number(k) !== pathCount + 1 || pathExtra >= 300) {
-    schedulePath();
+  if (weave.number(k) !== pathCount + 1) {
+    pathStale = true;
     return;
   }
   pathCount++;
@@ -1702,9 +1796,16 @@ wvPath.addEventListener("change", () => {
 /** Остання бісерина, через яку пройшла миша під час малювання чи позначення. */
 let strokeKey: string | null = null;
 
+/** Поле, у якому щойно друкували, застосовує значення до кліку по трафарету (preventDefault не знімає фокус сам). */
+function commitField(): void {
+  const el = document.activeElement;
+  if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) el.blur();
+}
+
 svg.addEventListener("pointerdown", (e) => {
   lastPointer = e.pointerType;
   if (e.pointerType !== "mouse" || e.button !== 0 || ui.clean) return;
+  commitField();
   const k = beadAt(e);
   if (!k) {
     const g = gutterAt(e);
@@ -1772,6 +1873,7 @@ window.addEventListener("pointerup", stopPainting);
 window.addEventListener("pointercancel", stopPainting);
 svg.addEventListener("click", (e) => {
   if (lastPointer === "mouse" || ui.clean) return;
+  commitField();
   const k = beadAt(e);
   if (!k) {
     const g = gutterAt(e);
@@ -1858,7 +1960,7 @@ function applyAction(a: Action, useBefore: boolean): void {
       break;
     case "gaps":
       project.gaps = cloneGaps(useBefore ? a.before : a.after);
-      render();
+      relayout();
       break;
     case "mark": {
       const list = project.woven[a.side];

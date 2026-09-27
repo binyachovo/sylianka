@@ -94,7 +94,7 @@
             <label for="repeat-n" id="repeat-lead">кожні</label>
             <div class="stepper">
               <button type="button" data-rep="-1" aria-label="Коротший повтор">−</button>
-              <input id="repeat-n" type="number" min="1" inputmode="numeric">
+              <input id="repeat-n" type="number" min="1" inputmode="numeric" aria-labelledby="repeat repeat-lead repeat-n repeat-unit">
               <button type="button" data-rep="1" aria-label="Довший повтор">+</button>
             </div>
             <span id="repeat-unit">ромбів</span>
@@ -228,17 +228,17 @@
             <div class="pop-grid">
               <div class="pop-row">
                 <label for="gap-cols-n" id="gap-cols-lead">Після кожних</label>
-                <input class="num-in" id="gap-cols-n" type="number" min="1" value="5" inputmode="numeric">
+                <input class="num-in" id="gap-cols-n" type="number" min="1" value="5" inputmode="numeric" aria-labelledby="gap-cols-lead gap-cols-n gap-cols-unit">
                 <span class="pop-unit" id="gap-cols-unit">ромбів</span>
-                <button type="button" class="tbtn small" id="gap-cols-set" title="Замінити всі вертикальні проміжки рівномірними">Розставити</button>
-                <button type="button" class="tbtn small" id="gap-cols-clear" title="Прибрати всі вертикальні проміжки">Прибрати</button>
+                <button type="button" class="tbtn small" id="gap-cols-set" title="Замінити всі вертикальні проміжки рівномірними" aria-label="Розставити вертикальні проміжки">Розставити</button>
+                <button type="button" class="tbtn small" id="gap-cols-clear" title="Прибрати всі вертикальні проміжки" aria-label="Прибрати вертикальні проміжки">Прибрати</button>
               </div>
               <div class="pop-row">
                 <label for="gap-rows-n" id="gap-rows-lead">Після кожних</label>
-                <input class="num-in" id="gap-rows-n" type="number" min="1" value="4" inputmode="numeric">
+                <input class="num-in" id="gap-rows-n" type="number" min="1" value="4" inputmode="numeric" aria-labelledby="gap-rows-lead gap-rows-n gap-rows-unit">
                 <span class="pop-unit" id="gap-rows-unit">рядів</span>
-                <button type="button" class="tbtn small" id="gap-rows-set" title="Замінити всі горизонтальні проміжки рівномірними">Розставити</button>
-                <button type="button" class="tbtn small" id="gap-rows-clear" title="Прибрати всі горизонтальні проміжки">Прибрати</button>
+                <button type="button" class="tbtn small" id="gap-rows-set" title="Замінити всі горизонтальні проміжки рівномірними" aria-label="Розставити горизонтальні проміжки">Розставити</button>
+                <button type="button" class="tbtn small" id="gap-rows-clear" title="Прибрати всі горизонтальні проміжки" aria-label="Прибрати горизонтальні проміжки">Прибрати</button>
               </div>
             </div>
             <p class="pop-state" id="gaps-state" aria-live="polite"></p>

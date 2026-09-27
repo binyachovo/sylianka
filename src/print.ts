@@ -79,7 +79,14 @@ export interface StripPlan {
   pages: number;
   /** Ромби кожної смуги: [перший, після останнього), з 0. */
   ranges: [number, number][];
+  /** Таблиця бісеру не вміщається під останньою смугою — буде на окремому аркуші. */
+  tablePage: boolean;
+  /** Усього аркушів разом із таблицею бісеру. */
+  sheets: number;
 }
+
+/** Висота таблиці бісеру на папері, мм: заголовок і рядки (кольори й «не зафарбовано»). */
+export const tableHeightMm = (rows: number): number => 8 + 8.5 * rows;
 
 /** Скільки проміжків (відсортований список) лежить у [from, to). */
 function countIn(list: number[], from: number, to: number): number {
@@ -149,7 +156,8 @@ function stripRanges(geom: Geometry, cols: number, maxW: number, perPage: number
   if (n === 1) return greedy;
   if (geom.gx.length) {
     const aligned = split(geom, cols, maxW, true);
-    if (Math.ceil(aligned.length / perPage) <= Math.ceil(n / perPage)) return aligned;
+    const onGap = aligned.some(([a]) => a > 0 && gapAtCut(geom, a));
+    if (onGap && Math.ceil(aligned.length / perPage) <= Math.ceil(n / perPage)) return aligned;
   }
   let lo = 0;
   let hi = maxW;
@@ -162,8 +170,18 @@ function stripRanges(geom: Geometry, cols: number, maxW: number, perPage: number
   return even.length === n ? even : greedy;
 }
 
-/** Як поділити трафарет на смуги й аркуші для бісеринок заданого розміру. */
-export function planStrips(geom: Geometry, cols: number, frame: Frame, beadMm: number, header: boolean): StripPlan {
+/**
+ * Як поділити трафарет на смуги й аркуші для бісеринок заданого розміру.
+ * tailMm — скільки місця треба після смуг (таблиця бісеру у друці з текстом), 0 — нічого.
+ */
+export function planStrips(
+  geom: Geometry,
+  cols: number,
+  frame: Frame,
+  beadMm: number,
+  header: boolean,
+  tailMm = 0
+): StripPlan {
   const hUnits = geom.height + frame.top + frame.bottom;
   let best: StripPlan | null = null;
   for (const [pw, ph, orient] of PAGES) {
@@ -180,6 +198,8 @@ export function planStrips(geom: Geometry, cols: number, frame: Frame, beadMm: n
     const strips = ranges.length;
     const perStrip = Math.max(...ranges.map(([a, b]) => b - a));
     const pages = Math.ceil(strips / stripsPerPage);
+    const onLast = strips - (pages - 1) * stripsPerPage;
+    const tablePage = tailMm > 0 && onLast * (hUnits * scale + STRIP_GAP) + tailMm > ah;
     const plan: StripPlan = {
       orient,
       scale,
@@ -189,7 +209,9 @@ export function planStrips(geom: Geometry, cols: number, frame: Frame, beadMm: n
       strips,
       stripsPerPage,
       pages,
-      ranges
+      ranges,
+      tablePage,
+      sheets: pages + (tablePage ? 1 : 0)
     };
     if (!best || better(plan, best)) best = plan;
   }
@@ -199,7 +221,7 @@ export function planStrips(geom: Geometry, cols: number, frame: Frame, beadMm: n
 function better(a: StripPlan, b: StripPlan): boolean {
   if (a.reduced !== b.reduced) return !a.reduced;
   if (a.reduced) return a.beadMm > b.beadMm + 1e-6;
-  if (a.pages !== b.pages) return a.pages < b.pages;
+  if (a.sheets !== b.sheets) return a.sheets < b.sheets;
   return a.beadMm > b.beadMm + 1e-6;
 }
 
@@ -208,7 +230,7 @@ export const fmtMm = (v: number): string => `${mm.format(v)} мм`;
 
 /** Короткий опис плану для панелі «Друк». */
 export function describePlan(p: StripPlan): string {
-  const pages = `${p.pages} ${plural(p.pages, "аркуш", "аркуші", "аркушів")}`;
+  const pages = `${p.sheets} ${plural(p.sheets, "аркуш", "аркуші", "аркушів")}`;
   // «по N ромбів», якщо всі смуги, крім останньої, однакові; інакше «до N ромбів».
   const even = p.ranges.slice(0, -1).every(([a, b]) => b - a === p.perStrip);
   const strips =
@@ -221,7 +243,8 @@ export function describePlan(p: StripPlan): string {
   const bead = p.reduced
     ? `бісеринки зменшено до ${fmtMm(p.beadMm)}, щоб вмістилися всі ряди`
     : `бісеринки ${fmtMm(p.beadMm)}`;
-  return `Вийде ${pages}: ${strips}, ${bead}.`;
+  const table = p.tablePage ? "; таблиця бісеру — на окремому аркуші" : "";
+  return `Вийде ${pages}: ${strips}, ${bead}${table}.`;
 }
 
 export { HEADER as PRINT_HEADER_MM, STRIP_GAP as PRINT_STRIP_GAP_MM };
