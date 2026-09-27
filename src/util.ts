@@ -34,3 +34,18 @@ export function $<T extends Element = HTMLElement>(sel: string, root: ParentNode
 export function $$<T extends Element = HTMLElement>(sel: string, root: ParentNode = document): T[] {
   return Array.from(root.querySelectorAll<T>(sel));
 }
+
+/** Екранує текст для вставлення в HTML. */
+export function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+}
+
+/** Українська множина: 1 колір, 2 кольори, 5 кольорів. */
+export function plural(n: number, one: string, few: string, many: string): string {
+  const d = Math.abs(n) % 100;
+  const u = d % 10;
+  if (d > 10 && d < 20) return many;
+  if (u === 1) return one;
+  if (u >= 2 && u <= 4) return few;
+  return many;
+}

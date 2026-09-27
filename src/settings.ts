@@ -1,23 +1,35 @@
+import { COLOR_ID, HEX } from "./projects";
+
 /** Налаштування інструментів, спільні для всіх трафаретів. */
 export interface Settings {
-  color: string;
+  /** Поточний колір пензля (ідентифікатор) або null, якщо кольорів ще немає. */
+  color: string | null;
   mirror: boolean;
   two: boolean;
   lastProjectId: string | null;
+  /** Нещодавно додані до трафаретів кольори, найновіші спершу. */
+  recent: string[];
 }
 
 const KEY = "sylianka-settings-v1";
-const HEX = /^#[0-9a-f]{6}$/i;
+const MAX_RECENT = 30;
+
+/** Колір пензля зі старої версії (HEX), щоб після перенесення вибрати відповідний свій колір. */
+export let legacyBrushHex: string | null = null;
 
 export function loadSettings(): Settings {
-  const s: Settings = { color: "#C8202E", mirror: false, two: false, lastProjectId: null };
+  const s: Settings = { color: null, mirror: false, two: false, lastProjectId: null, recent: [] };
   try {
     const o = JSON.parse(localStorage.getItem(KEY) || "null") as Record<string, unknown> | null;
     if (o && typeof o === "object") {
-      if (typeof o.color === "string" && HEX.test(o.color)) s.color = o.color.toUpperCase();
+      if (typeof o.color === "string" && COLOR_ID.test(o.color)) s.color = o.color;
+      else if (typeof o.color === "string" && HEX.test(o.color)) legacyBrushHex = o.color.toUpperCase();
       if (typeof o.mirror === "boolean") s.mirror = o.mirror;
       if (typeof o.two === "boolean") s.two = o.two;
       if (typeof o.lastProjectId === "string") s.lastProjectId = o.lastProjectId;
+      if (Array.isArray(o.recent)) {
+        s.recent = o.recent.filter((v): v is string => typeof v === "string" && COLOR_ID.test(v)).slice(0, MAX_RECENT);
+      }
     }
   } catch {
     // лишаємо типові
@@ -31,4 +43,9 @@ export function saveSettings(s: Settings): void {
   } catch {
     // сховище недоступне
   }
+}
+
+/** Запам'ятовує колір як нещодавній. */
+export function rememberRecent(s: Settings, id: string): void {
+  s.recent = [id, ...s.recent.filter((v) => v !== id)].slice(0, MAX_RECENT);
 }

@@ -9,19 +9,33 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "./styles.css";
 
 import { registerSW } from "virtual:pwa-register";
-import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence } from "./db";
+import { initCatalogDialog } from "./catalogDialog";
+import {
+  adoptCustomColors,
+  colorTitle,
+  colorView,
+  customColors,
+  fullLabel,
+  hexOf,
+  loadCustomColors,
+  onCustomsChange
+} from "./colors";
+import { dbDelete, dbGet, dbGetAll, dbPut, requestPersistence, setBlockedHandler } from "./db";
 import { parseProjectFile, saveProjectToFile } from "./files";
 import { BEAD_R, beadsPerStep, buildGeometry, mirrorKey, type Geometry } from "./geometry";
 import { History, type Action } from "./history";
-import { PALETTE, paletteName, paletteRank } from "./palette";
+import { convertHexFills } from "./legacy";
 import { applyPrintLayout } from "./print";
 import {
   MAX_CELLS,
+  MAX_PALETTE,
   MAX_SIDE,
   blankProject,
   cloneFills,
   emptyFills,
   fitSize,
+  forgetV1,
+  isLegacyProject,
   migrateV1,
   newId,
   nextName,
@@ -30,9 +44,10 @@ import {
   type Side
 } from "./projects";
 import { initProjectsDialog } from "./projectsDialog";
-import { loadSettings, saveSettings } from "./settings";
+import { legacyBrushHex, loadSettings, rememberRecent, saveSettings } from "./settings";
 import { makeThumb } from "./thumb";
-import { $, $$, clamp, num, r2 } from "./util";
+import { initBeadTooltip } from "./tooltip";
+import { $, $$, clamp, esc, num, r2 } from "./util";
 
 registerSW({ immediate: true });
 
@@ -45,6 +60,8 @@ const ui = { erase: false, clean: false };
 const history = new History(200);
 let project: Project = blankProject("Трафарет 1");
 let geom: Geometry | null = null;
+/** Стає true, коли відкрито перший трафарет. */
+let ready = false;
 
 const svg = $<SVGSVGElement>("#strip");
 const copy = $<SVGSVGElement>("#strip2");
@@ -65,12 +82,14 @@ const pageSize = $<HTMLStyleElement>("#page-size");
 const installBtn = $<HTMLButtonElement>("#install");
 const nameInput = $<HTMLInputElement>("#project-name");
 const saveState = $("#save-state");
+const countsList = $("#st-colors");
 
 let beadEls = new Map<string, SVGElement>();
 const viewBoxes = { normal: "0 0 1 1", clean: "0 0 1 1" };
 let cleanDims: [number, number] = [1, 1];
 
 const fills = (): Record<string, string> => project.fills[sideKey(project.side)];
+const paintFill = (id: string | undefined): string => (id ? hexOf(id) : "");
 
 /* ---------- Автозбереження ---------- */
 
@@ -90,7 +109,7 @@ async function flushSave(): Promise<void> {
   if (!dirty) return;
   dirty = false;
   project.updatedAt = Date.now();
-  if (geom) project.thumb = makeThumb(geom, fills());
+  if (geom) project.thumb = makeThumb(geom, fills(), hexOf);
   try {
     await dbPut(project);
     if (!dirty) saveState.textContent = "Збережено";
@@ -105,6 +124,18 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") void flushSave();
 });
 window.addEventListener("pagehide", () => void flushSave());
+
+/* ---------- Повідомлення під панеллю ---------- */
+
+let warnTimer = 0;
+function showWarn(text: string, ms = 7000): void {
+  warn.textContent = text;
+  warn.hidden = false;
+  window.clearTimeout(warnTimer);
+  warnTimer = window.setTimeout(() => {
+    warn.hidden = true;
+  }, ms);
+}
 
 /* ---------- Малювання сітки ---------- */
 
@@ -143,9 +174,9 @@ function render(): void {
     }
   }
   for (const b of geom.beads) {
-    const c = f[b.k];
+    const id = f[b.k];
     parts.push(
-      `<circle class="bd" data-k="${b.k}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${c ? ` style="fill:${c}"` : ""}/>`
+      `<circle class="bd" data-k="${b.k}" cx="${r2(b.x)}" cy="${r2(b.y)}" r="${BEAD_R}"${id ? ` style="fill:${hexOf(id)}"` : ""}/>`
     );
   }
 
@@ -162,6 +193,13 @@ function render(): void {
   updateMeta();
   updateStats();
   printLayout();
+}
+
+/** Перефарбовує бісерини без перебудови сітки (коли змінився відтінок свого кольору). */
+function repaintBeads(): void {
+  const f = fills();
+  for (const [k, el] of beadEls) el.style.fill = paintFill(f[k]);
+  syncCopy();
 }
 
 function printLayout(): void {
@@ -183,20 +221,32 @@ function updateMeta(): void {
   }
 }
 
-/* ---------- Підрахунок ---------- */
+/* ---------- Підрахунок бісеру ---------- */
 
-function addCountRow(ul: HTMLElement, color: string | null, name: string, count: number): void {
-  const li = document.createElement("li");
-  const chip = document.createElement("span");
-  chip.className = color ? "chip" : "chip chip-empty";
-  if (color) chip.style.setProperty("--c", color);
-  const nm = document.createElement("span");
-  nm.textContent = name;
-  const n = document.createElement("span");
-  n.className = "n";
-  n.textContent = num(count);
-  li.append(chip, nm, n);
-  ul.append(li);
+function countRow(id: string | null, count: number): string {
+  if (!id) {
+    const canFill = count > 0 && !!settings.color;
+    const cur = settings.color ? colorView(settings.color) : null;
+    return (
+      `<li class="cnt cnt-empty"><span class="chip chip-empty"></span><span class="cnt-code"></span>` +
+      `<span class="cnt-name">Не зафарбовано</span><span class="n">${num(count)}</span>` +
+      `<span class="cnt-act"><button type="button" class="tbtn small" data-fill-empty${canFill ? "" : " disabled"}` +
+      ` title="${cur ? esc(`Зафарбувати всі порожні бісерини кольором ${fullLabel(cur)}`) : "Спершу виберіть колір"}">` +
+      `Залити поточним кольором</button></span></li>`
+    );
+  }
+  const v = colorView(id);
+  const others = project.palette.filter((x) => x !== id);
+  const options = others
+    .map((x) => `<option value="${esc(x)}">${esc(fullLabel(colorView(x)))}</option>`)
+    .join("");
+  return (
+    `<li class="cnt" title="${esc(colorTitle(v))}"><span class="chip" style="--c:${v.hex}"></span>` +
+    `<span class="cnt-code">${esc(v.code)}</span><span class="cnt-name">${esc(v.name)}</span>` +
+    `<span class="n">${num(count)}</span>` +
+    `<span class="cnt-act"><select class="cnt-replace" data-replace="${esc(id)}" aria-label="Замінити ${esc(fullLabel(v))} на інший колір"${others.length ? "" : " disabled"}>` +
+    `<option value="">Замінити на…</option>${options}</select></span></li>`
+  );
 }
 
 function updateStats(): void {
@@ -204,18 +254,18 @@ function updateStats(): void {
   const counts = new Map<string, number>();
   let empty = 0;
   for (const k of beadEls.keys()) {
-    const c = f[k];
-    if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
+    const id = f[k];
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
     else empty++;
   }
   $("#st-total").textContent = num(beadEls.size);
   $("#st-step").textContent = num(beadsPerStep(project.rows, project.side));
 
-  const used = Array.from(counts.keys()).sort((a, b) => paletteRank(a) - paletteRank(b) || a.localeCompare(b));
-  const ul = $("#st-colors");
-  ul.textContent = "";
-  for (const c of used) addCountRow(ul, c, paletteName(c) ?? `Свій ${c.toLowerCase()}`, counts.get(c) ?? 0);
-  addCountRow(ul, null, "Не зафарбовано", empty);
+  const order = new Map(project.palette.map((id, i) => [id, i]));
+  const used = Array.from(counts.keys()).sort(
+    (a, b) => (order.get(a) ?? 1e6) - (order.get(b) ?? 1e6) || a.localeCompare(b)
+  );
+  countsList.innerHTML = used.map((id) => countRow(id, counts.get(id) ?? 0)).join("") + countRow(null, empty);
   syncCopy();
 }
 
@@ -229,59 +279,142 @@ function scheduleStats(): void {
   });
 }
 
-/* ---------- Палітра й інструменти ---------- */
-
-for (const p of PALETTE) {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "sw";
-  b.dataset.c = p.hex;
-  b.title = p.name;
-  b.setAttribute("aria-label", p.name);
-  b.setAttribute("aria-pressed", "false");
-  b.innerHTML = `<span class="chip" style="--c:${p.hex}"></span>`;
-  pal.append(b);
+/** Замінює колір на всіх бісеринах поточної сітки (можна скасувати). */
+function replaceColor(from: string, to: string): void {
+  const f = fills();
+  const changes = new Map<string, [string | undefined, string | undefined]>();
+  for (const k of beadEls.keys()) if (f[k] === from) changes.set(k, [from, to]);
+  if (changes.size === 0) return;
+  applyChanges(changes);
+  showWarn(`Замінено ${num(changes.size)} бісерин: ${fullLabel(colorView(from))} → ${fullLabel(colorView(to))}.`, 5000);
 }
-const custom = document.createElement("label");
-custom.className = "sw sw-custom";
-custom.title = "Свій колір";
-custom.innerHTML =
-  '<span class="chip" id="custom-chip"></span><input type="color" id="custom-color" value="#8e5ac8" aria-label="Свій колір">';
-pal.append(custom);
-const customInput = $<HTMLInputElement>("#custom-color");
-const customChip = $("#custom-chip");
-customChip.style.setProperty("--c", customInput.value);
+
+/** Зафарбовує всі порожні бісерини поточним кольором (можна скасувати). */
+function fillEmpty(): void {
+  const color = settings.color;
+  if (!color) return;
+  const f = fills();
+  const changes = new Map<string, [string | undefined, string | undefined]>();
+  for (const k of beadEls.keys()) if (!f[k]) changes.set(k, [undefined, color]);
+  if (changes.size === 0) return;
+  applyChanges(changes);
+}
+
+function applyChanges(changes: Map<string, [string | undefined, string | undefined]>): void {
+  const f = fills();
+  for (const [k, [, after]] of changes) {
+    if (after) f[k] = after;
+    else delete f[k];
+    const el = beadEls.get(k);
+    if (el) el.style.fill = paintFill(after);
+  }
+  history.push({ kind: "paint", side: sideKey(project.side), changes });
+  syncHistory();
+  updateStats();
+  markDirty();
+}
+
+countsList.addEventListener("change", (e) => {
+  const sel = (e.target as Element).closest<HTMLSelectElement>("select[data-replace]");
+  if (!sel?.dataset.replace || !sel.value) return;
+  replaceColor(sel.dataset.replace, sel.value);
+});
+countsList.addEventListener("click", (e) => {
+  if ((e.target as Element).closest("[data-fill-empty]")) fillEmpty();
+});
+
+/* ---------- Кольори трафарету й інструменти ---------- */
+
+function renderPalette(): void {
+  const parts = project.palette.map((id) => {
+    const v = colorView(id);
+    const label = v.code || v.name;
+    return (
+      `<button type="button" class="pill" data-id="${esc(id)}" aria-pressed="false" title="${esc(colorTitle(v))}">` +
+      `<span class="chip" style="--c:${v.hex}"></span>` +
+      `<span class="pill-code${v.code ? "" : " pill-name"}">${esc(label)}</span></button>`
+    );
+  });
+  const empty = project.palette.length === 0;
+  if (empty) parts.push(`<span class="pal-empty">У трафареті ще немає кольорів.</span>`);
+  parts.push(
+    `<button type="button" class="tbtn${empty ? " primary" : ""} pal-add" id="open-catalog">` +
+      `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10"/><path d="M3 8h10"/></svg>` +
+      `${empty ? "Додати кольори" : "Кольори"}</button>`
+  );
+  pal.innerHTML = parts.join("");
+  syncTools();
+}
 
 function syncTools(): void {
-  const named = paletteName(settings.color);
-  for (const b of $$<HTMLButtonElement>("button.sw", pal)) {
-    b.setAttribute("aria-pressed", String(!ui.erase && b.dataset.c === settings.color));
-  }
-  custom.classList.toggle("on", !ui.erase && !named);
-  if (!named) {
-    customInput.value = settings.color.toLowerCase();
-    customChip.style.setProperty("--c", settings.color);
+  for (const b of $$<HTMLButtonElement>("button.pill", pal)) {
+    b.setAttribute("aria-pressed", String(!ui.erase && b.dataset.id === settings.color));
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
   mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
   svg.classList.toggle("erasing", ui.erase);
   svg.classList.toggle("mirror-on", settings.mirror);
-  $("#cur-name").textContent = ui.erase ? "гумка" : (named ?? "свій").toLowerCase();
+  const cur = $("#cur-name");
+  if (ui.erase) cur.textContent = "гумка";
+  else if (settings.color) cur.textContent = fullLabel(colorView(settings.color));
+  else cur.textContent = "не вибрано";
 }
 
-function selectColor(c: string): void {
-  settings.color = c.toUpperCase();
+function selectColor(id: string): void {
+  settings.color = id;
   ui.erase = false;
   syncTools();
   saveSettings(settings);
+  scheduleStats();
+}
+
+/** Колір пензля має бути серед кольорів трафарету. */
+function fitBrush(): void {
+  if (!settings.color || !project.palette.includes(settings.color)) {
+    settings.color = project.palette[0] ?? null;
+    saveSettings(settings);
+  }
+}
+
+function addToPalette(id: string): void {
+  if (needColorShown) {
+    warn.hidden = true;
+    needColorShown = false;
+  }
+  if (!project.palette.includes(id)) {
+    if (project.palette.length >= MAX_PALETTE) {
+      showWarn(`У трафареті може бути щонайбільше ${MAX_PALETTE} кольорів.`);
+      return;
+    }
+    project.palette.push(id);
+    rememberRecent(settings, id);
+    markDirty();
+  }
+  renderPalette();
+  selectColor(id);
+}
+
+function removeFromPalette(id: string): void {
+  if (!project.palette.includes(id)) return;
+  project.palette = project.palette.filter((x) => x !== id);
+  if (settings.color === id) {
+    settings.color = project.palette[0] ?? null;
+    saveSettings(settings);
+  }
+  markDirty();
+  renderPalette();
+  scheduleStats();
 }
 
 pal.addEventListener("click", (e) => {
-  const b = (e.target as Element).closest<HTMLButtonElement>("button.sw");
-  if (b?.dataset.c) selectColor(b.dataset.c);
+  const t = e.target as Element;
+  if (t.closest("#open-catalog")) {
+    catalog.open();
+    return;
+  }
+  const b = t.closest<HTMLButtonElement>("button.pill");
+  if (b?.dataset.id) selectColor(b.dataset.id);
 });
-customInput.addEventListener("input", () => selectColor(customInput.value));
-customInput.addEventListener("click", () => selectColor(customInput.value));
 
 eraseBtn.addEventListener("click", () => {
   ui.erase = !ui.erase;
@@ -311,9 +444,21 @@ function endStroke(): void {
   markDirty();
 }
 
-function modeFor(k: string): string | null {
+/** Що зробить клік по бісерині: колір, стирання (null) чи нічого (undefined — колір не вибрано). */
+function modeFor(k: string): string | null | undefined {
   if (ui.erase) return null;
+  if (!settings.color) return undefined;
   return fills()[k] === settings.color ? null : settings.color;
+}
+
+let needColorShown = false;
+function needColor(): void {
+  showWarn("Спершу додайте кольори: кнопка «Додати кольори» над трафаретом відкриває каталог Preciosa.", 6000);
+  needColorShown = true;
+  const add = document.getElementById("open-catalog");
+  add?.classList.remove("pulse");
+  void add?.getBoundingClientRect();
+  add?.classList.add("pulse");
 }
 
 function setBead(k: string, c: string | null): void {
@@ -329,7 +474,7 @@ function setBead(k: string, c: string | null): void {
     else stroke.set(k, [before, after]);
   }
   const el = beadEls.get(k);
-  if (el) el.style.fill = after ?? "";
+  if (el) el.style.fill = paintFill(after);
 }
 
 function paint(k: string, c: string | null): void {
@@ -353,9 +498,14 @@ svg.addEventListener("pointerdown", (e) => {
   const k = beadKey(e.target);
   if (!k) return;
   e.preventDefault();
-  painting = { mode: modeFor(k) };
+  const mode = modeFor(k);
+  if (mode === undefined) {
+    needColor();
+    return;
+  }
+  painting = { mode };
   beginStroke();
-  paint(k, painting.mode);
+  paint(k, mode);
 });
 svg.addEventListener("pointerover", (e) => {
   if (!painting) return;
@@ -373,9 +523,19 @@ svg.addEventListener("click", (e) => {
   if (lastPointer === "mouse") return;
   const k = beadKey(e.target);
   if (!k) return;
+  const mode = modeFor(k);
+  if (mode === undefined) {
+    needColor();
+    return;
+  }
   beginStroke();
-  paint(k, modeFor(k));
+  paint(k, mode);
   endStroke();
+});
+
+initBeadTooltip(svg, $("#tip"), (k) => {
+  const id = fills()[k];
+  return id ? fullLabel(colorView(id)) : "Не зафарбована";
 });
 
 /* ---------- Скасувати / повторити ---------- */
@@ -396,7 +556,7 @@ function applyAction(a: Action, useBefore: boolean): void {
         else delete f[k];
         if (visible) {
           const el = beadEls.get(k);
-          if (el) el.style.fill = v ?? "";
+          if (el) el.style.fill = paintFill(v);
         }
       }
       scheduleStats();
@@ -440,8 +600,8 @@ redoBtn.addEventListener("click", redo);
 document.addEventListener("keydown", (e) => {
   if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
   const t = e.target as HTMLElement | null;
-  if (t?.closest("input[type=text], input[type=number], textarea, [contenteditable=true]")) return;
-  if ($<HTMLDialogElement>("#projects-dlg").open) return;
+  if (t?.closest("input[type=text], input[type=number], input[type=search], textarea, select, [contenteditable=true]")) return;
+  if (document.querySelector("dialog[open]")) return;
   // e.code не залежить від розкладки, тож Ctrl+Z працює й з українською.
   if (e.code === "KeyZ" && !e.shiftKey) {
     e.preventDefault();
@@ -454,7 +614,6 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- Розмір і сторона ромба ---------- */
 
-let warnTimer = 0;
 function setSize(name: "rows" | "cols", raw: string | number): void {
   let v = Math.round(Number(raw));
   if (!Number.isFinite(v)) v = project[name];
@@ -462,11 +621,7 @@ function setSize(name: "rows" | "cols", raw: string | number): void {
   const cap = Math.min(MAX_SIDE, Math.floor(MAX_CELLS / other));
   const next = clamp(v, 1, cap);
   if (next < v) {
-    warn.hidden = false;
-    window.clearTimeout(warnTimer);
-    warnTimer = window.setTimeout(() => {
-      warn.hidden = true;
-    }, 7000);
+    showWarn("Найбільше — 400 ромбів з кожного боку й до 12 000 ромбів разом, щоб програма не зависала.");
   }
   if (next === project[name]) {
     updateMeta();
@@ -529,7 +684,7 @@ exitBtn.addEventListener("click", () => {
   cleanBox.focus();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && ui.clean) setClean(false);
+  if (e.key === "Escape" && ui.clean && !document.querySelector("dialog[open]")) setClean(false);
 });
 
 /* ---------- Стерти все (з підтвердженням на сторінці) ---------- */
@@ -580,21 +735,46 @@ nameInput.addEventListener("keydown", (e) => {
   }
 });
 
+/** Трафарет зі старої версії: HEX-кольори переходять у «Мої кольори». */
+async function upgradeProject(p: Project): Promise<boolean> {
+  if (!isLegacyProject(p)) return false;
+  const conv = await convertHexFills(p.fills);
+  p.fills = conv.fills;
+  p.palette = conv.palette;
+  return true;
+}
+
+/** Кольори, що вже є на бісеринах, додаємо до палітри трафарету. */
+function includeUsedColors(p: Project): void {
+  const seen = new Set(p.palette);
+  for (const side of ["3", "4"] as const) {
+    for (const id of Object.values(p.fills[side])) {
+      if (!seen.has(id) && seen.size < MAX_PALETTE) {
+        seen.add(id);
+        p.palette.push(id);
+      }
+    }
+  }
+}
+
 async function openProject(p: Project): Promise<void> {
   await flushSave();
   if (painting) stopPainting();
+  const upgraded = await upgradeProject(p);
   project = p;
   fitSize(project);
   history.clear();
   settings.lastProjectId = p.id;
+  fitBrush();
   saveSettings(settings);
   showProjectName();
+  renderPalette();
   render();
   syncHistory();
   saveState.textContent = "Збережено";
   saveState.classList.remove("error");
   // Новий чи відкритий з файлу трафарет ще не має мініатюри для списку.
-  if (!project.thumb) markDirty();
+  if (!project.thumb || upgraded) markDirty();
 }
 
 async function allProjects(): Promise<Project[]> {
@@ -620,12 +800,14 @@ const dialog = initProjectsDialog({
   async duplicate(id) {
     const src = id === project.id ? project : await dbGet(id);
     if (!src) return;
+    await upgradeProject(src);
     const now = Date.now();
     const copyP: Project = {
       ...src,
       id: newId(),
       name: `${src.name} (копія)`.slice(0, 80),
       fills: cloneFills(src.fills),
+      palette: [...src.palette],
       createdAt: now,
       updatedAt: now
     };
@@ -641,11 +823,21 @@ const dialog = initProjectsDialog({
   },
   async exportFile(id) {
     const p = id === project.id ? project : await dbGet(id);
-    if (p) await saveProjectToFile(p);
+    if (!p) return;
+    await upgradeProject(p);
+    await saveProjectToFile(p);
   },
   async importFile(file) {
-    const data = parseProjectFile(await file.text(), file.name);
-    const p: Project = { ...blankProject(data.name), ...data };
+    const parsed = parseProjectFile(await file.text(), file.name);
+    const p: Project = { ...blankProject(parsed.data.name), ...parsed.data };
+    if (parsed.legacyHex) {
+      const conv = await convertHexFills(p.fills);
+      p.fills = conv.fills;
+      p.palette = conv.palette;
+    } else {
+      await adoptCustomColors(parsed.colors);
+    }
+    includeUsedColors(p);
     await dbPut(p);
     await openProject(p);
   }
@@ -655,6 +847,24 @@ $("#open-projects").addEventListener("click", () => void dialog.open());
 $("#export-project").addEventListener("click", async () => {
   await flushSave();
   await saveProjectToFile(project);
+});
+
+/* ---------- Каталог кольорів ---------- */
+
+const catalog = initCatalogDialog({
+  palette: () => project.palette,
+  recent: () => settings.recent,
+  add: addToPalette,
+  remove: removeFromPalette,
+  currentHex: () => (settings.color ? hexOf(settings.color) : null)
+});
+
+onCustomsChange(() => {
+  if (!ready) return;
+  renderPalette();
+  repaintBeads();
+  scheduleStats();
+  markDirty();
 });
 
 /* ---------- Встановлення як програми ---------- */
@@ -682,24 +892,48 @@ window.addEventListener("appinstalled", () => {
 
 /* ---------- Старт ---------- */
 
+setBlockedHandler(() => {
+  saveState.textContent = "Закрийте інші вкладки з програмою, щоб оновити сховище";
+  saveState.classList.add("error");
+});
+
 async function start(): Promise<void> {
   twoBox.checked = settings.two;
   twoFloat.checked = settings.two;
   document.body.classList.toggle("two", settings.two);
 
   let list: Project[] = [];
+  let storageOk = true;
   try {
+    await loadCustomColors();
     list = await dbGetAll();
   } catch {
+    storageOk = false;
     saveState.textContent = "Сховище недоступне: зміни не збережуться";
     saveState.classList.add("error");
   }
 
+  // Трафарети зі старої версії (кольори HEX) переносимо одразу всі.
+  for (const p of list) {
+    if (await upgradeProject(p)) {
+      try {
+        await dbPut(p);
+      } catch {
+        // спробуємо зберегти пізніше
+      }
+    }
+  }
+
+  let oldBrush = legacyBrushHex;
   if (list.length === 0) {
     const migrated = migrateV1();
-    const first = migrated?.project ?? blankProject("Трафарет 1");
+    let first = blankProject("Трафарет 1");
     if (migrated) {
-      if (migrated.color) settings.color = migrated.color;
+      first = { ...first, ...migrated.data };
+      const conv = await convertHexFills(first.fills);
+      first.fills = conv.fills;
+      first.palette = conv.palette;
+      oldBrush = oldBrush ?? migrated.color ?? null;
       if (migrated.mirror !== undefined) settings.mirror = migrated.mirror;
       if (migrated.two !== undefined) {
         settings.two = migrated.two;
@@ -709,16 +943,24 @@ async function start(): Promise<void> {
     }
     try {
       await dbPut(first);
+      if (migrated) forgetV1();
     } catch {
       // покажемо трафарет навіть без сховища
     }
     list = [first];
   }
 
+  // Колір пензля зі старої версії → відповідний свій колір.
+  if (!settings.color && oldBrush) {
+    const match = customColors().find((c) => c.hex === oldBrush);
+    if (match) settings.color = match.id;
+  }
+
   const target =
     list.find((p) => p.id === settings.lastProjectId) ?? [...list].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   await openProject(target);
-  void requestPersistence();
+  ready = true;
+  if (storageOk) void requestPersistence();
 }
 
 void start();

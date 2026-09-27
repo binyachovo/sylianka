@@ -1,0 +1,1383 @@
+# Каталог Preciosa Ornela: бісер рокайль 10/0, круглий (артикули 311-19001 і 331-19001).
+# Джерело: офіційний каталог https://catalog.preciosa-ornela.com (зібрано у вересні 2026).
+# Колір HEX обчислено як усереднений колір офіційного фото бісерини — він приблизний.
+#
+# Формат рядка: код|отвір|HEX|стійкість|покриття|опис англійською
+#   отвір: r — 311-19001 (круглий отвір), s — 331-19001 (квадратний отвір)
+#   стійкість: клас стійкості кольору з каталогу (0 — не вказано)
+#   покриття: SL срібна серединка, CL кольорова серединка, CuL мідна, BrL бронзова, FL неонова,
+#     H арлекін, R райдужне, Sx сфінкс, TL/TD/TIL/TID терра, Pe перламутр, Sh мушля, Me металік,
+#     SG сольгель, PL PermaLux, Tv травертин, FC повне покриття, HC половинне, Au золото, Ag/Arg срібло,
+#     Ma матове, Lu-* глянець, Ir-* ірис, St-* смужки
+00050|r|B7AEA3|1||crystal
+01111|s|B7733E|3|SG|brown 2 dyed crystal
+01112|s|C36B46|3|SG|brown 2 dyed crystal
+01113|s|925E5C|3|SG|brown 2 dyed crystal
+01121|s|6A6374|3|SG|violet 2 dyed crystal
+01122|s|5C486D|3|SG|violet 2 dyed crystal
+01123|s|7B37A5|3|SG|violet 2 dyed crystal
+01125|s|714A9B|3|SG|violet 2 dyed crystal
+01127|s|A3A4C3|3|SG|violet 2 dyed crystal
+01131|s|515FB6|3|SG|blue 2 dyed crystal
+01132|s|3A6B98|3|SG|blue 2 dyed crystal
+01133|s|29667C|3|SG|blue-green 2 dyed crystal
+01134|s|37A8DC|3|SG|blue-green 2 dyed crystal
+01141|s|5B534D|3|SG|grey 2 dyed crystal
+01151|s|A7962A|3|SG|green 2 dyed crystal
+01152|s|98903E|3|SG|green 2 dyed crystal
+01153|s|9AA628|3|SG|green 2 dyed crystal
+01154|s|699732|3|SG|green 2 dyed crystal
+01161|s|53AA5D|3|SG|green 2 dyed crystal
+01162|s|6EAC80|3|SG|green 2 dyed crystal
+01163|s|4A684A|3|SG|green 2 dyed crystal
+01164|s|3C8D77|3|SG|green 2 dyed crystal
+01165|s|30AAAA|3|SG|green 2 dyed crystal
+01181|s|EBBC3A|3|SG|yellow 2 dyed crystal
+01182|s|DE8534|3|SG|yellow 2 dyed crystal
+01183|s|EC7C26|3|SG|orange 2 dyed crystal
+01184|s|F87840|3|SG|orange 2 dyed crystal
+01185|s|CF5C33|3|SG|orange 2 dyed crystal
+01191|s|FE625A|3|SG|red 2 dyed crystal
+01192|s|E562C3|3|SG|pink 2 dyed crystal
+01193|s|B04054|3|SG|red 2 dyed crystal
+01194|s|763B36|3|SG|pink 2 dyed crystal
+01195|s|804762|3|SG|violet 2 dyed crystal
+01211|s|E39771|3|SG|brown 1 dyed crystal
+01212|s|D1896C|3|SG|brown 1 dyed crystal
+01213|s|D1969A|3|SG|brown 1 dyed crystal
+01221|s|9E94C2|3|SG|violet 1 dyed crystal
+01222|s|A180AE|3|SG|violet 1 dyed crystal
+01223|s|B58CED|3|SG|violet 1 dyed crystal
+01231|s|7D9DFA|3|SG|blue 1 dyed crystal
+01232|s|67AAE4|3|SG|blue 1 dyed crystal
+01233|s|55AFCF|3|SG|blue-green 1 dyed crystal
+01234|s|3DCBFB|3|SG|blue-green 1 dyed crystal
+01241|s|A49A96|3|SG|grey 1 dyed crystal
+01251|s|D8BA56|3|SG|green 1 dyed crystal
+01252|s|BFB673|3|SG|green 1 dyed crystal
+01253|s|CDC951|3|SG|green 1 dyed crystal
+01254|s|A8CC76|3|SG|green 1 dyed crystal
+01261|s|84C88D|3|SG|green 1 dyed crystal
+01262|s|8FB9A0|3|SG|green 1 dyed crystal
+01263|s|8AA990|3|SG|green 1 dyed crystal
+01264|s|5ECAC4|3|SG|green 1 dyed crystal
+01265|s|51CDE0|3|SG|green 1 dyed crystal
+01281|s|EDC93B|3|SG|yellow 1 dyed crystal
+01282|s|F1B96C|3|SG|yellow 1 dyed crystal
+01283|s|F8AC53|3|SG|orange 1 dyed crystal
+01284|s|FB9C57|3|SG|orange 1 dyed crystal
+01285|s|F88E5F|3|SG|orange 1 dyed crystal
+01291|s|FB7969|3|SG|red 1 dyed crystal
+01292|s|F383CB|3|SG|pink 1 dyed crystal
+01293|s|EC7C84|3|SG|red 1 dyed crystal
+01294|s|CD9792|3|SG|pink 1 dyed crystal
+01295|s|CD8EB1|3|SG|violet 1 dyed crystal
+01610|s|6F6653|5|Me|soft bronze multi
+01611|s|9B5724|3|SG|brown 3 dyed crystal
+01612|s|703822|3|SG|brown 3 dyed crystal
+01613|s|865144|3|SG|brown 3 dyed crystal
+01620|s|675546|5|Me|soft bronze multi
+01621|s|343345|3|SG|violet 3 dyed crystal
+01622|s|46384A|3|SG|violet 3 dyed crystal
+01623|s|622482|3|SG|violet 3 dyed crystal
+01631|s|373698|3|SG|blue 3 dyed crystal
+01632|s|0D73B4|3|SG|blue 3 dyed crystal
+01633|s|397E8F|3|SG|blue 3 dyed crystal
+01634|s|0C91C9|3|SG|blue 3 dyed crystal
+01640|s|634D41|5|Me|soft bronze multi
+01641|s|322C28|3|SG|grey 3 dyed crystal
+01651|s|937413|3|SG|green 3 dyed crystal
+01652|s|6C6D1A|3|SG|green 3 dyed crystal
+01653|s|848A0F|3|SG|green 3 dyed crystal
+01654|s|4E8410|3|SG|green 3 dyed crystal
+01661|s|27903C|3|SG|green 3 dyed crystal
+01662|s|3A7550|3|SG|green 3 dyed crystal
+01663|s|365E43|3|SG|green 3 dyed crystal
+01664|s|0D7A64|3|SG|green 3 dyed crystal
+01665|s|0D8C88|3|SG|green 3 dyed crystal
+01670|s|4C4A48|5|Me|soft bronze multi
+01681|s|D79B28|3|SG|yellow 3 dyed crystal
+01682|s|CA6625|3|SG|yellow 3 dyed crystal
+01683|s|EE742A|3|SG|orange 3 dyed crystal
+01684|s|F25E24|3|SG|orange 3 dyed crystal
+01685|s|AF4622|3|SG|orange 3 dyed crystal
+01691|s|F3412C|3|SG|pink 3 dyed crystal
+01692|s|AC2176|3|SG|pink 3 dyed crystal
+01693|s|8B323A|3|SG|pink 3 dyed crystal
+01694|s|6D3839|3|SG|pink 3 dyed crystal
+01695|s|6E3C49|3|SG|violet 3 dyed crystal
+01700|s|92908E|2|Me|soft silver
+01710|s|A07651|5|Me|soft gold
+01720|s|78663B|5|Me|soft bronze
+01740|s|5E412B|5|Me|soft bronze
+01750|s|773D34|5|Me|soft dk.copper
+01760|s|936963|5|Me|soft copper
+01770|s|7A4B3C|5|Me|soft copper
+01780|s|76494A|5|Me|soft copper
+01790|s|49313D|5|Me|soft red
+01913|s|2A8997|3||teal dyed chalkwhite
+01914|s|125A6B|3||teal dyed chalkwhite
+02052|s|C5AD5E|3|SG|green dyed crystal
+02090|r|B5ADA2|1||alabaster white
+02111|s|B0826B|3|SG|brown 2 dyed alabaster
+02112|s|B57B67|3|SG|brown 2 dyed alabaster
+02113|s|846263|3|SG|brown 2 dyed alabaster
+02121|s|7E707C|3|SG|violet 2 dyed alabaster
+02122|s|70556A|3|SG|violet 2 dyed alabaster
+02123|s|825099|3|SG|violet 2 dyed alabaster
+02131|s|6067A0|3|SG|blue 2 dyed alabaster
+02132|s|5D7AB4|3|SG|blue 2 dyed alabaster
+02133|s|4C797E|3|SG|blue-green 2 dyed alabaster
+02134|s|4797BF|3|SG|blue-green 2 dyed alabaster
+02141|s|5D5956|3|SG|grey 2 dyed alabaster
+02151|s|CCBF6E|3|SG|green 2 dyed alabaster
+02152|s|978F46|3|SG|green 2 dyed alabaster
+02153|s|A9B359|3|SG|green 2 dyed alabaster
+02154|s|909E44|3|SG|green 2 dyed alabaster
+02161|s|64915D|3|SG|green 2 dyed alabaster
+02162|s|87B593|3|SG|green 2 dyed alabaster
+02163|s|809378|3|SG|green 2 dyed alabaster
+02164|s|609E87|3|SG|green 2 dyed alabaster
+02165|s|51AED5|3|SG|green 2 dyed alabaster
+02181|s|F4D169|3|SG|yellow 2 dyed alabaster
+02182|s|D7A05B|3|SG|yellow 2 dyed alabaster
+02183|s|F79656|3|SG|orange 2 dyed alabaster
+02184|s|E48C4F|3|SG|orange 2 dyed alabaster
+02185|s|F68E77|3|SG|orange 2 dyed alabaster
+02191|s|EF7278|3|SG|red 2 dyed alabaster
+02192|s|B6649F|3|SG|pink 2 dyed alabaster
+02193|s|A7515F|3|SG|red 2 dyed alabaster
+02194|s|89596B|3|SG|pink 2 dyed alabaster
+02195|s|8F5A79|3|SG|violet 2 dyed alabaster
+02211|s|EABA9B|3|SG|brown 1 dyed alabaster
+02212|s|C2917F|3|SG|brown 1 dyed alabaster
+02213|s|E0BBC1|3|SG|brown 1 dyed alabaster
+02221|s|CAC6DF|3|SG|violet 1 dyed alabaster
+02222|s|D5C3E0|3|SG|violet 1 dyed alabaster
+02223|s|C49ACB|3|SG|violet 1 dyed alabaster
+02231|s|7A87D4|3|SG|blue 1 dyed alabaster
+02232|s|93C4F1|3|SG|blue 1 dyed alabaster
+02233|s|8CCFEC|3|SG|blue-green 1 dyed alabaster
+02234|s|85D4E2|3|SG|blue-green 1 dyed alabaster
+02241|s|A9A39D|3|SG|grey 1 dyed alabaster
+02251|s|E2C989|3|SG|green 1 dyed alabaster
+02252|s|C5BF93|3|SG|green 1 dyed alabaster
+02253|s|D7D68C|3|SG|green 1 dyed alabaster
+02254|s|BDDA9E|3|SG|green 1 dyed alabaster
+02261|s|A8DDB5|3|SG|green 1 dyed alabaster
+02262|s|9DC1AC|3|SG|green 1 dyed alabaster
+02263|s|91AF9D|3|SG|green 1 dyed alabaster
+02264|s|7ED7CE|3|SG|green 1 dyed alabaster
+02265|s|7ADEF0|3|SG|green 1 dyed alabaster
+02281|s|E5D184|3|SG|yellow 1 dyed alabaster
+02282|s|F9C184|3|SG|yellow 1 dyed alabaster
+02283|s|FBBD8F|3|SG|orange 1 dyed alabaster
+02284|s|F9A488|3|SG|orange 1 dyed alabaster
+02285|s|FBAC91|3|SG|orange 1 dyed alabaster
+02291|s|F6908A|3|SG|red 1 dyed alabaster
+02292|s|FBAFE1|3|SG|pink 1 dyed alabaster
+02293|s|FAA0AA|3|SG|red 1 dyed alabaster
+02294|s|CC9B7E|3|SG|pink 1 dyed alabaster
+02295|s|DEA8C4|3|SG|violet 1 dyed alabaster
+02611|s|9A6148|3|SG|brown 3 dyed alabaster
+02612|s|8D543D|3|SG|brown 3 dyed alabaster
+02613|s|865B51|3|SG|brown 3 dyed alabaster
+02621|s|7A6A75|3|SG|violet 3 dyed alabaster
+02622|s|76616C|3|SG|violet 3 dyed alabaster
+02623|s|855D99|3|SG|violet 3 dyed alabaster
+02631|s|5E66AC|3|SG|blue 3 dyed alabaster
+02632|s|5881A8|3|SG|blue 3 dyed alabaster
+02633|s|588991|3|SG|blue 3 dyed alabaster
+02634|s|7EC1E5|3|SG|blue 3 dyed alabaster
+02641|s|625E5B|3|SG|grey 3 dyed alabaster
+02651|s|B28E40|3|SG|green 3 dyed alabaster
+02652|s|8A7941|3|SG|green 3 dyed alabaster
+02653|s|A69B39|3|SG|green 3 dyed alabaster
+02654|s|839340|3|SG|green 3 dyed alabaster
+02661|s|5A8741|3|SG|green 3 dyed alabaster
+02662|s|668258|3|SG|green 3 dyed alabaster
+02663|s|60724E|3|SG|green 3 dyed alabaster
+02664|s|65A78B|3|SG|green 3 dyed alabaster
+02665|s|4FB0B0|3|SG|green 3 dyed alabaster
+02681|s|F4BE47|3|SG|yellow 3 dyed alabaster
+02682|s|F59654|3|SG|yellow 3 dyed alabaster
+02683|s|F38B4F|3|SG|orange 3 dyed alabaster
+02684|s|EE7E4F|3|SG|orange 3 dyed alabaster
+02685|s|CE6C49|3|SG|orange 3 dyed alabaster
+02691|s|F66467|3|SG|pink 3 dyed alabaster
+02692|s|D1608A|3|SG|pink 3 dyed alabaster
+02693|s|B8535A|3|SG|pink 3 dyed alabaster
+02694|s|9A6058|3|SG|pink 3 dyed alabaster
+02695|s|9D6172|3|SG|violet 3 dyed alabaster
+03011|s|F7D0AD|3|SG|beige dyed crystal
+03050|r|D3CDC2|1||chalkwhite
+03093|s|D68E83|3|SG|pink dyed crystal
+03111|s|E3C1B5|3|SG|brown 2 dyed chalkwhite
+03112|s|DBAFA5|3|SG|brown 2 dyed chalkwhite
+03113|s|D7BDBD|3|SG|brown 2 dyed chalkwhite
+03121|s|B4ABCC|3|SG|violet 2 dyed chalkwhite
+03122|s|BFA7CE|3|SG|violet 2 dyed chalkwhite
+03123|s|C2A6EF|3|SG|violet 2 dyed chalkwhite
+03131|s|A3AFF7|3|SG|blue 2 dyed chalkwhite
+03132|s|8CB6EA|3|SG|blue 2 dyed chalkwhite
+03133|s|83B7CA|3|SG|blue-green 2 dyed chalkwhite
+03134|s|73CAF9|3|SG|blue-green 2 dyed chalkwhite
+03141|s|BBB5B3|3|SG|grey 2 dyed chalkwhite
+03151|s|D3C493|3|SG|green 2 dyed chalkwhite
+03152|s|B9C5AA|3|SG|green 2 dyed chalkwhite
+03153|s|C3CD85|3|SG|green 2 dyed chalkwhite
+03154|s|AEC78D|3|SG|green 2 dyed chalkwhite
+03161|s|A2CAA5|3|SG|green 2 dyed chalkwhite
+03162|s|9EC6B4|3|SG|green 2 dyed chalkwhite
+03163|s|AAC1B4|3|SG|green 2 dyed chalkwhite
+03164|s|85D5CD|3|SG|green 2 dyed chalkwhite
+03165|s|75CDDC|3|SG|green 2 dyed chalkwhite
+03181|s|EBD68D|3|SG|yellow 2 dyed chalkwhite
+03182|s|F9CE9A|3|SG|yellow 2 dyed chalkwhite
+03183|s|F9B67C|3|SG|orange 2 dyed chalkwhite
+03184|s|FAB591|3|SG|orange 2 dyed chalkwhite
+03185|s|F0A895|3|SG|orange 2 dyed chalkwhite
+03191|s|F99396|3|SG|red 2 dyed chalkwhite
+03192|s|F09CD4|3|SG|pink 2 dyed chalkwhite
+03193|s|F3A5BD|3|SG|red 2 dyed chalkwhite
+03194|s|D6AEB5|3|SG|pink 2 dyed chalkwhite
+03195|s|D2A3C9|3|SG|violet 2 dyed chalkwhite
+03211|s|EEC6B2|3|SG|brown 1 dyed chalkwhite
+03212|s|D9C0BB|3|SG|brown 1 dyed chalkwhite
+03213|s|D9CDD3|3|SG|brown 1 dyed chalkwhite
+03221|s|ADB3CC|3|SG|violet 1 dyed chalkwhite
+03222|s|C0C0E0|3|SG|violet 1 dyed chalkwhite
+03223|s|B6AEED|3|SG|violet 1 dyed chalkwhite
+03231|s|A7B7EF|3|SG|blue 1 dyed chalkwhite
+03232|s|98C3F1|3|SG|blue 1 dyed chalkwhite
+03233|s|96BDC3|3|SG|blue-green 1 dyed chalkwhite
+03234|s|A0E6FB|3|SG|blue-green 1 dyed chalkwhite
+03241|s|B1B1B1|3|SG|grey 1 dyed chalkwhite
+03251|s|D1CC96|3|SG|green 1 dyed chalkwhite
+03252|s|C3C8A8|3|SG|green 1 dyed chalkwhite
+03253|s|BDC79C|3|SG|green 1 dyed chalkwhite
+03254|s|B2CCA2|3|SG|green 1 dyed chalkwhite
+03261|s|99C4A5|3|SG|green 1 dyed chalkwhite
+03262|s|A0BAAD|3|SG|green 1 dyed chalkwhite
+03263|s|BFD1C5|3|SG|green 1 dyed chalkwhite
+03264|s|92D1D3|3|SG|green 1 dyed chalkwhite
+03265|s|85CDDE|3|SG|green 1 dyed chalkwhite
+03281|s|DACE9C|3|SG|yellow 1 dyed chalkwhite
+03282|s|E2C8A8|3|SG|yellow 1 dyed chalkwhite
+03283|s|EBC19B|3|SG|orange 1 dyed chalkwhite
+03284|s|EEBB9F|3|SG|orange 1 dyed chalkwhite
+03285|s|E4BCB7|3|SG|orange 1 dyed chalkwhite
+03291|s|F8B4C3|3|SG|red 1 dyed chalkwhite
+03292|s|F1BAEB|3|SG|pink 1 dyed chalkwhite
+03293|s|F5B7D3|3|SG|red 1 dyed chalkwhite
+03294|s|D2B8C1|3|SG|pink 1 dyed chalkwhite
+03295|s|CEACC9|3|SG|violet 1 dyed chalkwhite
+03434|s|C0EFF5|3|SG|blue dyed crystal
+03441|s|C2B6AB|3|SG|grey dyed crystal
+03481|s|F1DC9C|3|SG|yellow dyed crystal
+03491|s|FACBCF|3|SG|pink dyed crystal
+03611|s|C19374|3|SG|brown 3 dyed chalkwhite
+03612|s|9B6B5E|3|SG|brown 3 dyed chalkwhite
+03613|s|997774|3|SG|brown 3 dyed chalkwhite
+03621|s|786E80|3|SG|violet 3 dyed chalkwhite
+03622|s|75657D|3|SG|violet 3 dyed chalkwhite
+03623|s|7F5A97|3|SG|violet 3 dyed chalkwhite
+03631|s|646AA8|3|SG|blue 3 dyed chalkwhite
+03632|s|5178A5|3|SG|blue 3 dyed chalkwhite
+03633|s|508E9E|3|SG|blue 3 dyed chalkwhite
+03634|s|3CA2D2|3|SG|blue 3 dyed chalkwhite
+03641|s|605F5F|3|SG|grey 3 dyed chalkwhite
+03651|s|A19656|3|SG|green 3 dyed chalkwhite
+03652|s|84885C|3|SG|green 3 dyed chalkwhite
+03653|s|999E4A|3|SG|green 3 dyed chalkwhite
+03654|s|749453|3|SG|green 3 dyed chalkwhite
+03661|s|669F75|3|SG|green 3 dyed chalkwhite
+03662|s|648A71|3|SG|green 3 dyed chalkwhite
+03663|s|607C6B|3|SG|green 3 dyed chalkwhite
+03664|s|4BAEA2|3|SG|green 3 dyed chalkwhite
+03665|s|3DA8B6|3|SG|green 3 dyed chalkwhite
+03681|s|D7B853|3|SG|yellow 3 dyed chalkwhite
+03682|s|DFA660|3|SG|yellow 3 dyed chalkwhite
+03683|s|DD985F|3|SG|orange 3 dyed chalkwhite
+03684|s|D4855D|3|SG|orange 3 dyed chalkwhite
+03685|s|C0795A|3|SG|orange 3 dyed chalkwhite
+03691|s|E5778B|3|SG|pink 3 dyed chalkwhite
+03692|s|BA66A0|3|SG|pink 3 dyed chalkwhite
+03693|s|AF6380|3|SG|pink 3 dyed chalkwhite
+03694|s|A88486|3|SG|pink 3 dyed chalkwhite
+03695|s|996C98|3|SG|violet 3 dyed chalkwhite
+03730|r|9897C9|1|H|harlequin chalkwhite-blue
+06012|s|E7C490|3|Sh,SG|beige dyed chalkwhite
+06013|s|EAD7B1|3|Sh,SG|beige dyed chalkwhite
+07012|s|D2CBC7|3|SG|pink dyed crystal
+07022|s|DC736B|3|SG|pink dyed crystal
+07112|s|DA9D95|5|R,SG|pink dyed crystal, rainbow
+07122|s|CB6252|5|R,SG|pink dyed crystal, rainbow
+07331|s|C58C7B|3|TD|Rose terra
+07332|s|F1BCA3|3|TD|Rose terra
+07512|s|6B3E32|4|CuL,SG|pink dyed crystal, copper lined
+07522|s|874334|4|CuL,SG|pink dyed crystal, copper lined
+07612|s|E2D0CC|5|Sx,SG|pink dyed crystal, sfinx
+07622|s|CB665F|5|Sx,SG|pink dyed crystal, sfinx
+07631|s|C0A297|5|Sx,TD|Rose terra, sfinx
+07633|s|B79B91|5|Sx,TD|Rose terra, sfinx
+07712|s|D39D8F|3|SL,SG|pink dyed crystal, silver lined
+07722|s|A94B50|3|SL,SG|pink dyed crystal, silver lined
+08128|s|DCD1D8|4|Pe,TD|violet terra pearl dyed crystal
+08198|s|E9E0D9|4|Pe,TD|pink terra pearl dyed crystal
+08225|s|9B4F7D|3|SL,TD|violet dyed crystal, silver lined
+08228|s|85658B|3|SL,TD|violet dyed crystal, silver lined
+08236|s|5E9CBF|3|SL,TD|blue dyed crystal, silver lined
+08256|s|93B180|3|SL,TD|green dyed crystal, silver lined
+08258|s|88C0AA|3|SL,TD|green dyed crystal, silver lined
+08265|s|548CAA|3|SL,TD|blue-green dyed crystal, silver lined
+08273|s|C99A8F|3|SL,TD|pink dyed crystal, silver lined
+08275|s|CA7A88|3|SL,TD|pink dyed crystal, silver lined
+08277|s|CB7799|3|SL,TD|pink dyed crystal, silver lined
+08283|s|C8AE50|3|SL,TD|yellow dyed crystal, silver lined
+08286|s|C9AD40|3|SL,TD|yellow dyed crystal, silver lined
+08288|s|C3916E|3|SL,TD|orange dyed crystal, silver lined
+08289|s|CB7B43|3|SL,TD|orange dyed crystal, silver lined
+08298|s|A8466F|3|SL,TD|pink dyed crystal, silver lined
+08336|s|8FB3D0|4|Pe,TD|blue terra pearl dyed crystal
+08349|s|AAA5A1|4|Pe,TD|grey terra pearl dyed crystal
+08728|s|9F498D|4|FL|crystal, neon violet lined
+08756|s|4ACF1B|4|FL|crystal, neon green lined
+08777|s|F55185|4|FL|crystal, neon pink lined
+08786|s|C4EA57|4|FL|crystal, neon yellow lined
+08789|s|F87948|4|FL|crystal, neon orange lined
+08A18|s|6D3C3D|2|CL,TIL|crystal, intensive brown lined
+08A19|s|4D4541|2|CL,TIL|crystal, intensive dark brown lined
+08A26|s|A2336A|2|CL,TIL|crystal, intensive pink lined
+08A28|s|47485D|2|CL,TIL|crystal, intensive violet lined
+08A38|s|346293|2|CL,TIL|crystal, intensive blue lined
+08A54|s|67B114|2|CL,TIL|crystal, intensive green lined
+08A58|s|1D7568|2|CL,TIL|crystal, intensive dark green lined
+08A77|s|C13C5F|2|CL,TIL|crystal, intensive pink lined
+08A86|s|E9BF05|2|CL,TIL|crystal, intensive yellow lined
+08A91|s|D84C46|2|CL,TIL|crystal, intensive orange lined
+08A98|s|CB3B4B|2|CL,TIL|crystal, intensive red lined
+09351|s|FD8D7B|3|SG|coraline dyed chalkwhite
+09451|s|FB8370|5|R,SG|coraline dyed chalkwhite, rainbow
+0T930|s|9E8A78|2|Tv|blue and red stripes on chalkwhite, travertine
+10020|r|D19125|1||lt. topaz
+10022|s|EAA188|5|CL|lt. topaz, colour lined violet
+10023|s|8C9F9B|5|CL|lt. topaz, colour lined blue
+10050|r|C97A19|1||topaz
+10070|r|A45619|1||topaz
+10090|r|793616|1||topaz
+10110|r|4C281B|1||dark topaz
+10140|r|372B24|1||dark topaz
+10705|r|C28539|1|H|harlequin crystal-topaz
+11020|s|EDB157|2|R|lt. topaz, rainbow
+11022|s|697674|5|CL,Sx|lt. topaz, colour lined blue, sfinx
+11024|s|70975B|5|CL,Sx|lt. topaz, colour lined green, sfinx
+11027|s|D44F6E|5|CL,Sx|lt. topaz, colour lined pink, sfinx
+11028|s|D3645B|5|CL,Sx|lt. topaz, colour lined pink, sfinx
+11050|s|DF9534|2|R|topaz, rainbow
+11070|s|F09636|2|R|topaz, rainbow
+11090|s|A65239|2|R|topaz, rainbow
+11110|s|7C4A42|2|R|dark topaz, rainbow
+11140|s|473B41|2|R|dark topaz, rainbow
+11337|s|627F8B|2|CL,Sx,TL|lt. topaz, colour lined blue, sfinx
+11355|s|69A176|2|CL,Sx,TL|lt. topaz, colour lined green, sfinx
+11396|s|D35E49|2|CL,Sx,TL|lt. topaz, colour lined red, sfinx
+11398|s|C97668|2|CL,Sx,TL|lt. topaz, colour lined red, sfinx
+13600|r|763C26|1||opaque brown "tango"
+13780|r|533F36|1||opaque brown "tango"
+14600|s|70323A|2|R|opaque brown "tango", rainbow
+14780|s|704B55|2|R|opaque brown "tango", rainbow
+15026|s|F1AF4A|5|CL|lt. topaz, colour lined chalkwhite
+15056|s|E5932D|5|CL|topaz, colour lined chalkwhite
+15076|s|D77E21|5|CL|topaz, colour lined chalkwhite
+15096|s|8E4C22|5|CL|topaz, colour lined chalkwhite
+16020|s|EDBB6E|2|Sx|lt. topaz, sfinx
+16050|s|DC9B4C|2|Sx|topaz, sfinx
+16070|s|E29555|2|Sx|topaz, sfinx
+16090|s|BC6B52|2|Sx|topaz, sfinx
+16110|s|5F4C4B|2|Sx|dark topaz, sfinx
+16125|s|CC5BCA|5|Sx|violet dyed chalkwhite, sfinx
+16128|s|885DC9|5|Sx|violet dyed chalkwhite, sfinx
+16136|s|268DEB|5|Sx|blue dyed chalkwhite, sfinx
+16140|s|454A57|2|Sx|dark topaz, sfinx
+16156|s|7ED381|5|Sx|green dyed chalkwhite, sfinx
+16158|s|3BCACD|5|Sx|green dyed chalkwhite, sfinx
+16165|s|1F93E4|5|Sx|blue-green dyed chalkwhite, sfinx
+16172|s|FACDE8|5|Sx|pink dyed chalkwhite, sfinx
+16173|s|EF90DF|5|Sx|pink dyed chalkwhite, sfinx
+16177|s|FA57D9|5|Sx|pink dyed chalkwhite, sfinx
+16183|s|EBAD57|5|Sx|yellow dyed chalkwhite, sfinx
+16186|s|F3E13D|5|Sx|yellow dyed chalkwhite, sfinx
+16189|s|F36B26|5|Sx|orange dyed chalkwhite, sfinx
+16198|s|A54965|5|Sx|red dyed chalkwhite, sfinx
+16228|s|B9A7B6|4|Pe,TD|violet terra pearl dyed chalkwhite
+16325|s|BC6FB5|3|Sx,TD|violet dyed chalkwhite, sfinx
+16328|s|957AC4|3|Sx,TD|violet dyed chalkwhite, sfinx
+16336|s|71A5EB|3|Sx,TD|blue dyed chalkwhite, sfinx
+16356|s|A0CD8B|3|Sx,TD|green dyed chalkwhite, sfinx
+16358|s|72BDA8|3|Sx,TD|green dyed chalkwhite, sfinx
+16365|s|61A3D5|3|Sx,TD|blue-green dyed chalkwhite, sfinx
+16383|s|F5CE25|3|Sx,TD|yellow dyed chalkwhite, sfinx
+16386|s|F6D622|3|Sx,TD|yellow dyed chalkwhite, sfinx
+16389|s|F59F50|3|Sx,TD|orange dyed chalkwhite, sfinx
+16398|s|E984AA|3|Sx,TD|pink dyed chalkwhite, sfinx
+16536|s|6DA6D9|5|Me,Sx,TD|blue metallic dyed chalkwhite, sfinx
+16541|s|CCCDD4|5|Me,Sx,TD|grey metallic dyed chalkwhite, sfinx
+16565|s|63AAD4|5|Me,Sx,TD|blue-green metallic dyed chalkwhite, sfinx
+16584|s|A39369|5|Me,Sx,TD|orange metallic dyed chalkwhite, sfinx
+16586|s|BCB06F|5|Me,Sx,TD|yellow metallic dyed chalkwhite, sfinx
+16717|s|C7A082|3|Me,TD|beige metallic dyed chalkwhite
+16726|s|C2BDD8|3|Me,TD|violet metallic dyed chalkwhite
+16728|s|A692CD|3|Me,TD|violet metallic dyed chalkwhite
+16736|s|5F9ED9|3|Me,TD|blue metallic dyed chalkwhite
+16742|s|A5AAB9|3|Me,TD|grey metallic dyed chalkwhite
+16756|s|69B198|3|Me,TD|green metallic dyed chalkwhite
+16786|s|C1B774|3|Me,TD|yellow metallic dyed chalkwhite
+16918|s|C18459|4|Pe,TD|brown terra pearl dyed chalkwhite
+16949|s|A9A6A0|4|Pe,TD|grey terra pearl dyed chalkwhite
+16958|s|73E1CE|4|Pe,TD|green terra pearl dyed chalkwhite
+16992|s|E3A87E|4|Pe,TD|orange terra pearl dyed chalkwhite
+16A18|s|953538|3|TID|brown intensive dyed chalkwhite
+16A19|s|874C40|3|TID|dark brown intensive dyed chalkwhite
+16A26|s|F24DB4|3|TID|pink intensive dyed chalkwhite
+16A28|s|6D45A6|3|TID|violet intensive dyed chalkwhite
+16A38|s|1575C5|3|TID|blue intensive dyed chalkwhite
+16A54|s|A1DF0E|3|TID|green intensive dyed chalkwhite
+16A58|s|0DC0A7|3|TID|dark green intensive dyed chalkwhite
+16A77|s|F24C8D|3|TID|pink intensive dyed chalkwhite
+16A86|s|FAE336|3|TID|yellow intensive dyed chalkwhite
+16A91|s|F95C33|3|TID|orange intensive dyed chalkwhite
+16A98|s|F53445|3|TID|red intensive dyed chalkwhite
+17029|s|BB9464|4|SL,Sx,R|lt. topaz, silver lined, rainbow
+17050|s|B7823E|2|SL|topaz, silver lined
+17059|s|E5B258|4|SL,Sx,R|topaz, silver lined, rainbow
+17070|s|EAC46C|2|SL|topaz, silver lined
+17090|s|BA845E|2|SL|topaz, silver lined
+17110|s|AB7966|2|SL|dark topaz, silver lined
+17119|s|B79685|4|SL,Sx,R|dark topaz, silver lined, rainbow
+17125|s|BC549F|5|Lu-white|violet dyed alabaster, lustered
+17128|s|6D5EB4|5|Lu-white|violet dyed alabaster, lustered
+17136|s|2D63AC|5|Lu-white|blue dyed alabaster, lustered
+17140|s|8C756B|2|SL|dark topaz, silver lined
+17156|s|4DAA26|5|Lu-white|green dyed alabaster, lustered
+17158|s|5ED2D4|5|Lu-white|green dyed alabaster, lustered
+17165|s|2280B1|5|Lu-white|blue-green dyed alabaster, lustered
+17173|s|FBB6D6|5|Lu-white|pink dyed alabaster, lustered
+17183|s|DD9C10|5|Lu-white|yellow dyed alabaster, lustered
+17186|s|DFC516|5|Lu-white|yellow dyed alabaster, lustered
+17189|s|D26D3A|5|Lu-white|orange dyed alabaster, lustered
+17218|s|CEBFC6|4|Pe,TD|brown terra pearl dyed alabaster
+17286|s|CFCCAF|4|Pe,TD|yellow terra pearl dyed alabaster
+17298|s|DBA3BC|4|Pe,TD|pink terra pearl dyed alabaster
+17325|s|A060A6|3|Lu-white,TD|ceylon violet
+17328|s|835CA7|3|Lu-white,TD|ceylon violet
+17336|s|4D88C1|3|Lu-white,TD|ceylon blue
+17356|s|76B871|3|Lu-white,TD|ceylon green
+17358|s|59A494|3|Lu-white,TD|ceylon green
+17365|s|4F8BB6|3|Lu-white,TD|ceylon blue-green
+17383|s|E9B42E|3|Lu-white,TD|ceylon yellow
+17386|s|E3C110|3|Lu-white,TD|ceylon yellow
+17389|s|E9904C|3|Lu-white,TD|ceylon orange
+17398|s|E16779|3|Lu-white,TD|ceylon pink
+17436|s|92B9D0|5|Me,R,TD|blue metallic dyed alabaster, rainbow
+17486|s|B6BF8F|5|Me,R,TD|yellow metallic dyed alabaster, rainbow
+17549|s|9A9997|5|Me,Sx,TD|black metallic dyed alabaster, sfinx
+17705|s|AB6C37|2|H,SL|harlequin crystal-topaz, silver lined
+17708|s|AFB3BD|3|Me|silver metallic dyed alabaster
+17728|s|8B77BA|3|Me,TD|violet metallic dyed alabaster
+17736|s|5491CD|3|Me,TD|blue metallic dyed alabaster
+17758|s|419387|3|Me,TD|green metallic dyed alabaster
+17783|s|9C7C6B|3|Me,TD|orange metallic dyed alabaster
+17784|s|DDB681|3|Me,TD|orange metallic dyed alabaster
+17786|s|B1A55A|3|Me,TD|yellow metallic dyed alabaster
+17796|s|854C86|3|Me,TD|violet metallic dyed alabaster
+17836|s|64B3DF|3|TD|blue dyed alabaster
+17856|s|36CD76|3|TD|green dyed alabaster
+17858|s|51C9B0|3|TD|green dyed alabaster
+17886|s|F4C92A|3|TD|yellow dyed alabaster
+17899|s|F33F46|3|TD|pink dyed alabaster
+17918|s|D0A076|4|Pe,TD|brown terra pearl dyed alabaster
+17986|s|DFC64B|4|Pe,TD|yellow terra pearl dyed alabaster
+17992|s|D08E6B|4|Pe,TD|orange terra pearl dyed alabaster
+17998|s|B4447B|4|Pe,TD|pink terra pearl dyed alabaster
+18112|s|BA9A80|4|Me,SG|brown solgel metallic
+18113|s|BEA689|4|Me,SG|brown solgel metallic
+18123|s|B4959C|4|Me,SG|violet solgel metallic
+18131|s|979191|4|Me,SG|blue solgel metallic
+18134|s|929D86|4|Me,SG|blue solgel metallic
+18141|s|A1937F|4|Me,SG|grey solgel metallic
+18151|s|AB9970|4|Me,SG|green solgel metallic
+18154|s|AEA36D|4|Me,SG|green solgel metallic
+18161|s|A8AB7C|4|Me,SG|green solgel metallic
+18165|s|88977D|4|Me,SG|green solgel metallic
+18181|s|BAA264|4|Me,SG|gold solgel metallic
+18184|s|C9976D|4|Me,SG|orange solgel metallic
+18191|s|DF8E93|4|Me,SG|pink solgel metallic
+18192|s|BE9595|4|Me,SG|red solgel metallic
+18225|s|E587DB|5|SL|violet dyed crystal, silver lined
+18228|s|9157AA|5|SL|violet dyed crystal, silver lined
+18236|s|2C84CB|5|SL|blue dyed crystal, silver lined
+18256|s|6BAE5A|5|SL|green dyed crystal, silver lined
+18258|s|43C9CA|5|SL|green dyed crystal, silver lined
+18265|s|208CB4|5|SL|blue-green dyed crystal, silver lined
+18273|s|EB8CAB|5|SL|pink dyed crystal, silver lined
+18275|s|EA5CA3|5|SL|pink dyed crystal, silver lined
+18286|s|D7B81C|5|SL|yellow dyed crystal, silver lined
+18288|s|DB8739|5|SL|orange dyed crystal, silver lined
+18289|s|E46715|5|SL|orange dyed crystal, silver lined
+18298|s|B83643|5|SL|red dyed crystal, silver lined
+18302|s|CAC7BE|5|Me|silver metallic
+18303|s|ACA999|5|Me|silver metallic
+18304|s|A1764E|5|Me|gold metallic
+18325|s|8A2D61|5|Me|violet metallic
+18328|s|50357B|5|Me|violet metallic
+18336|s|3174A5|5|Me|blue metallic
+18356|s|5EA45F|5|Me|green metallic
+18358|s|30817E|5|Me|green metallic
+18377|s|B33B8E|5|Me|pink metallic
+18383|s|C6B149|5|Me|gold metallic
+18386|s|C9AD5A|5|Me|gold metallic
+18388|s|A56F28|4|Me|gold metallic
+18389|s|E87A21|5|Me|gold metallic
+18398|s|AF414B|5|Me|red metallic
+18486|s|D0D7A3|5|Me,R,TD|yellow metallic dyed crystal, rainbow
+18503|s|C0B49C|4|Me,TD|silver metallic dyed crystal
+18528|s|8F688C|4|Me,TD|violet metallic dyed crystal
+18536|s|96AAAD|4|Me,TD|blue metallic dyed crystal
+18542|s|B0A894|4|Me,TD|grey metallic dyed crystal
+18549|s|807160|4|Me,TD|beige metallic dyed crystal
+18556|s|89A573|4|Me,TD|green metallic dyed crystal
+18558|s|7AA481|4|Me,TD|green metallic dyed crystal
+18565|s|729B92|4|Me,TD|blue-green metallic dyed crystal
+18581|s|C4995F|4|Me,TD|gold metallic dyed crystal
+18583|s|A17148|4|Me,TD|gold metallic dyed crystal
+18586|s|C6A93E|4|Me,TD|gold metallic dyed crystal
+18589|s|B78F77|4|Me,TD|pink gold metallic dyed crystal
+18595|s|BD8E9B|4|Me,TD|pink metallic dyed crystal
+18598|s|CF7783|4|Me,TD|red metallic dyed crystal
+18600|s|704C4C|2|Sx|opaque brown "tango", sfinx
+18601|s|644A40|2|Lu-white|opaque brown "tango", 2x lustered
+18780|s|3C3641|2|Sx|opaque brown "tango", sfinx
+18908|s|B0ADA9|3|Me|silver metallic dyed crystal
+18928|s|836393|3|Me,TD|violet metallic dyed crystal
+18936|s|4A84BC|3|Me,TD|blue metallic dyed crystal
+18942|s|868584|3|Me,TD|grey metallic dyed crystal
+18949|s|6A6158|3|Me,TD|black metallic dyed crystal
+18958|s|4BA79E|3|Me,TD|green metallic dyed crystal
+18965|s|75B6C9|3|Me,TD|blue-green metallic dyed crystal
+18983|s|B06C45|3|Me,TD|orange metallic dyed crystal
+18984|s|A27C4B|3|Me,TD|orange metallic dyed crystal
+18986|s|A2B241|3|Me,TD|yellow metallic dyed crystal
+18996|s|D8687E|3|Me,TD|violet metallic dyed crystal
+18998|s|C68297|3|Me,TD|pink metallic dyed crystal
+19020|s|98592F|4|CuL|lt. topaz, copper lined
+19050|s|623C1C|4|CuL|topaz, copper lined
+19090|s|4D3F34|4|CuL|topaz, copper lined
+19102|s|664B37|2|Me,Sx,Lu-bronze|dark topaz, bronze iris sfinx
+19135|s|4A3C3C|2|Me,Lu-bronze,Ir-blue|dark topaz, bronze blue iris
+19155|s|464643|2|Me,Lu-bronze,Ir-green|dark topaz, bronze green iris
+19195|s|634A35|2|Me,Lu-bronze,Ir-red|dark topaz, bronze red iris
+20010|r|704F5F|1||lt. amethyst
+20060|r|35262C|1||amethyst
+20080|r|302529|1||dark amethyst
+20206|s|AA8956|0|FC,Au,Me|crystal, genuine gold plated
+21010|s|A07B8B|2|R|lt. amethyst, rainbow
+21060|s|634244|2|R|amethyst, rainbow
+21080|s|544753|2|R|dark amethyst, rainbow
+22001|s|F2CE5F|2|PL|PermaLux dyed chalk, lt. yellow
+22002|s|F3A820|2|PL|PermaLux dyed chalk, dark yellow
+22003|s|D48F3F|2|PL|PermaLux dyed chalk, yellow-brown
+22004|s|E15F3D|2|PL|PermaLux dyed chalk, orange
+22005|s|EB8A64|2|PL|PermaLux dyed chalk, apricot
+22006|s|BC6A56|2|PL|PermaLux dyed chalk, lt. brown
+22007|s|944230|2|PL|PermaLux dyed chalk, brown
+22008|s|E8443E|2|PL|PermaLux dyed chalk, red
+22009|s|ED726E|2|PL|PermaLux dyed chalk, pink
+22010|s|E66B79|2|PL|PermaLux dyed chalk, lt. pink
+22011|s|DE3C6A|2|PL|PermaLux dyed chalk, fuchsia
+22012|s|C16B88|2|PL|PermaLux dyed chalk, violet
+22013|s|983654|2|PL|PermaLux dyed chalk, purple
+22014|s|7A6493|2|PL|PermaLux dyed chalk, levander
+22015|s|4E3E6D|2|PL|PermaLux dyed chalk, dark violet
+22016|s|6AB6A1|2|PL|PermaLux dyed chalk, mint
+22017|s|43815A|2|PL|PermaLux dyed chalk, sea green
+22018|s|407770|2|PL|PermaLux dyed chalk, teal
+22019|s|2182AE|2|PL|PermaLux dyed chalk, dark turquoise
+22020|s|3780AD|2|PL|PermaLux dyed chalk, lt. blue
+22021|s|185487|2|PL|PermaLux dyed chalk, blue
+22022|s|554C45|2|PL|PermaLux dyed chalk, grey
+22m01|s|EBCF56|2|PL|PermaLux dyed chalk, lt. yellow, matt
+22m02|s|F7A513|2|PL|PermaLux dyed chalk, dark yellow, matt
+22m03|s|CA853B|2|PL|PermaLux dyed chalk, yellow-brown, matt
+22m04|s|DE5A38|2|PL|PermaLux dyed chalk, orange, matt
+22m05|s|EAA181|2|PL|PermaLux dyed chalk, apricot, matt
+22m06|s|BF7770|2|PL|PermaLux dyed chalk, lt. brown, matt
+22m07|s|8B3D2B|2|PL|PermaLux dyed chalk, brown, matt
+22m08|s|DA4959|2|PL|PermaLux dyed chalk, red, matt
+22m09|s|E97676|2|PL|PermaLux dyed chalk, pink, matt
+22m10|s|E6929C|2|PL|PermaLux dyed chalk, lt. pink, matt
+22m11|s|D53D4E|2|PL|PermaLux dyed chalk, fuchsia, matt
+22m12|s|C37596|2|PL|PermaLux dyed chalk, violet, matt
+22m13|s|94395D|2|PL|PermaLux dyed chalk, purple, matt
+22m14|s|937AAA|2|PL|PermaLux dyed chalk, levander, matt
+22m15|s|3D2E64|2|PL|PermaLux dyed chalk, dark violet, matt
+22m16|s|70B79B|2|PL|PermaLux dyed chalk, mint, matt
+22m17|s|247151|2|PL|PermaLux dyed chalk, sea green, matt
+22m18|s|0F695B|2|PL|PermaLux dyed chalk, teal, matt
+22m19|s|1797A7|2|PL|PermaLux dyed chalk, dark turquoise, matt
+22m20|s|3879AC|2|PL|PermaLux dyed chalk, lt. blue, matt
+22m21|s|315D9C|2|PL|PermaLux dyed chalk, blue, matt
+22m22|s|3B3B3B|2|PL|PermaLux dyed chalk, grey, matt
+23020|r|9A7776|1||opaque violet
+23040|r|765958|1||opaque dark violet
+23300|r|252423|1|St-4|white stripes on black
+23420|r|DCD4EA|1||opaque lilac
+23530|s|80AB5B|4|Pe|soft neon green dyed chalkwhite
+23630|s|81C2BC|4|Pe|soft pearl aqua dyed chalkwhite
+23730|s|EA98B6|4|Pe|
+23830|s|D9D52C|4|Pe|
+23980|r|232320|1||black
+24020|s|996C87|2|R|opaque violet, rainbow
+24040|s|4B3841|2|R|opaque dark violet, rainbow
+24420|s|C3B6D4|2|R|opaque lilac, rainbow
+25014|s|483B33|4|BrL|lt. amethyst, bronze lined
+25016|s|A08493|5|CL|lt. amethyst, colour lined chalkwhite
+25066|s|6E5062|5|CL|amethyst, colour lined chalkwhite
+25086|s|4D3A42|5|CL|dark amethyst, colour lined chalkwhite
+26010|s|9D849E|2|Sx|lt. amethyst, sfinx
+26060|s|6B585B|2|Sx|amethyst, sfinx
+26080|s|4A4D5E|2|Sx|dark amethyst, sfinx
+26210|s|E2D5E3|0|Pe|soft pearl violet dyed chalkwhite
+26630|s|379EC1|0|Pe|
+26631|s|77A2C1|0|Pe|soft pearl aqua dyed chalkwhite
+26850|s|F79D61|0|Pe|
+26960|s|A53B45|0|Pe|
+26970|s|D96F63|0|Pe|chalkwhite, soft coral red
+27019|s|6E6074|4|SL,Sx,R|lt. amethyst, silver lined, rainbow
+27060|s|76626B|2|SL|amethyst, silver lined
+27080|s|7D7474|2|SL|dark amethyst, silver lined
+28020|s|9B8089|2|Sx|opaque violet, sfinx
+28040|s|746977|2|Sx|opaque dark violet, sfinx
+28420|s|C1B5BD|2|Sx|opaque lilac, sfinx
+28928|s|33323C|4|Pe,TD|violet pearl dyed black
+28936|s|919395|4|Pe,TD|blue pearl dyed black
+28958|s|798180|4|Pe,TD|green pearl dyed black
+28998|s|969391|4|Pe,TD|red pearl dyed black
+29010|s|5D424B|4|CuL|lt. amethyst, copper lined
+29980|s|5E5E54|2|Tv|travertine on black
+30030|r|505BDC|1||lt. sapphire
+30050|r|3C38BC|1||sapphire
+30080|r|27207F|1||sapphire
+30100|r|1E1A49|1||dark sapphire
+30110|r|302F34|1||dark sapphire
+31030|s|778DF8|2|R|lt. sapphire, rainbow
+31050|s|555BD0|2|R|sapphire, rainbow
+31080|s|4446BF|2|R|sapphire, rainbow
+31100|s|39388C|2|R|dark sapphire, rainbow
+31110|s|2A2934|2|R|dark sapphire, rainbow
+32010|r|7489E6|1||alabaster blue
+33000|r|BDC8E6|1||opaque lt. blue
+33020|r|93A6E4|1||opaque blue
+33021|s|7A7A81|2|Lu-yellow-brown|opaque blue, yellow-brown luster
+33023|s|586784|2|Lu-blue|opaque blue, blue luster
+33025|s|687887|2|Lu-green|opaque blue, green luster
+33040|r|5964C8|1||opaque blue
+33050|r|272683|1||opaque blue
+33060|r|27218F|1||opaque blue
+33061|s|414257|2|Lu-yellow-brown|opaque blue, yellow-brown luster
+33062|s|4A3B4F|2|Lu-lila|opaque blue, lila luster
+33070|r|242758|1||opaque dark blue
+33080|r|2C2931|1||opaque dark blue
+33210|r|446BA2|1||opaque blue
+33220|r|436B97|1||opaque blue
+34000|s|869BBF|2|R|opaque lt. blue, rainbow
+34020|s|98ABE2|2|R|opaque blue, rainbow
+34040|s|4156A6|2|R|opaque blue, rainbow
+34050|s|2B3279|2|R|opaque blue, rainbow
+34060|s|2D306C|2|R|opaque blue, rainbow
+34070|s|222345|2|R|opaque dark blue, rainbow
+34210|s|526AAE|2|R|opaque blue, rainbow
+34220|s|2A4E6A|2|R|opaque blue, rainbow
+35036|s|5485EF|5|CL|lt. sapphire, colour lined chalkwhite
+35056|s|4267DD|5|CL|sapphire, colour lined chalkwhite
+35086|s|3945CC|5|CL|sapphire, colour lined chalkwhite
+36030|s|506AF0|2|Sx|lt. sapphire, sfinx
+36050|s|5462CF|2|Sx|sapphire, sfinx
+36080|s|525CCC|2|Sx|sapphire, sfinx
+36100|s|3F3F97|2|Sx|dark sapphire, sfinx
+36110|s|363F57|2|Sx|dark sapphire, sfinx
+37030|s|88ABD5|2|SL|lt. sapphire, silver lined
+37039|s|899CC8|4|SL,Sx,R|lt. sapphire, silver lined, rainbow
+37050|s|75A1EF|2|SL|sapphire, silver lined
+37059|s|6C81C1|4|SL,Sx,R|sapphire, silver lined, rainbow
+37080|s|212956|2|SL|sapphire, silver lined
+37100|s|696EB8|2|SL|dark sapphire, silver lined
+37109|s|3D3B68|4|SL,Sx,R|dark sapphire, silver lined, rainbow
+37126|s|D48FAE|5|CL,Lu-white|ceylon violet
+37128|s|BD98CD|5|CL,Lu-white|ceylon violet
+37132|s|9EB1B4|5|CL,Lu-white|ceylon blue
+37136|s|7DB2E6|5|CL,Lu-white|ceylon blue
+37149|s|8590A5|5|CL,Lu-white|ceylon grey
+37152|s|B1CD94|5|CL,Lu-white|ceylon green
+37156|s|90CFAB|5|CL,Lu-white|ceylon green
+37158|s|ABD8D4|5|CL,Lu-white|ceylon green
+37173|s|E29CA7|5|CL,Lu-white|ceylon pink
+37175|s|E28EB7|5|CL,Lu-white|ceylon pink
+37177|s|EB9ED5|5|CL,Lu-white|ceylon pink
+37186|s|E4CC76|5|CL,Lu-white|ceylon yellow
+37188|s|E0A68A|5|CL,Lu-white|ceylon orange
+37189|s|F8BAA2|5|CL,Lu-white|ceylon orange
+37325|s|D1A8BC|2|CL,Sx,Lu-white,TL|ceylon violet
+37328|s|BF98B5|2|CL,Sx,Lu-white,TL|ceylon violet
+37336|s|95ABBA|2|CL,Sx,Lu-white,TL|ceylon blue
+37342|s|A0A6B2|2|CL,Sx,Lu-white,TL|ceylon grey
+37356|s|88B086|2|CL,Sx,Lu-white,TL|ceylon green
+37358|s|8EBFAF|2|CL,Sx,Lu-white,TL|ceylon green
+37365|s|85B3C4|2|CL,Sx,Lu-white,TL|ceylon blue-green
+37383|s|D9A27B|2|CL,Sx,Lu-white,TL|ceylon yellow
+37386|s|DEBC76|2|CL,Sx,Lu-white,TL|ceylon yellow
+37389|s|D4A697|2|CL,Sx,Lu-white,TL|ceylon orange
+37398|s|D09196|2|CL,Sx,Lu-white,TL|ceylon pink
+38000|s|7C95CF|2|Sx|opaque lt. blue, sfinx
+38002|s|DFDBD7|5|CL|crystal, colour lined chalkwhite
+38011|s|908F88|5|CL|crystal, colour lined brown
+38019|s|574E4D|5|CL|crystal, colour lined brown
+38020|s|7F92C7|2|Sx|opaque blue, sfinx
+38029|s|5D3C55|5|CL|crystal, colour lined violet
+38039|s|5C5F61|5|CL|crystal, colour lined blue
+38040|s|455FBD|2|Sx|opaque blue, sfinx
+38044|s|818087|5|CL|crystal, colour lined grey
+38050|s|39455E|2|Sx|opaque blue, sfinx
+38059|s|696B62|5|CL|crystal, colour lined green
+38060|s|2D3782|2|Sx|opaque blue, sfinx
+38066|s|4A5967|5|CL|crystal, colour lined blue-green
+38070|s|2F375F|2|Sx|opaque dark blue, sfinx
+38080|s|393E55|2|Sx|opaque dark blue, sfinx
+38099|s|755361|5|CL|crystal, colour lined red
+38102|s|E4E3E3|5|CL,Sx|crystal, colour lined chalkwhite, sfinx
+38116|s|B08E8B|5|CL,Sx|crystal, colour lined brown, sfinx
+38117|s|B28783|5|CL,Sx|crystal, colour lined brown, sfinx
+38118|s|8C696A|5|CL,Sx|crystal, colour lined brown, sfinx
+38123|s|F688D4|5|CL,Sx|crystal, colour lined pink, sfinx
+38124|s|E880B7|5|CL,Sx|crystal, colour lined pink, sfinx
+38125|s|BB66B4|5|CL,Sx|crystal, colour lined pink, sfinx
+38126|s|FBC9E7|5|CL,Sx|crystal, colour lined pink, sfinx
+38127|s|D488DA|5|CL,Sx|crystal, colour lined pink, sfinx
+38128|s|A063C5|5|CL,Sx|crystal, colour lined violet, sfinx
+38132|s|70B6E5|5|CL,Sx|crystal, colour lined blue, sfinx
+38134|s|70BDF5|5|CL,Sx|crystal, colour lined blue, sfinx
+38136|s|7083BB|5|CL,Sx|crystal, colour lined blue, sfinx
+38149|s|797982|5|CL,Sx|crystal, colour lined black, sfinx
+38152|s|A0CEAC|5|CL,Sx|crystal, colour lined green, sfinx
+38153|s|C2E9E2|5|CL,Sx|crystal, colour lined green, sfinx
+38154|s|BDDD8A|5|CL,Sx|crystal, colour lined green, sfinx
+38155|s|4DC0C9|5|CL,Sx|crystal, colour lined green, sfinx
+38156|s|85BE7E|5|CL,Sx|crystal, colour lined green, sfinx
+38158|s|7CDBE0|5|CL,Sx|crystal, colour lined green, sfinx
+38162|s|A5CFD7|5|CL,Sx|crystal, colour lined blue-green, sfinx
+38163|s|83C9F0|5|CL,Sx|crystal, colour lined blue-green, sfinx
+38165|s|61A0D1|5|CL,Sx|crystal, colour lined blue-green, sfinx
+38173|s|F8C4D9|5|CL,Sx|crystal, colour lined pink, sfinx
+38175|s|F47BB2|5|CL,Sx|crystal, colour lined pink, sfinx
+38177|s|E2589E|5|CL,Sx|crystal, colour lined pink, sfinx
+38181|s|E3D380|5|CL,Sx|crystal, colour lined yellow, sfinx
+38182|s|F7D85E|5|CL,Sx|crystal, colour lined yellow, sfinx
+38183|s|D9A75A|5|CL,Sx|crystal, colour lined yellow, sfinx
+38184|s|DFD578|5|CL,Sx|crystal, colour lined yellow, sfinx
+38185|s|DBC661|5|CL,Sx|crystal, colour lined yellow, sfinx
+38186|s|F4DC57|5|CL,Sx|crystal, colour lined yellow, sfinx
+38187|s|E1A286|5|CL,Sx|crystal, colour lined orange, sfinx
+38188|s|FB9F72|5|CL,Sx|crystal, colour lined orange, sfinx
+38189|s|FA915C|5|CL,Sx|crystal, colour lined orange, sfinx
+38194|s|E69FB5|5|CL,Sx|crystal, colour lined red, sfinx
+38196|s|E68AA0|5|CL,Sx|crystal, colour lined red, sfinx
+38198|s|B2727A|5|CL,Sx|crystal, colour lined red, sfinx
+38210|s|566F90|2|Sx|opaque blue, sfinx
+38218|s|E1D8CD|2|CL,Pe,TL|crystal, colour lined brown pearl
+38220|s|315A88|2|Sx|opaque blue, sfinx
+38228|s|C7C4C4|2|CL,Pe,TL|crystal, colour lined violet pearl
+38236|s|D7D8D9|2|CL,Pe,TL|crystal, colour lined blue pearl
+38249|s|E5E1DD|2|CL,Pe,TL|crystal, colour lined grey pearl
+38258|s|D1E7DC|2|CL,Pe,TL|crystal, colour lined green pearl
+38286|s|DCD7A4|2|CL,Pe,TL|crystal, colour lined yellow pearl
+38292|s|E0DCD5|2|CL,Pe,TL|crystal, colour lined orange pearl
+38298|s|E1AFB0|2|CL,Pe,TL|crystal, colour lined red pearl
+382PA|s|F5BE80|2|CL,Sx,Pe,TL|crystal, colour lined apricot pearl, sfinx
+382PB|s|B4BDC1|2|CL,Sx,Pe,TL|crystal, colour lined blue pearl, sfinx
+382PC|s|9A8F7C|2|CL,Sx,Pe,TL|crystal, colour lined mocca pearl, sfinx
+382PD|s|CCC8C5|2|CL,Sx,Pe,TL|crystal, colour lined grey pearl, sfinx
+382PG|s|9EDCCF|2|CL,Sx,Pe,TL|crystal, colour lined green pearl, sfinx
+382PI|s|E6DDC6|2|CL,Sx,Pe,TL|crystal, colour lined ivory pearl, sfinx
+382PP|s|F2BCBC|2|CL,Sx,Pe,TL|crystal, colour lined pink pearl, sfinx
+382PS|s|E3C1AC|2|CL,Sx,Pe,TL|crystal, colour lined salmon pearl, sfinx
+382PV|s|B3B0C5|2|CL,Sx,Pe,TL|crystal, colour lined violet pearl, sfinx
+382PY|s|E7C67D|2|CL,Sx,Pe,TL|crystal, colour lined yellow pearl, sfinx
+38317|s|948381|2|CL,TL|crystal, colour lined brown
+38318|s|6F5E5C|2|CL,TL|crystal, colour lined brown
+38319|s|765C60|2|CL,TL|crystal, colour lined brown
+38325|s|D8B5C5|2|CL,TL|crystal, colour lined violet
+38326|s|A86CB4|2|CL,TL|crystal, colour lined violet
+38327|s|CAAAAF|2|CL,TL|crystal, colour lined violet
+38328|s|C6ADC0|2|CL,TL|crystal, colour lined violet
+38332|s|68B0EE|2|CL,TL|crystal, colour lined blue
+38338|s|456396|2|CL,TL|crystal, colour lined blue
+38342|s|696D78|2|CL,TL|crystal, colour lined grey
+38349|s|393A3B|2|CL,TL|crystal, colour lined black
+38352|s|ABD3B7|2|CL,TL|crystal, colour lined green
+38353|s|C0D7CE|2|CL,TL|crystal, colour lined green
+38357|s|5F9055|2|CL,TL|crystal, colour lined green
+38358|s|34BB95|2|CL,TL|crystal, colour lined green
+38359|s|617161|2|CL,TL|crystal, colour lined green
+38362|s|68C4F1|2|CL,TL|crystal, colour lined blue-green
+38365|s|BCCED8|2|CL,TL|crystal, colour lined blue-green
+38381|s|D8D7BF|2|CL,TL|crystal, colour lined yellow
+38383|s|E8B132|2|CL,TL|crystal, colour lined yellow
+38386|s|E9DA9B|2|CL,TL|crystal, colour lined yellow
+38387|s|E3DAD4|2|CL,TL|crystal, colour lined orange
+38389|s|F59B86|2|CL,TL|crystal, colour lined orange
+38395|s|E0CACA|2|CL,TL|crystal, colour lined red
+38397|s|E75055|2|CL,TL|crystal, colour lined red
+38398|s|E14C65|2|CL,TL|crystal, colour lined red
+38418|s|675A54|2|CL|crystal, colour lined brown
+38428|s|C3BFC1|2|CL|crystal, colour lined violet
+38436|s|C9D2D9|2|CL|crystal, colour lined blue
+38449|s|B4B2AD|2|CL|crystal, colour lined black
+38458|s|749A8C|2|CL|crystal, colour lined green
+38481|s|E2D182|2|CL|crystal, colour lined yellow
+38498|s|DEC6C4|2|CL|crystal, colour lined red
+38602|s|C9C7C2|2|CL,Sx,TL|crystal, colour lined chalkwhite, sfinx
+38617|s|B19486|2|CL,Sx,TL|crystal, colour lined brown, sfinx
+38618|s|B19282|2|CL,Sx,TL|crystal, colour lined brown, sfinx
+38619|s|957567|2|CL,Sx,TL|crystal, colour lined brown, sfinx
+38625|s|E198C6|2|CL,Sx,TL|crystal, colour lined violet, sfinx
+38626|s|D7B7CD|2|CL,Sx,TL|crystal, colour lined violet, sfinx
+38627|s|CB8CA9|2|CL,Sx,TL|crystal, colour lined violet, sfinx
+38628|s|B889AB|2|CL,Sx,TL|crystal, colour lined violet, sfinx
+38632|s|9FBBCD|2|CL,Sx,TL|crystal, colour lined blue, sfinx
+38636|s|6190C3|2|CL,Sx,TL|crystal, colour lined blue, sfinx
+38638|s|7186A7|2|CL,Sx,TL|crystal, colour lined blue, sfinx
+38642|s|8B8785|2|CL,Sx,TL|crystal, colour lined grey, sfinx
+38649|s|6A696B|2|CL,Sx,TL|crystal, colour lined black, sfinx
+38652|s|83AB78|2|CL,Sx,TL|crystal, colour lined green, sfinx
+38653|s|9FC9B3|2|CL,Sx,TL|crystal, colour lined green, sfinx
+38656|s|6DD7AF|2|CL,Sx,TL|crystal, colour lined green, sfinx
+38657|s|7B7D52|2|CL,Sx,TL|crystal, colour lined green, sfinx
+38658|s|7CB8A3|2|CL,Sx,TL|crystal, colour lined green, sfinx
+38659|s|777B69|2|CL,Sx,TL|crystal, colour lined green, sfinx
+38662|s|83C1DD|2|CL,Sx,TL|crystal, colour lined blue-green, sfinx
+38665|s|66A6CD|2|CL,Sx,TL|crystal, colour lined blue-green, sfinx
+38681|s|EEDD8C|2|CL,Sx,TL|crystal, colour lined yellow, sfinx
+38683|s|F7CD72|2|CL,Sx,TL|crystal, colour lined yellow, sfinx
+38686|s|F0DA48|2|CL,Sx,TL|crystal, colour lined yellow, sfinx
+38687|s|EAB297|2|CL,Sx,TL|crystal, colour lined orange, sfinx
+38689|s|F19582|2|CL,Sx,TL|crystal, colour lined orange, sfinx
+38694|s|F5C2D6|2|CL,Sx,TL|crystal, colour lined pink, sfinx
+38695|s|DD8F95|2|CL,Sx,TL|crystal, colour lined red, sfinx
+38697|s|F08084|2|CL,Sx,TL|crystal, colour lined red, sfinx
+38698|s|F57B99|2|CL,Sx,TL|crystal, colour lined red, sfinx
+38818|s|545057|5|CL,Sx|crystal, colour lined brown, sfinx
+38828|s|806BB7|5|CL,Sx|crystal, colour lined violet, sfinx
+38836|s|4F71B5|5|CL,Sx|crystal, colour lined blue, sfinx
+38858|s|4FB8C6|5|CL,Sx|crystal, colour lined green, sfinx
+38877|s|DC74D5|5|CL,Sx|crystal, colour lined pink, sfinx
+38886|s|DDC73E|5|CL,Sx|crystal, colour lined yellow, sfinx
+38889|s|DF706B|5|CL,Sx|crystal, colour lined orange, sfinx
+38898|s|B25883|5|CL,Sx|crystal, colour lined red, sfinx
+38918|s|D7AD91|2|CL,Pe,TL|crystal, colour lined brown pearl
+38928|s|A69DBE|2|CL,Pe,TL|crystal, colour lined violet pearl
+38936|s|98ADD7|2|CL,Pe,TL|crystal, colour lined blue pearl
+38958|s|C1DCD5|2|CL,Pe,TL|crystal, colour lined green pearl
+38986|s|DED27D|2|CL,Pe,TL|crystal, colour lined yellow pearl
+38992|s|E8C3A8|2|CL,Pe,TL|crystal, colour lined orange pearl
+38998|s|F3B0B4|2|CL,Pe,TL|crystal, colour lined red pearl
+39000|s|7E5933|2|Tv|travertine on opaque lt. blue
+39050|s|5E6FAB|4|CuL|sapphire, copper lined
+39940|s|43433E|2|Tv|travertine on opaque blue
+40010|r|3A3A38|1||transp. grey
+41010|s|4A4948|2|R|transp. grey, rainbow
+41123|s|AA89D1|5|R,SG|violet dyed crystal, rainbow
+41134|s|3697DB|5|R,SG|blue dyed crystal, rainbow
+41141|s|897C72|5|R,SG|grey dyed crystal, rainbow
+41161|s|92C591|5|R,SG|green dyed crystal, rainbow
+41181|s|ECB121|5|R,SG|yellow dyed crystal, rainbow
+41184|s|F88A5B|5|R,SG|yellow dyed crystal, rainbow
+41191|s|F35B5A|5|R,SG|red dyed crystal, rainbow
+41192|s|AE5C91|5|R,SG|red dyed crystal, rainbow
+42181|s|DEC387|5|R,SG|yellow dyed alabaster white, rainbow
+43020|r|817B70|1||opaque grey
+43141|s|99938E|5|R,SG|grey dyed chalkwhite, rainbow
+43191|s|FB868E|5|R,SG|pink dyed chalkwhite, rainbow
+44020|s|7C7263|2|R|opaque grey, rainbow
+45016|s|6D6D6D|5|CL|transp. grey, colour lined chalkwhite
+45017|s|606D7C|5|CL,Sx|transp. grey, colour lined chalkwhite, sfinx
+45018|s|4F4F4D|5|CL,R|transp. grey, colour lined chalkwhite, rainbow
+46010|s|6A6E6B|2|Sx|transp. grey, sfinx
+46025|s|714D6C|2|Lu-lila|chalkwhite, lila lustered
+46035|s|747D7F|2|Lu-blue|chalkwhite, blue lustered
+46055|s|909E8F|2|Lu-green|chalkwhite, green lustered
+46085|s|D4AF7B|2|Lu-yellow-brown|chalkwhite, yellow-brown lustered
+46088|s|9D8D78|2|Lu-beige|chalkwhite, beige lustered
+46095|s|BA6D58|2|Lu-rose|chalkwhite, rose lustered
+46102|s|D0CDC8|2|Sx|chalkwhite, sfinx
+46112|s|CCA280|2|Sx,Lu-yellow-brown,Sh|shell
+46113|s|D2C1A4|2|Sx,Lu-whiteyellow-brown,Sh|shell
+46205|s|D2CCBF|2|R|chalkwhite, rainbow
+46316|s|B38E72|4|Lu-white,Pe,TD|beige pearl dyed chalkwhite, lustered
+46381|s|D6D3CA|4|Lu-white,Pe,TD|chalkwhite pearl dyed chalkwhite, lustered
+47019|s|969692|4|SL,Sx,R|transp. grey, silver lined, rainbow
+47102|s|C6B5A6|2|Lu-whiteyellow-brown,Sh|shell
+47112|s|D6AA6A|2|Sx,Lu-whiteyellow-brown,Sh|shell
+47113|s|E1CE98|2|Lu-whiteyellow-brown,Sh|shell
+47115|s|D5A775|2|Lu-whiteyellow-brown,Sh|shell
+47185|s|DEB868|2|Lu-whiteyellow,Sh|shell
+48013|s|EBD386|2|Lu-yellow|crystal, yellow lustered
+48015|s|E5C084|2|Lu-yellow-brown|crystal, yellow-brown lustered
+48018|s|C29265|2|Lu-orange|crystal, orange lustered
+48020|s|5C595C|2|Sx|opaque grey, sfinx
+48025|s|7E6266|2|Lu-lila|crystal, lila lustered
+48035|s|868F92|2|Lu-blue|crystal, blue lustered
+48042|s|B39B7B|2|Lu-beige|crystal, beige lustered
+48049|s|6D685F|2|Lu-black|crystal, black lustered
+48055|s|9EA7A0|2|Lu-green|crystal, green lustered
+48095|s|9E6442|2|Lu-rose|crystal, rose lustered
+48102|s|C1BCB4|2|Sx|crystal, sfinx
+49010|s|4B3E3B|4|CuL|transp. grey, copper lined
+49055|s|35372A|2|Lu-rose|black, rose lustered
+49095|s|3D2B2A|2|Lu-lila|black, lila lustered
+49102|s|565858|2|Me,Sx|hematite
+50060|r|274123|1||transp. green
+50100|r|50893C|1||transp. lt. green
+50105|s|256952|5|CL|transp. lt. green, colour lined green
+50120|r|253D1D|1||transp. green
+50150|r|292E25|1||transp. dark green
+50220|r|95AA1C|1||transp. lt. green
+50290|r|21241D|1||transp. dark green
+50430|r|45711A|1||transp. green
+50620|r|405747|1||transp. dark green
+50710|r|2A4C43|1||transp. teal green
+51060|s|2E6C5B|2|R|transp. green, rainbow
+51100|s|41A66A|2|R|transp. lt. green, rainbow
+51120|s|46662D|2|R|transp. green, rainbow
+51128|s|495E49|5|CL,Sx|transp. green, colour lined red, sfinx
+51150|s|404C5B|2|R|transp. dark green, rainbow
+51220|s|79AA4A|2|R|transp. lt. green, rainbow
+51228|s|947344|5|CL,Sx|transp. lt. green, colour lined red, sfinx
+51290|s|495457|2|R|transp. dark green, rainbow
+51396|s|415650|2|CL,Sx,TL|transp. green, colour lined red, sfinx
+51430|s|5C9123|2|R|transp. green, rainbow
+51710|s|3B8288|2|R|transp. teal green, rainbow
+52240|r|5D9E79|1||alabaster green
+52797|r|342D26|1|H|harlequin green-red
+53210|r|67A253|1||opaque green
+53230|r|629C48|1||opaque green
+53233|s|4D6D50|2|Lu-blue|opaque green, blue lustered
+53240|r|3B725A|1||opaque dark green
+53250|r|5EAB63|1||opaque green
+53270|r|3E5351|1||opaque dark green
+53310|r|91BE4A|1||opaque lt. green
+53410|r|AFD674|1||opaque lt. green
+53430|r|888E15|1||opaque green
+53800|r|5C7F4C|1|St-4|yellow stripes on green
+54210|s|54905F|2|R|opaque green, rainbow
+54230|s|538144|2|R|opaque green, rainbow
+54240|s|285950|2|R|opaque dark green, rainbow
+54250|s|75A269|2|R|opaque green, rainbow
+54270|s|2C2F34|2|R|opaque dark green, rainbow
+54310|s|75953D|2|R|opaque lt. green, rainbow
+54410|s|83A757|2|R|opaque lt. green, rainbow
+54430|s|6B5D24|2|R|opaque green, rainbow
+55066|s|28672F|5|CL|transp. green, colour lined chalkwhite
+55106|s|4BAE5C|5|CL|transp. lt. green, colour lined chalkwhite
+55126|s|317A2D|5|CL|transp. green, colour lined chalkwhite
+55226|s|8BC935|5|CL|transp. lt. green, colour lined chalkwhite
+55436|s|66BC35|5|CL|transp. green, colour lined chalkwhite
+55437|s|78AF6F|5|CL,Sx|transp. green, colour lined chalkwhite, sfinx
+55438|s|417A2E|5|CL,R|transp. green, colour lined chalkwhite, rainbow
+55716|s|237E73|5|CL|transp. teal green, colour lined chalkwhite
+56060|s|3D6B55|2|Sx|transp. green, sfinx
+56100|s|50B180|2|Sx|transp. lt. green, sfinx
+56120|s|50784B|2|Sx|transp. green, sfinx
+56150|s|3E4F56|2|Sx|transp. dark green, sfinx
+56220|s|95C65C|2|Sx|transp. lt. green, sfinx
+56290|s|394046|2|Sx|transp. dark green, sfinx
+56430|s|67973D|2|Sx|transp. green, sfinx
+56620|s|80948D|2|Sx|transp. dark green, sfinx
+56710|s|39818C|2|Sx|transp. teal green, sfinx
+57100|s|7AC77A|2|SL|transp. lt. green, silver lined
+57102|s|B1AEA9|2|Sx|alabaster white, sfinx
+57120|s|5D9C4B|2|SL|transp. green, silver lined
+57129|s|629B59|4|SL,Sx,R|transp. green, silver lined, rainbow
+57150|s|626D63|2|SL|transp. dark green, silver lined
+57159|s|373D3E|4|SL,Sx,R|transp. dark green, silver lined, rainbow
+57205|s|D1D1D6|2|R|alabaster white, rainbow
+57206|s|E3DEC6|2|Lu-white,R,Sh|alabaster white, rainbow, lustered
+57220|s|7A9B23|2|SL|transp. lt. green, silver lined
+57290|s|72746A|2|SL|transp. dark green, silver lined
+57526|s|E1A1D6|5|CL,R|alabaster white, colour lined violet, rainbow
+57534|s|9CB9C5|5|CL,R|alabaster white, colour lined blue, rainbow
+57549|s|6A6B6F|5|CL,R|alabaster white, colour lined grey, rainbow
+57552|s|B7D0B2|5|CL,R|alabaster white, colour lined green, rainbow
+57573|s|F89CC4|5|CL,R|alabaster white, colour lined pink, rainbow
+57620|s|54735D|2|SL|transp. dark green, silver lined
+57710|s|22423E|2|SL|transp. teal green, silver lined
+57719|s|3B625E|4|SL,Sx,R|transp. teal green, silver lined, rainbow
+57797|s|534530|2|H,SL|harlequin green-red, silver lined
+58135|s|B5B2B3|2|Ir-blue|crystal, blue iris
+58141|s|8E725A|2|Lu-goldenbronze|golden bronze
+58142|s|8A6B67|2|Me,Lu-bronze|crystal, bronze lustered
+58205|s|9E9381|2|R|crystal, rainbow
+58210|s|5E976D|2|Sx|opaque green, sfinx
+58230|s|619665|2|Sx|opaque green, sfinx
+58240|s|4D949B|2|Sx|opaque dark green, sfinx
+58250|s|729965|2|Sx|opaque green, sfinx
+58270|s|30404D|2|Sx|opaque dark green, sfinx
+58310|s|80A960|2|Sx|opaque lt. green, sfinx
+58410|s|93BB7C|2|Sx|opaque lt. green, sfinx
+58430|s|93A259|0|Sx|opaque green, sfinx
+58502|s|E1E1E2|5|CL,R|crystal, colour lined chalkwhite, rainbow
+58516|s|AB8B8B|5|CL,R|crystal, colour lined brown, rainbow
+58517|s|947378|5|CL,R|crystal, colour lined brown, rainbow
+58518|s|7B5E5F|5|CL,R|crystal, colour lined brown, rainbow
+58523|s|F99FED|5|CL,R|crystal, colour lined violet, rainbow
+58525|s|DA7DD5|5|CL,R|crystal, colour lined violet, rainbow
+58526|s|F3B7E7|5|CL,R|crystal, colour lined violet, rainbow
+58528|s|C185DA|5|CL,R|crystal, colour lined violet, rainbow
+58532|s|9CDFFC|5|CL,R|crystal, colour lined blue, rainbow
+58536|s|5490DB|5|CL,R|crystal, colour lined blue, rainbow
+58549|s|555D70|5|CL,R|crystal, colour lined black, rainbow
+58552|s|B3E6B3|5|CL,R|crystal, colour lined green, rainbow
+58553|s|D1EEEA|5|CL,R|crystal, colour lined green, rainbow
+58556|s|6AB667|5|CL,R|crystal, colour lined green, rainbow
+58558|s|58C3D3|5|CL,R|crystal, colour lined green, rainbow
+58562|s|CFE7EA|5|CL,R|crystal, colour lined blue-green, rainbow
+58565|s|70A6D5|5|CL,R|crystal, colour lined blue-green, rainbow
+58573|s|F9B4E4|5|CL,R|crystal, colour lined pink, rainbow
+58577|s|E47FD1|5|CL,R|crystal, colour lined pink, rainbow
+58582|s|CBC393|5|CL,R|crystal, colour lined yellow, rainbow
+58583|s|E2B041|5|CL,R|crystal, colour lined yellow, rainbow
+58586|s|EACE49|5|CL,R|crystal, colour lined yellow, rainbow
+58589|s|DC6F50|5|CL,R|crystal, colour lined orange, rainbow
+58594|s|D891A3|5|CL,R|crystal, colour lined pink, rainbow
+58598|s|A04B63|5|CL,R|crystal, colour lined red, rainbow
+59115|s|545049|2|Ir-brown|brown iris
+59135|s|424A54|2|Ir-blue|blue iris
+59142|s|6C543A|2|Me,Lu-goldenbronze|bronze
+59145|s|704C2E|2|Me,Lu-goldenbronze,Ir-copper|bronze copper
+59148|s|8C7640|2|Me,Lu-goldenbronze,Ir-gold|golden bronze
+59150|s|50574D|4|CuL|transp. dark green, copper lined
+59155|s|676E6D|2|Ir-green|green iris
+59195|s|64605F|2|Ir-red|red iris
+59205|s|393431|2|R|black, rainbow
+59310|s|626A3F|2|Tv|travertine on opaque lt. green
+59430|s|51592B|4|CuL|transp. green, copper lined
+59943|s|513E20|2|Tv|travertine on opaque green
+60000|r|94D7EE|1||lt. aquamarine
+60010|r|64BBEF|1||aquamarine
+60030|r|63B5E9|1||aquamarine
+60100|r|1F2636|1||dark aquamarine
+60150|r|409BD4|1||aquamarine
+60210|r|188582|1||green aqua
+60300|r|212D92|1||dark aquamarine
+61000|s|73D1F6|2|R|lt. aquamarine, rainbow
+61005|s|4BB9D3|5|CL,Sx|lt. aquamarine, colour lined blue-green, sfinx
+61006|s|BEAAD9|5|CL,Sx|lt. aquamarine, colour lined pink, sfinx
+61010|s|60C7F4|2|R|aquamarine, rainbow
+61015|s|42C0DE|5|CL,Sx|aquamarine, colour lined aqua, sfinx
+61016|s|4F5BB8|5|CL,Sx|aquamarine, colour lined pink, sfinx
+61017|s|768D8F|5|CL,Sx|aquamarine, colour lined brown, sfinx
+61018|s|747A9C|5|CL,Sx|aquamarine, colour lined pink, sfinx
+61030|s|5CA0E3|2|R|aquamarine, rainbow
+61100|s|505E90|2|R|dark aquamarine, rainbow
+61134|s|5FC4E5|5|Sx,SG|blue 2 dyed crystal, sfinx
+61141|s|B6B1B2|5|Sx,SG|grey 2 dyed crystal, sfinx
+61150|s|48AFF6|2|R|aquamarine, rainbow
+61181|s|DEA725|5|Sx,SG|yellow 2 dyed crystal, sfinx
+61191|s|D64D4E|5|Sx,SG|pink 2 dyed crystal, sfinx
+61210|s|2A6266|2|R|aquamarine, rainbow
+61300|s|3F3A8D|2|R|dark aquamarine, rainbow
+61328|s|5988C4|2|CL,Sx,TL|aquamarine, colour lined violet, sfinx
+61353|s|37C6DA|2|CL,Sx,TL|aquamarine, colour lined green, sfinx
+62134|s|36A0D8|5|Sx,SG|blue 2 dyed alabaster, sfinx
+62141|s|6D6A66|5|Sx,SG|grey 2 dyed alabaster, sfinx
+62161|s|5E9B61|5|Sx,SG|green 2 dyed alabaster, sfinx
+62181|s|C19429|5|Sx,SG|yellow 2 dyed alabaster, sfinx
+62191|s|D3585E|5|Sx,SG|pink 2 dyed alabaster, sfinx
+63000|r|8AC1DF|1||lt. turquoise
+63020|r|72A9CE|1||turquoise
+63021|s|869483|2|Lu-yellow-brown|turquoise, yellow-brown lustered
+63022|s|61557D|2|Lu-lila|turquoise, lila lustered
+63025|s|678987|2|Lu-green|turquoise, green lustered
+63030|r|67A0BA|1||turquoise
+63050|r|6BA5CC|1||turquoise
+63080|r|577AB4|1||dark turquoise
+63130|r|66B0A5|1||green turquoise
+63134|s|50A1C0|5|Sx,SG|blue 2 dyed chalkwhite, sfinx
+63161|s|A4C496|5|Sx,SG|green 2 dyed chalkwhite, sfinx
+63181|s|E2C45F|5|Sx,SG|yellow 2 dyed chalkwhite, sfinx
+63191|s|DB6B6B|5|Sx,SG|pink 2 dyed chalkwhite, sfinx
+64000|s|8CCDF7|2|R|lt. turquoise, rainbow
+64020|s|3F91C8|2|R|turquoise, rainbow
+64030|s|46899C|2|R|turquoise, rainbow
+64050|s|6AA3D5|2|R|turquoise, rainbow
+64080|s|3B649D|2|R|dark turquoise, rainbow
+64130|s|448A86|2|R|green turquoise, rainbow
+65014|s|AED4CF|4|BrL|aquamarine, bronze lined
+65016|s|59CFF7|5|CL|aquamarine, colour lined white
+65106|s|253D70|5|CL|dark aquamarine, colour lined chalkwhite
+65156|s|23A8E8|5|CL|aquamarine, colour lined chalkwhite
+66000|s|75DCFD|2|Sx|lt. aquamarine, sfinx
+66010|s|48C4FC|2|Sx|aquamarine, sfinx
+66030|s|66A3E1|2|Sx|aquamarine, sfinx
+66100|s|3E4D68|2|Sx|dark aquamarine, sfinx
+66150|s|3187D2|2|Sx|aquamarine, sfinx
+66209|s|B88E42|2|Tv|travertine on chalkwhite
+66210|s|458782|2|Sx|green aqua, sfinx
+66300|s|5D71B6|2|Sx|dark aquamarine, sfinx
+67000|s|AFCBCE|2|SL|lt. aquamarine, silver lined
+67019|s|499ED3|4|SL,Sx,R|aquamarine, silver lined, rainbow
+67030|s|88D6F3|2|SL|aquamarine, silver lined
+67100|s|677996|2|SL|dark aquamarine, silver lined
+67150|s|4CA8CC|2|SL|aquamarine, silver lined
+67159|s|3679AB|4|SL,Sx,R|aquamarine, silver lined, rainbow
+67210|s|387972|2|SL|green aqua, silver lined
+68000|s|82CAF0|2|Sx|lt. turquoise, sfinx
+68020|s|52A4DB|2|Sx|turquoise, sfinx
+68030|s|54A1BC|2|Sx|turquoise, sfinx
+68050|s|72A0BA|2|Sx|turquoise, sfinx
+68080|s|61AFEC|2|Sx|dark turquoise, sfinx
+68105|s|C68A65|4|Me,CuL|crystal, copper lined
+68106|s|C4A77C|4|Me,BrL|crystal, colour lined bronze
+68108|s|CDC8BE|2|Me,CL|crystal, aluminium lined
+68130|s|4DA193|2|Sx|green turquoise, sfinx
+68228|s|968898|2|Me,CL,TL|crystal, metallic colour lined violet
+68236|s|BECCD2|2|Me,CL,TL|crystal, metallic colour lined blue
+68258|s|A1CAC2|2|Me,CL,TL|crystal, metallic colour lined green
+68283|s|C9BAA6|2|Me,CL,TL|crystal, metallic colour lined gold
+68284|s|E7AD5E|2|Me,CL,TL|crystal, metallic colour lined yellow
+68286|s|DBCB70|2|Me,CL,TL|crystal, metallic colour lined yellow
+68298|s|D6C3BE|2|Me,CL,TL|crystal, metallic colour lined red
+68301|s|888075|3|FC,Arg,Me|silver
+68304|s|B8883D|2|FC,Au,Me|crystal, genuine gold plated
+68388|s|AC7E47|4|Me,TD|gold iris
+68428|s|9486A7|2|Me,CL,R,TL|crystal, metallic colour lined violet, rainbow
+68436|s|B0B9BF|2|Me,CL,R,TL|crystal, metallic colour lined blue, rainbow
+68483|s|E0C5AF|2|Me,CL,R,TL|crystal, metallic colour lined orange, rainbow
+68498|s|C47171|2|Me,CL,R,TL|crystal, metallic colour lined pink, rainbow
+68505|s|CBB6B3|4|Me,CuL,R|crystal, copper lined, rainbow
+68506|s|C89E7A|4|Me,BrL,R|crystal, colour lined bronze, rainbow
+68683|s|D4BEA9|2|Me,CL,Sx,TL|crystal, metallic colour lined orange, sfinx
+68805|s|DD8167|4|Me,TD|copper dyed crystal
+68807|s|6D6154|4|Me,TD|steel dyed crystal
+69000|s|A2A7A2|4|CuL|lt. aquamarine, copper lined
+69130|s|79A076|2|Tv|travertine on green turquoise
+69930|s|7E9569|2|Tv|travertine on turquoise
+73420|r|F4E0E2|1||opaque pink
+74420|s|E7D0D6|2|R|opaque pink, rainbow
+78102|s|E4E0DB|2|Me,SL|crystal, silver lined
+78109|s|CFC5BF|4|Me,SL,Sx,R|crystal, silver lined, rainbow
+78111|s|B08169|3|SL,SG|brown 2 dyed crystal, silver lined
+78112|s|9A6E5C|3|SL,SG|brown 2 dyed crystal, silver lined
+78113|s|8F6D6D|3|SL,SG|brown 2 dyed crystal, silver lined
+78121|s|71656D|3|SL,SG|violet 2 dyed crystal, silver lined
+78122|s|6D5463|3|SL,SG|violet 2 dyed crystal, silver lined
+78123|s|664664|3|SL,SG|violet 2 dyed crystal, silver lined
+78131|s|5E668D|3|SL,SG|blue 2 dyed crystal, silver lined
+78132|s|5C7B8C|3|SL,SG|blue 2 dyed crystal, silver lined
+78133|s|7B979D|3|SL,SG|blue-green 2 dyed crystal, silver lined
+78134|s|55909A|3|SL,SG|blue-green 2 dyed crystal, silver lined
+78141|s|66605B|3|SL,SG|grey 2 dyed crystal, silver lined
+78151|s|A2854D|3|SL,SG|green 2 dyed crystal, silver lined
+78152|s|918960|3|SL,SG|green 2 dyed crystal, silver lined
+78153|s|9F934C|3|SL,SG|green 2 dyed crystal, silver lined
+78154|s|7E854E|3|SL,SG|green 2 dyed crystal, silver lined
+78161|s|617F4E|3|SL,SG|green 2 dyed crystal, silver lined
+78162|s|4A5F40|3|SL,SG|green 2 dyed crystal, silver lined
+78163|s|596549|3|SL,SG|green 2 dyed crystal, silver lined
+78164|s|567F66|3|SL,SG|green 2 dyed crystal, silver lined
+78165|s|48847E|3|SL,SG|green 2 dyed crystal, silver lined
+78181|s|BA9D54|3|SL,SG|yellow 2 dyed crystal, silver lined
+78182|s|B98B49|3|SL,SG|yellow 2 dyed crystal, silver lined
+78183|s|CA8D4D|3|SL,SG|orange 2 dyed crystal, silver lined
+78184|s|C27B58|3|SL,SG|orange 2 dyed crystal, silver lined
+78185|s|B8755A|3|SL,SG|orange 2 dyed crystal, silver lined
+78191|s|A24944|3|SL,SG|red 2 dyed crystal, silver lined
+78192|s|A84E6F|3|SL,SG|pink 2 dyed crystal, silver lined
+78193|s|9B534C|3|SL,SG|red 2 dyed crystal, silver lined
+78194|s|7E5445|3|SL,SG|pink 2 dyed crystal, silver lined
+78195|s|9B6872|3|SL,SG|violet 2 dyed crystal, silver lined
+78211|s|D0A886|3|SL,SG|brown 1 dyed crystal, silver lined
+78212|s|C6967E|3|SL,SG|brown 1 dyed crystal, silver lined
+78213|s|C2A4A4|3|SL,SG|brown 1 dyed crystal, silver lined
+78221|s|BCB2C5|3|SL,SG|violet 1 dyed crystal, silver lined
+78222|s|BEA6B4|3|SL,SG|violet 1 dyed crystal, silver lined
+78223|s|B9A0CD|3|SL,SG|violet 1 dyed crystal, silver lined
+78231|s|9CA8D7|3|SL,SG|blue 1 dyed crystal, silver lined
+78232|s|99C3DF|3|SL,SG|blue 1 dyed crystal, silver lined
+78233|s|91C2C9|3|SL,SG|blue-green 1 dyed crystal, silver lined
+78234|s|6DCAD4|3|SL,SG|blue-green 1 dyed crystal, silver lined
+78241|s|A39893|3|SL,SG|grey 1 dyed crystal, silver lined
+78251|s|D1B77C|3|SL,SG|green 1 dyed crystal, silver lined
+78252|s|B9AC87|3|SL,SG|green 1 dyed crystal, silver lined
+78253|s|C5BC7C|3|SL,SG|green 1 dyed crystal, silver lined
+78254|s|AEB986|3|SL,SG|green 1 dyed crystal, silver lined
+78261|s|97B996|3|SL,SG|green 1 dyed crystal, silver lined
+78262|s|9EB69F|3|SL,SG|green 1 dyed crystal, silver lined
+78263|s|B6C4B2|3|SL,SG|green 1 dyed crystal, silver lined
+78264|s|86BEB8|3|SL,SG|green 1 dyed crystal, silver lined
+78265|s|74C1C0|3|SL,SG|green 1 dyed crystal, silver lined
+78281|s|DBC483|3|SL,SG|yellow 1 dyed crystal, silver lined
+78282|s|EFCD9A|3|SL,SG|yellow 1 dyed crystal, silver lined
+78283|s|F2C089|3|SL,SG|orange 1 dyed crystal, silver lined
+78284|s|F1B793|3|SL,SG|orange 1 dyed crystal, silver lined
+78285|s|E0A791|3|SL,SG|orange 1 dyed crystal, silver lined
+78291|s|F6A09B|3|SL,SG|red 1 dyed crystal, silver lined
+78292|s|DA99B8|3|SL,SG|pink 1 dyed crystal, silver lined
+78293|s|E4969C|3|SL,SG|red 1 dyed crystal, silver lined
+78294|s|CA9D98|3|SL,SG|pink 1 dyed crystal, silver lined
+78295|s|BF8D98|3|SL,SG|violet 1 dyed crystal, silver lined
+78358|s|9AE4D0|4|SL,Pe,TD|green pearl dyed crystal, silver lined
+78420|s|E3D5DB|2|Sx|opaque pink, sfinx
+78611|s|A96A4D|3|SL,SG|brown 3 dyed crystal, silver lined
+78612|s|814A34|3|SL,SG|brown 3 dyed crystal, silver lined
+78613|s|7B544C|3|SL,SG|brown 3 dyed crystal, silver lined
+78621|s|6F5F6D|3|SL,SG|violet 3 dyed crystal, silver lined
+78622|s|604657|3|SL,SG|violet 3 dyed crystal, silver lined
+78623|s|5D3062|3|SL,SG|violet 3 dyed crystal, silver lined
+78631|s|515398|3|SL,SG|blue 3 dyed crystal, silver lined
+78632|s|43667F|3|SL,SG|blue 3 dyed crystal, silver lined
+78633|s|357980|3|SL,SG|blue 3 dyed crystal, silver lined
+78634|s|43C0E9|3|SL,SG|blue 3 dyed crystal, silver lined
+78641|s|4A473D|3|SL,SG|grey 3 dyed crystal, silver lined
+78651|s|927439|3|SL,SG|green 3 dyed crystal, silver lined
+78652|s|7B753B|3|SL,SG|green 3 dyed crystal, silver lined
+78653|s|9A9A39|3|SL,SG|green 3 dyed crystal, silver lined
+78654|s|788738|3|SL,SG|green 3 dyed crystal, silver lined
+78661|s|4E7F41|3|SL,SG|green 3 dyed crystal, silver lined
+78662|s|506948|3|SL,SG|green 3 dyed crystal, silver lined
+78663|s|47593D|3|SL,SG|green 3 dyed crystal, silver lined
+78664|s|408264|3|SL,SG|green 3 dyed crystal, silver lined
+78665|s|459491|3|SL,SG|green 3 dyed crystal, silver lined
+78681|s|C4992A|3|SL,SG|yellow 3 dyed crystal, silver lined
+78682|s|D18446|3|SL,SG|yellow 3 dyed crystal, silver lined
+78683|s|E1803B|3|SL,SG|orange 3 dyed crystal, silver lined
+78684|s|D7662E|3|SL,SG|orange 3 dyed crystal, silver lined
+78685|s|AF5530|3|SL,SG|orange 3 dyed crystal, silver lined
+78691|s|D0423C|3|SL,SG|pink 3 dyed crystal, silver lined
+78692|s|BD4479|3|SL,SG|pink 3 dyed crystal, silver lined
+78693|s|A33B3C|3|SL,SG|pink 3 dyed crystal, silver lined
+78694|s|7F443D|3|SL,SG|pink 3 dyed crystal, silver lined
+78695|s|7B4358|3|SL,SG|violet 3 dyed crystal, silver lined
+80010|r|DCAD0A|1||transp. yellow amber
+80060|r|CE7F0C|1||hyacinth
+80358|s|359596|3|CL,SG,TL|blue dyed crystal, colour lined green
+80383|s|C5BAA3|3|CL,SG,TL|blue dyed crystal, colour lined yellow
+80489|s|874D42|3|CL,SG,TL|grey dyed crystal, colour lined orange
+80628|s|7D5572|3|CL,SG,TL|green dyed crystal, colour lined violet
+80658|s|76D1B1|3|CL,SG,TL|green dyed crystal, colour lined green
+80698|s|C7B6B4|3|CL,SG,TL|green dyed crystal, colour lined red
+80836|s|9EB59D|3|CL,SG,TL|yellow dyed crystal, colour lined blue
+80883|s|DAA127|3|CL,SG,TL|yellow dyed crystal, colour lined yellow
+80898|s|F59271|3|CL,SG,TL|yellow dyed crystal, colour lined red
+80936|s|74719E|3|CL,SG,TL|red dyed crystal, colour lined blue
+80998|s|F99FA9|3|CL,SG,TL|red dyed crystal, colour lined red
+81010|s|F1CF1F|2|R|transp. yellow amber, rainbow
+81012|s|69A124|5|CL,Sx|transp. yellow amber, colour lined blue, sfinx
+81014|s|69895B|5|CL,Sx|transp. yellow amber, colour lined blue, sfinx
+81016|s|DC6C29|5|CL,Sx|transp. yellow amber, colour lined pink, sfinx
+81036|s|697E20|3|CL,TL|transp. yellow amber, colour lined blue
+81060|s|F19812|2|R|hyacinth, rainbow
+81358|s|5D9637|2|CL,Sx,TL|transp. yellow amber, colour lined green, sfinx
+81391|s|EC7531|2|CL,Sx,TL|transp. yellow amber, colour lined pink, sfinx
+81393|s|F28437|2|CL,Sx,TL|transp. yellow amber, colour lined red, sfinx
+81733|r|565E3C|1|H|harlequin sapphire-yellow
+81761|r|736D3D|1|H|harlequin aquamarine-yellow
+81797|r|CA3627|1|H|harlequin red-yellow
+83110|r|EFD60A|1||opaque yellow "limon"
+83111|s|DDAC23|2|Lu-yellow-brown|opaque yellow "limon", yellow-brown luster
+83112|s|65442B|2|Lu-lila|opaque yellow "limon", lila luster
+83113|s|6A7229|2|Lu-blue|opaque yellow "limon", blue luster
+83119|s|9A6424|2|Lu-rose|opaque yellow "limon", rose luster
+83130|r|F9D106|1||opaque yellow "limon"
+83730|r|656355|1|H|harlequin yellow-blue
+84110|s|E7CB23|2|R|opaque yellow "limon", rainbow
+84130|s|EDA708|2|R|opaque yellow "limon", rainbow
+85016|s|F2C60F|5|CL|transp. yellow amber, colour lined chalkwhite
+85066|s|F4900A|5|CL|hyacinth, colour lined chalkwhite
+85067|s|F5A841|5|CL,Sx|hyacinth, colour lined chalkwhite, sfinx
+86010|s|CEA725|2|Sx|transp. yellow amber, sfinx
+86060|s|F7B531|2|Sx|hyacinth, sfinx
+87010|s|F6E140|2|SL|transp. yellow amber, silver lined
+87019|s|D0B11D|4|SL,Sx,R|transp. yellow amber, silver lined, rainbow
+87060|s|F0BD35|2|SL|hyacinth, silver lined
+87069|s|EEA837|4|SL,Sx,R|hyacinth, silver lined, rainbow
+87733|s|535431|2|H,SL|harlequin sapphire-yellow, silver lined
+87761|s|736C3C|2|H,SL|harlequin aquamarine-yellow, silver lined
+87797|s|BB4A2F|2|H,SL|harlequin red-yellow, silver lined
+88110|s|ECCC18|2|Sx|opaque yellow "limon", sfinx
+88130|s|FBD81D|2|Sx|opaque yellow "limon", sfinx
+89010|s|825011|4|CuL|transp. yellow amber, copper lined
+89110|s|604F34|2|Tv|travertine on opaque yellow "limon"
+90000|r|E66C11|1||hyacinth
+90030|r|EE412A|1||hyacinth
+90050|r|D2311E|1||transp. lt.red
+90070|r|AB191B|1||transp. red
+90090|r|881517|1||ruby
+90120|r|3D1313|1||garnet
+91000|s|EA7D36|2|R|hyacinth, rainbow
+91004|s|644F48|5|CL,Sx|hyacinth, colour lined blue, sfinx
+91028|s|862014|3|CL,TL|hyacinth, colour lined violet
+91030|s|EC4E35|2|R|hyacinth, rainbow
+91050|s|F14C35|2|R|transp. lt. red, rainbow
+91070|s|F04B54|2|R|transp. red, rainbow
+91090|s|B23648|2|R|ruby, rainbow
+91120|s|8C2538|2|R|garnet, rainbow
+93110|r|F29F08|1||opaque orange
+93140|r|F7651F|1||opaque orange
+93141|s|E2553E|2|Lu-yellow-brown|opaque orange, yellow-brown luster
+93170|r|D6342A|1||opaque red coral
+93190|r|B71F27|1||opaque red coral
+93192|s|5B322D|2|Lu-lila|opaque red coral, lila luster
+93195|s|684842|2|Lu-green|opaque red coral, green luster
+93199|s|90492A|2|Lu-rose|opaque red coral, rose luster
+93210|r|821C1B|1||opaque red coral
+93300|r|5D2728|1||opaque red coral
+93310|r|4D2828|1||opaque red coral
+93870|s|A4332F|3|SG|red dyed coral
+94110|s|E56A09|2|R|opaque orange, rainbow
+94140|s|F0652D|2|R|opaque orange, rainbow
+94170|s|C52C29|2|R|opaque red coral, rainbow
+94190|s|D34952|2|R|opaque red coral, rainbow
+94210|s|902429|2|R|opaque red coral, rainbow
+94300|s|532624|2|R|opaque red coral, rainbow
+94310|s|622229|2|R|opaque red coral, rainbow
+95004|s|D94F0D|4|BrL|hyacinth, colour lined bronze
+95006|s|F96609|5|CL|hyacinth, colour lined chalkwhite
+95036|s|FC5D11|5|CL|hyacinth, colour lined chalkwhite
+95056|s|FC4216|5|CL|transp. lt. red, colour lined chalkwhite
+95074|s|9A211A|4|BrL|transp. red, bronze lined
+95076|s|EE2B27|5|CL|transp. red, colour lined chalkwhite
+96000|s|F18142|2|Sx|hyacinth, sfinx
+96030|s|FB6E2E|2|Sx|hyacinth, sfinx
+96050|s|F76752|2|Sx|transp. lt. red, sfinx
+96070|s|B03E50|2|Sx|transp. red, sfinx
+96090|s|BB484F|2|Sx|ruby, sfinx
+96120|s|7F3445|2|Sx|garnet, sfinx
+97000|s|F6AF4D|2|SL|hyacinth, silver lined
+97009|s|ED814B|4|SL,Sx,R|hyacinth, silver lined, rainbow
+97050|s|ED7A5F|2|SL|transp. lt. red, silver lined
+97070|s|95201F|2|SL|transp. red, silver lined
+97079|s|CB6C6C|4|SL,Sx,R|transp. red, silver lined, rainbow
+97090|s|D08483|2|SL|ruby, silver lined
+97120|s|8C6663|2|SL|garnet, silver lined
+97512|s|9F8882|4|CuL,R,SG|pink dyed crystal, copper lined, rainbow
+97522|s|5D4140|4|CuL,R,SG|pink dyed crystal, copper lined, rainbow
+98110|s|FDA033|2|Sx|opaque orange, sfinx
+98140|s|E97D4D|2|Sx|opaque orange, sfinx
+98170|s|E83D43|2|Sx|opaque red coral, sfinx
+98190|s|AD4755|2|Sx|opaque red coral, sfinx
+98210|s|A13646|2|Sx|opaque red coral, sfinx
+98300|s|5B3840|2|Sx|opaque red coral, sfinx
+98310|s|76303E|2|Sx|opaque red coral, sfinx
+99110|s|4D2E1B|2|Tv|travertine on opaque orange
+99190|s|472B22|2|Tv|travertine on opaque red coral
+B2805|s|989BE7|5|Sx,SG|violet dyed chalkwhite, sfinx

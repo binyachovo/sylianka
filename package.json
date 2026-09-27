@@ -1,14 +1,15 @@
 {
   "name": "sylianka",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Трафарет силянки: сітка для розфарбовування бісерин, підрахунок і друк",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "catalog": "node scripts/build-catalog.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

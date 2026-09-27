@@ -1,8 +1,13 @@
+import { customIdsIn, customsForFile } from "./colors";
 import { sanitizeProjectData, type Project, type ProjectData } from "./projects";
 
-/** Формат файлу трафарету. Номер формату дозволить змінювати структуру без втрати старих файлів. */
+/**
+ * Формат файлу трафарету. Номер формату дозволяє змінювати структуру без втрати старих файлів:
+ *   1 — кольори бісерин як HEX (до каталогу Preciosa);
+ *   2 — ідентифікатори кольорів, палітра трафарету й дані своїх кольорів.
+ */
 const APP = "sylianka";
-const FORMAT = 1;
+const FORMAT = 2;
 
 export function serializeProject(p: Project): string {
   const data = {
@@ -13,10 +18,12 @@ export function serializeProject(p: Project): string {
       rows: p.rows,
       cols: p.cols,
       side: p.side,
+      palette: p.palette,
       fills: p.fills,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
-    }
+    },
+    colors: customsForFile(customIdsIn(p.fills, p.palette))
   };
   return JSON.stringify(data, null, 1);
 }
@@ -26,8 +33,16 @@ export function fileNameFor(p: Project): string {
   return `${base}.sylianka.json`;
 }
 
+export interface ParsedFile {
+  data: ProjectData;
+  /** Свої кольори з файлу (формат 2). */
+  colors: unknown;
+  /** true — старий файл, кольори бісерин у HEX. */
+  legacyHex: boolean;
+}
+
 /** Розбирає вміст файлу. Кидає помилку з поясненням українською. */
-export function parseProjectFile(text: string, fileName: string): ProjectData {
+export function parseProjectFile(text: string, fileName: string): ParsedFile {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -38,13 +53,15 @@ export function parseProjectFile(text: string, fileName: string): ProjectData {
   if (!o || typeof o !== "object" || o.app !== APP || typeof o.project !== "object") {
     throw new Error("Це не файл трафарету силянки.");
   }
-  if (typeof o.format === "number" && o.format > FORMAT) {
+  const format = typeof o.format === "number" ? o.format : 1;
+  if (format > FORMAT) {
     throw new Error("Файл зроблено новішою версією програми. Оновіть сторінку й спробуйте ще раз.");
   }
+  const legacyHex = format < 2;
   const fallback = fileName.replace(/\.sylianka\.json$|\.json$/i, "").trim() || "Трафарет з файлу";
-  const data = sanitizeProjectData(o.project, fallback);
+  const data = sanitizeProjectData(o.project, fallback, legacyHex ? "hex" : "id");
   if (!data) throw new Error("Файл пошкоджений: у ньому немає розмірів трафарету.");
-  return data;
+  return { data, colors: legacyHex ? [] : o.colors, legacyHex };
 }
 
 interface SavePickerOptions {

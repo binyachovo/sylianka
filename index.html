@@ -37,8 +37,8 @@
     </section>
 
     <section class="bar" aria-label="Налаштування">
-      <div class="grp">
-        <span class="glabel" id="l-color">Колір: <b id="cur-name">червоний</b></span>
+      <div class="grp grp-colors">
+        <span class="glabel" id="l-color">Кольори трафарету · зараз: <b id="cur-name">не вибрано</b></span>
         <div class="palette" id="palette" role="group" aria-labelledby="l-color"></div>
       </div>
 
@@ -103,8 +103,8 @@
       </div>
     </section>
 
-    <p class="warn" id="warn" hidden>Найбільше — 400 ромбів з кожного боку й до 12 000 ромбів разом, щоб програма не зависала.</p>
-    <p class="hint">Клік по бісеринці зафарбовує її, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Номери зліва — ряди, згори — ромби по довжині.</p>
+    <p class="warn" id="warn" role="status" hidden></p>
+    <p class="hint">Клік по бісеринці зафарбовує її поточним кольором, повторний клік тим самим кольором стирає. Мишею можна малювати, ведучи з натиснутою кнопкою. Наведіть на бісеринку — побачите її колір і код. Номери зліва — ряди, згори — ромби по довжині.</p>
 
     <section class="board" aria-label="Трафарет">
       <div class="scroller">
@@ -113,13 +113,18 @@
       </div>
     </section>
 
-    <section class="stats" aria-label="Підрахунок бісеру">
-      <span class="stat">Усього бісерин: <b id="st-total">—</b></span>
-      <span class="stat">На один ромб довжини: <b id="st-step">—</b></span>
+    <section class="stats" aria-labelledby="stats-title">
+      <div class="stats-head">
+        <h2 class="stats-title" id="stats-title">Бісер для трафарету</h2>
+        <span class="stat">Усього бісерин: <b id="st-total">—</b></span>
+        <span class="stat">На один ромб довжини: <b id="st-step">—</b></span>
+        <button type="button" class="tbtn danger" id="clear">Стерти все</button>
+      </div>
       <ul class="counts" id="st-colors"></ul>
-      <button type="button" class="tbtn danger" id="clear">Стерти все</button>
     </section>
   </main>
+
+  <div class="tip" id="tip" role="tooltip" hidden></div>
 
   <div class="clean-bar" id="clean-bar">
     <label class="check"><input type="checkbox" id="two-float"> Два на аркуші</label>
@@ -147,6 +152,36 @@
       </div>
       <p class="dlg-note" id="dlg-note" hidden></p>
       <ul class="cards" id="project-list"></ul>
+    </div>
+  </dialog>
+
+  <dialog class="dlg dlg-catalog" id="catalog-dlg" aria-labelledby="catalog-title">
+    <div class="dlg-inner cat">
+      <div class="dlg-head">
+        <h2 id="catalog-title">Кольори</h2>
+        <div class="row">
+          <button type="button" class="tbtn primary" id="catalog-done">Готово</button>
+          <button type="button" class="tbtn icon-btn" id="catalog-close" aria-label="Закрити">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8"/><path d="M12 4l-8 8"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="cat-tools">
+        <label class="cat-search">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></svg>
+          <input type="search" id="cat-search" placeholder="Код або назва, напр. 23980 чи срібна" autocomplete="off" spellcheck="false" aria-label="Пошук кольору за кодом або назвою">
+        </label>
+        <span class="cat-found" id="cat-found" aria-live="polite"></span>
+        <button type="button" class="tbtn small" id="cf-new">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10"/><path d="M3 8h10"/></svg>
+          Свій колір
+        </button>
+        <span class="cat-src">Preciosa, рокайль 10/0, круглий</span>
+      </div>
+      <div class="cat-filters" id="cat-filters" role="group" aria-label="Групи кольорів"></div>
+      <div class="cat-chosen" id="cat-chosen"></div>
+      <p class="cat-empty" id="cat-empty" hidden>Нічого не знайдено. Спробуйте інший код або частину назви.</p>
+      <div class="cat-body" id="cat-body"></div>
     </div>
   </dialog>
 

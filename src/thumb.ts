@@ -1,7 +1,13 @@
 import { BEAD_R, type Geometry } from "./geometry";
 
 /** Невелика картинка трафарету для списку «Мої трафарети». */
-export function makeThumb(geom: Geometry, fills: Record<string, string>, maxW = 260, maxH = 130): string {
+export function makeThumb(
+  geom: Geometry,
+  fills: Record<string, string>,
+  hexOf: (id: string) => string,
+  maxW = 260,
+  maxH = 130
+): string {
   const e = BEAD_R + 1;
   const w = geom.width + 2 * e;
   const h = geom.height + 2 * e;
@@ -17,9 +23,10 @@ export function makeThumb(geom: Geometry, fills: Record<string, string>, maxW = 
   ctx.fillRect(0, 0, w, h);
   ctx.translate(e, e);
   for (const b of geom.beads) {
+    const id = fills[b.k];
     ctx.beginPath();
     ctx.arc(b.x, b.y, BEAD_R, 0, Math.PI * 2);
-    ctx.fillStyle = fills[b.k] ?? "#E4E7E1";
+    ctx.fillStyle = id ? hexOf(id) : "#E4E7E1";
     ctx.fill();
   }
   const webp = canvas.toDataURL("image/webp", 0.85);
