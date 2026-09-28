@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { GAP_UNIT, knotLine } from "../src/geometry";
+import { GAP_UNIT, buildGeometry, knotLine } from "../src/geometry";
 import {
   DEFAULT_REPEAT,
   DEFAULT_SIDE,
+  MAX_BEADS,
+  beadTotal,
+  beadsFit,
   fitSize,
   hasShape,
   maxCells,
@@ -86,10 +89,9 @@ describe("перевірка даних трафарету", () => {
     }
   });
 
-  it("половини рядів: від 2 до кількості бісерин на сторону, незрозуміле — як у трафареті", () => {
-    expect(sanitizeShape({ "4": [4, 3, 2, 1, 5, 2.5, "3", 3, 4, 4], "3": [3, 3], "11": [2], x: [2], "5": "2" })).toEqual({
-      "4": [4, 3, 2, 4, 4, 4, 4, 3]
-    });
+  it("половини рядів: від 2 до 10 бісерин на сторону, незрозуміле — як у трафареті", () => {
+    const raw = { "4": [4, 3, 2, 1, 5, 10, 11, 2.5, "3", 3, 4, 4], "3": [3, 3], "11": [2], x: [2], "5": "2" };
+    expect(sanitizeShape(raw)).toEqual({ "4": [4, 3, 2, 4, 5, 10, 4, 4, 4, 3] });
     expect(sanitizeShape(null)).toEqual({});
     expect(sanitizeShape({ "3": new Array(1000).fill(2) })["3"].length).toBe(800);
     expect(hasShape({ shape: { "4": [4, 3] } })).toBe(true);
@@ -97,6 +99,30 @@ describe("перевірка даних трафарету", () => {
     const d = sanitizeProjectData({ rows: 2, cols: 3, side: 4, shape: { "4": [4, 3] } }, "x", "id");
     expect(d?.shape).toEqual({ "4": [4, 3] });
     expect(sanitizeProjectData({ rows: 2, cols: 3 }, "x", "id")?.shape).toEqual({});
+  });
+
+  it("бісерин разом — як у сітці; вставлені рядки бісерин не роблять трафарет завеликим", () => {
+    for (const [rows, cols, side, shape] of [
+      [3, 5, 4, []],
+      [2, 4, 3, [3, 5, 2, 10]],
+      [4, 2, 10, [9, 10, 2]]
+    ] as const) {
+      expect(beadTotal(rows, cols, side, shape)).toBe(buildGeometry(cols, rows, side, undefined, shape).beads.length);
+    }
+    // 30 × 400 ромбів по 3 бісерини на сторону — можна; якщо в кожній половині ряду 10 — лише 127 ромбів довжини.
+    const p = { rows: 30, cols: 400, side: 3, shape: { "3": new Array(60).fill(10) } };
+    expect(beadsFit(30, 400, 3, [])).toBe(true);
+    expect(beadsFit(30, 400, 3, p.shape["3"])).toBe(false);
+    fitSize(p);
+    expect([p.rows, p.cols]).toEqual([30, 127]);
+    expect(beadTotal(30, 127, 3, p.shape["3"])).toBeLessThanOrEqual(MAX_BEADS);
+    // Візерунок для іншої кількості бісерин на сторону не заважає; без вставлених рядків — як раніше.
+    const q = { rows: 30, cols: 400, side: 4, shape: { "3": new Array(60).fill(10) } };
+    fitSize(q);
+    expect(q.cols).toBe(Math.floor(maxCells(4) / 30));
+    const big = { rows: 10, cols: 400, side: 10, shape: {} };
+    fitSize(big);
+    expect(big.cols).toBe(Math.floor(maxCells(10) / 10));
   });
 
   it("не трафарет — null", () => {

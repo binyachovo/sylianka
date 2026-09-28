@@ -1,4 +1,4 @@
-import { GAP_UNIT, knotLine, type Gaps } from "./geometry";
+import { GAP_UNIT, beadsPerStep, knotLine, type Gaps } from "./geometry";
 import { clamp } from "./util";
 
 /** Бісерин на сторону ромба разом із вузловими: від MIN_BEADS_SIDE до MAX_BEADS_SIDE. */
@@ -12,8 +12,8 @@ export type Woven = Record<SideKey, string[]>;
 /**
  * Бісерин на сторону ромбів у кожній половині ряду (окремо для кожної кількості бісерин на сторону):
  * [верхня половина ряду 1, нижня половина ряду 1, верхня ряду 2, …]. Коли видаляють рядок бісерин,
- * у його половині ряду на сторонах ромбів стає на бісерину менше. Чого в списку немає — як у всьому
- * трафареті (див. sideAt у geometry.ts); порожній запис — усі ромби однакові.
+ * у його половині ряду на сторонах ромбів стає на бісерину менше, коли вставляють — більше. Чого в списку
+ * немає — як у всьому трафареті (див. sideAt у geometry.ts); порожній запис — усі ромби однакові.
  */
 export type Shapes = Record<SideKey, number[]>;
 
@@ -38,7 +38,7 @@ export interface ProjectData {
   gaps: Gaps;
   /** Крок повтору візерунка, ромбів: для «Повтору» й «Розмножити». */
   repeat: number;
-  /** Половини рядів з меншою кількістю бісерин на сторону (див. Shapes). */
+  /** Половини рядів з іншою кількістю бісерин на сторону (див. Shapes). */
   shape: Shapes;
 }
 
@@ -55,12 +55,26 @@ export interface Project extends ProjectData {
 export const MAX_SIDE = 400;
 export const MAX_CELLS = 12000;
 /** Скільки приблизно бісерин може бути в трафареті, щоб програма не гальмувала. */
-const MAX_BEADS = 130000;
+export const MAX_BEADS = 130000;
 
 /** Найбільше ромбів разом для side бісерин на сторону: кожен ромб додає ≈ 4·(side − 2) + 2 бісерини. */
 export function maxCells(side: Side): number {
   return Math.min(MAX_CELLS, Math.floor(MAX_BEADS / (4 * (side - 2) + 2)));
 }
+
+/** Скільки бісерин у трафареті rows × cols для side бісерин на сторону з половинами рядів shape. */
+export function beadTotal(rows: number, cols: number, side: Side, shape: readonly number[] = []): number {
+  return cols * beadsPerStep(rows, side, shape) + rows;
+}
+
+/**
+ * Чи не забагато бісерин через вставлені рядки бісерин: з ними трафарет не більший за MAX_BEADS бісерин
+ * (а якщо й без них більший — то не більший, ніж без них). Кількість ромбів обмежує maxCells.
+ */
+export function beadsFit(rows: number, cols: number, side: Side, shape: readonly number[]): boolean {
+  return beadTotal(rows, cols, side, shape) <= Math.max(MAX_BEADS, beadTotal(rows, cols, side));
+}
+
 export const MAX_PALETTE = 300;
 export const MAX_WOVEN = 200000;
 export const DEFAULT_ROWS = 8;
@@ -90,10 +104,13 @@ export function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function fitSize(p: { rows: number; cols: number; side: Side }): void {
+export function fitSize(p: { rows: number; cols: number; side: Side; shape?: Shapes }): void {
   const cells = maxCells(p.side);
   p.rows = clamp(Math.round(p.rows), 1, Math.min(MAX_SIDE, cells));
   p.cols = clamp(Math.round(p.cols), 1, Math.min(MAX_SIDE, Math.floor(cells / p.rows)));
+  // Із вставленими рядками бісерин кожен ромб довжини має більше бісерин.
+  const shape = p.shape?.[sideKey(p.side)] ?? [];
+  while (p.cols > 1 && !beadsFit(p.rows, p.cols, p.side, shape)) p.cols--;
 }
 
 export function blankProject(name: string): Project {
@@ -146,7 +163,7 @@ export function sanitizeRepeat(raw: unknown): number {
 }
 
 /**
- * Перевіряє половини рядів: для кожної кількості бісерин на сторону — цілі від MIN_BEADS_SIDE до неї самої
+ * Перевіряє половини рядів: для кожної кількості бісерин на сторону — цілі від MIN_BEADS_SIDE до MAX_BEADS_SIDE
  * (незрозуміле — як у всьому трафареті), не довше за 2·MAX_SIDE. Однакові з трафаретом у кінці списку
  * відкидаються, порожні списки — теж.
  */
@@ -158,7 +175,7 @@ export function sanitizeShape(raw: unknown): Shapes {
     const side = Number(key);
     const list = src
       .slice(0, 2 * MAX_SIDE)
-      .map((v): number => (typeof v === "number" && Number.isInteger(v) && v >= MIN_BEADS_SIDE && v <= side ? v : side));
+      .map((v): number => (isSide(v) ? v : side));
     while (list.length > 0 && list[list.length - 1] === side) list.pop();
     if (list.length > 0) out[key] = list;
   }

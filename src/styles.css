@@ -504,7 +504,7 @@ body.clean .stencil .ring { visibility: hidden !important; }
 .stencil .gap-guide.del { stroke: var(--danger); }
 #strip .gap-guide.on { visibility: visible; }
 body.clean .stencil .gap-guide { visibility: hidden !important; }
-/* Смуга «це буде видалено» (режими «Видалити ряд» і «Видалити стовпець») */
+/* Смуга «це буде видалено» (режими «Видалити ряд», «Видалити рядок», «Видалити стовпець»); синя — «сюди стане новий рядок» */
 .stencil .cut-band {
   fill: var(--danger);
   fill-opacity: 0.13;
@@ -514,6 +514,7 @@ body.clean .stencil .gap-guide { visibility: hidden !important; }
   pointer-events: none;
   visibility: hidden;
 }
+.stencil .cut-band.ins { fill: var(--accent); fill-opacity: 0.16; stroke: var(--accent); }
 #strip .cut-band.on { visibility: visible; }
 body.clean .stencil .cut-band { visibility: hidden !important; }
 /* Плетіння: нанизані приглушені (заливку змішує код) */

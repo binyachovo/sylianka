@@ -1,4 +1,4 @@
-import type { CutAxis, CutRemoved, LineRemoved } from "./cut";
+import type { CutAxis, CutRemoved, LineInserted, LineRemoved } from "./cut";
 import type { Gaps } from "./geometry";
 import type { Fills, Side, SideKey } from "./projects";
 
@@ -13,6 +13,11 @@ export type Action =
   | { kind: "cut"; axis: CutAxis; n: number; size: [number, number]; removed: CutRemoved }
   /** Видалено рядок бісерин j у половині ряду h візерунка side (див. cutLine). */
   | { kind: "cutline"; side: SideKey; h: number; j: number; removed: LineRemoved }
+  /**
+   * Вставлено порожній рядок бісерин j у половину ряду h візерунка side (див. insertLine); removed — що було
+   * на ньому, коли вставку скасували (для «Повторити»).
+   */
+  | { kind: "insline"; side: SideKey; h: number; j: number; before: LineInserted; removed?: LineRemoved }
   /** Позначено нанизаними (додано в кінець набору в цьому порядку). */
   | { kind: "mark"; side: SideKey; keys: string[] }
   /** Знято позначки: [позиція в наборі на момент зняття, ключ] у порядку зняття. */
