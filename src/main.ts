@@ -11,7 +11,7 @@ import "./styles.css";
 import { registerSW } from "virtual:pwa-register";
 import { fmtGrams, gramsFor } from "./buy";
 import { initCatalogDialog } from "./catalogDialog";
-import { cutGrid, uncutGrid, type CutAxis } from "./cut";
+import { cutGrid, cutLine, insertLine, uncutGrid, uncutLine, uninsertLine, type CutAxis } from "./cut";
 import {
   adoptCustomColors,
   colorTitle,
@@ -56,22 +56,27 @@ import {
   type Frame
 } from "./print";
 import {
+  MAX_BEADS,
   MAX_BEADS_SIDE,
   MAX_PALETTE,
   MAX_SIDE,
   MIN_BEADS_SIDE,
+  beadsFit,
   blankProject,
   cloneFills,
   cloneGaps,
+  cloneShapes,
   emptyWoven,
   ensureFields,
   fitSize,
   forgetV1,
+  hasShape,
   isLegacyProject,
   maxCells,
   migrateV1,
   newId,
   nextName,
+  shapeOf,
   sideKey,
   type Project,
   type Side
@@ -106,7 +111,9 @@ const gutT = (): number => 20 * labelScale(project.side);
 const PAD = 9;
 
 const settings = loadSettings();
-const ui = { erase: false, fill: false, clean: false, cut: null as CutAxis | null };
+/** Що робить клік у режимі зміни сітки: видаляє ряд ромбів, стовпець ромбів чи один рядок бісерин або вставляє рядок. */
+type CutMode = CutAxis | "line" | "ins";
+const ui = { erase: false, fill: false, clean: false, cut: null as CutMode | null };
 /** «Скасувати» в малюванні й у плетінні — окремі: кожне скасовує лише свої дії. */
 const drawHistory = new History(200);
 const weaveHistory = new History(200);
@@ -122,6 +129,8 @@ const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
 const fillBtn = $<HTMLButtonElement>("#fill");
 const cutRowBtn = $<HTMLButtonElement>("#cut-row");
+const cutLineBtn = $<HTMLButtonElement>("#cut-line");
+const insLineBtn = $<HTMLButtonElement>("#ins-line");
 const cutColBtn = $<HTMLButtonElement>("#cut-col");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
 const mirrorLrBtn = $<HTMLButtonElement>("#mirror-lr");
@@ -178,7 +187,7 @@ let ringHover: SVGElement | null = null;
 let ringLast: SVGElement | null = null;
 /** Лінія-підказка «тут буде проміжок», коли миша між номерами ромбів чи рядів. */
 let gapGuide: SVGElement | null = null;
-/** Смуга «це буде видалено» в режимі видалення ряду чи стовпця. */
+/** Смуга «це буде видалено» в режимі видалення ряду, стовпця чи рядка бісерин. */
 let cutBand: SVGElement | null = null;
 /** Група шляху набору (запам'ятовуємо: пошук у сітці з десятків тисяч бісерин повільний). */
 let pathGroup: SVGElement | null = null;
@@ -276,15 +285,14 @@ function showWarn(text: string, ms = 7000): void {
 /* ---------- Малювання сітки ---------- */
 
 /** Нитки: одна пряма на сторону ромба, а якщо сторона перетинає проміжок — ламана через її бісерини. */
-function threadPath(edges: Edge[], H: number, keep: (e: Edge) => boolean = () => true): string {
+function threadPath(edges: Edge[], keep: (e: Edge) => boolean = () => true): string {
   let d = "";
   for (const e of edges) {
     if (!keep(e)) continue;
     const p = e.pts;
     const n = p.length;
     d += `M${r2(p[0])} ${r2(p[1])}`;
-    const straight =
-      Math.abs(p[n - 2] - p[0] - (e.lx1 - e.lx0) * H) < 1e-6 && Math.abs(p[n - 1] - p[1] - (e.ly1 - e.ly0) * H) < 1e-6;
+    const straight = Math.abs(p[n - 2] - p[0] - e.dx) < 1e-6 && Math.abs(p[n - 1] - p[1] - e.dy) < 1e-6;
     if (straight) d += `L${r2(p[n - 2])} ${r2(p[n - 1])}`;
     else for (let i = 2; i < n; i += 2) d += `L${r2(p[i])} ${r2(p[i + 1])}`;
   }
@@ -312,7 +320,7 @@ function underParts(): string {
   if (!geom) return "";
   const { H, width: W, height: HT, px, py } = geom;
   const parts: string[] = [];
-  parts.push(`<path class="thread" d="${threadPath(geom.edges, H)}"/>`);
+  parts.push(`<path class="thread" d="${threadPath(geom.edges)}"/>`);
   // Осі дзеркал — посередині висоти й довжини (якщо там проміжок — посередині проміжку).
   const axisY = r2((py(project.rows) + py(project.rows + 1e-3) - 1e-3 * H) / 2);
   const axisX = r2((px(project.cols) + px(project.cols + 1e-3) - 1e-3 * H) / 2);
@@ -323,8 +331,12 @@ function underParts(): string {
   return parts.join("");
 }
 
+/** Сітка відкритого трафарету для поточної кількості бісерин на сторону. */
+const currentGeometry = (): Geometry =>
+  buildGeometry(project.cols, project.rows, project.side, project.gaps, shapeOf(project, project.side));
+
 function render(): void {
-  geom = buildGeometry(project.cols, project.rows, project.side, project.gaps);
+  geom = currentGeometry();
   const vb = frameGeometry();
 
   const existing = new Set(geom.beads.map((b) => b.k));
@@ -390,7 +402,7 @@ function render(): void {
  */
 function relayout(): void {
   const old = geom;
-  geom = buildGeometry(project.cols, project.rows, project.side, project.gaps);
+  geom = currentGeometry();
   if (!old || !underGroup || !hitRect || old.beads.length !== geom.beads.length) {
     render();
     return;
@@ -594,7 +606,7 @@ function tableMm(): number {
  */
 function stripSvg(c0: number, c1: number, labels: boolean, scale: number): string {
   if (!geom) return "";
-  const { H, height: HT, px, py } = geom;
+  const { height: HT } = geom;
   const x0 = stripStart(geom, c0);
   const x1 = stripEnd(geom, c1);
   const lo = 2 * c0 - 1e-9;
@@ -620,7 +632,7 @@ function stripSvg(c0: number, c1: number, labels: boolean, scale: number): strin
     pts[pts.length - 2] += b;
     edges.push({ ...e, pts });
   }
-  parts.push(`<path class="thread" d="${threadPath(edges, H)}"/>`);
+  parts.push(`<path class="thread" d="${threadPath(edges)}"/>`);
   if (labels) parts.push(numberLabels(c0, c1, x0));
   const f = fills();
   for (const b of geom.beads) {
@@ -871,7 +883,7 @@ function updateStats(): void {
   const c = colorCounts();
   const { used, counts, done, empty, emptyDone } = c;
   $("#st-total").textContent = num(beadEls.size);
-  $("#st-step").textContent = num(beadsPerStep(project.rows, project.side));
+  $("#st-step").textContent = num(beadsPerStep(project.rows, project.side, shapeOf(project, project.side)));
 
   countsList.innerHTML =
     used.map((id) => countRow(id, counts.get(id) ?? 0, done.get(id) ?? 0)).join("") + countRow(null, empty, emptyDone);
@@ -974,6 +986,13 @@ function renderPalette(): void {
   syncTools();
 }
 
+const CUT_NAMES: Record<CutMode, string> = {
+  row: "видалення ряду",
+  line: "видалення рядка бісерин",
+  ins: "вставка рядка бісерин",
+  col: "видалення стовпця"
+};
+
 function syncTools(): void {
   for (const b of $$<HTMLButtonElement>("button.pill", pal)) {
     b.setAttribute("aria-pressed", String(!ui.erase && !ui.cut && b.dataset.id === settings.color));
@@ -981,6 +1000,8 @@ function syncTools(): void {
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
   fillBtn.setAttribute("aria-pressed", String(ui.fill));
   cutRowBtn.setAttribute("aria-pressed", String(ui.cut === "row"));
+  cutLineBtn.setAttribute("aria-pressed", String(ui.cut === "line"));
+  insLineBtn.setAttribute("aria-pressed", String(ui.cut === "ins"));
   cutColBtn.setAttribute("aria-pressed", String(ui.cut === "col"));
   svg.classList.toggle("cutting", ui.cut !== null && !settings.weave);
   svg.classList.toggle("filling", ui.fill && !settings.weave);
@@ -993,7 +1014,7 @@ function syncTools(): void {
   svg.classList.toggle("repeat-on", settings.repeat && !settings.weave);
   const cur = $("#cur-name");
   const brush = ui.erase ? "гумка" : settings.color ? fullLabel(colorView(settings.color)) : "не вибрано";
-  if (ui.cut) cur.textContent = ui.cut === "row" ? "видалення ряду" : "видалення стовпця";
+  if (ui.cut) cur.textContent = CUT_NAMES[ui.cut];
   else cur.textContent = ui.fill ? (ui.erase ? "заливка гумкою" : `заливка — ${brush}`) : brush;
 }
 
@@ -1267,11 +1288,14 @@ function beadAt(e: { clientX: number; clientY: number }): string | null {
   return i >= 0 ? geom.beads[i].k : null;
 }
 
-/* ---------- Видалення ряду чи стовпця ---------- */
+/* ---------- Видалення ряду, стовпця чи рядка бісерин, вставка рядка ---------- */
 
 /** Межі смуг видалення на екрані для поточної сітки (див. cutBounds). */
 let cutBoundsCache: { axis: CutAxis; bounds: number[] } | null = null;
-/** Ряд чи стовпець (з 1), підсвічений під мишею. */
+/**
+ * Під мишею: ряд чи стовпець (з 1) або рядок бісерин, який можна видалити (номер у geom.ylines),
+ * а у вставці — місце між рядками бісерин i та i + 1.
+ */
 let cutHover: number | null = null;
 
 /**
@@ -1282,21 +1306,85 @@ let cutHover: number | null = null;
 function cutBounds(axis: CutAxis): number[] {
   if (!geom) return [];
   if (cutBoundsCache?.axis === axis) return cutBoundsCache.bounds;
+  const g = geom;
   const n = axis === "col" ? project.cols : project.rows;
-  const pos = axis === "col" ? geom.px : geom.py;
-  const s = geom.step / GAP_UNIT;
+  const pos = axis === "col" ? g.px : g.py;
+  // Перша лінія бісерин після межі: по ширині крок однаковий, по висоті — свій у кожній половині ряду.
+  const next = (j: number): number => 2 * j + (axis === "col" ? g.step / GAP_UNIT : 1 / (g.halfSide[2 * j] - 1));
   const bounds: number[] = [];
-  for (let j = 0; j < n; j++) bounds.push((pos(2 * j) + pos(2 * j + s)) / 2);
+  for (let j = 0; j < n; j++) bounds.push((pos(2 * j) + pos(next(j))) / 2);
   bounds.push(pos(2 * n) + BEAD_R + 1.5);
   cutBoundsCache = { axis, bounds };
   return bounds;
 }
 
-/** Ряд чи стовпець (з 1) під курсором у режимі видалення, або null. */
+/** Екранне y рядка бісерин i (номер у geom.ylines). */
+const lineY = (i: number): number => (geom ? geom.py(geom.ylines[i] / GAP_UNIT) : 0);
+
+/** Рядок бісерин (номер у geom.ylines), найближчий до екранного y, або null поза сіткою. */
+function lineNear(y: number): number | null {
+  if (!geom) return null;
+  const last = geom.ylines.length - 1;
+  if (y < lineY(0) - BEAD_R - 1.5 || y > lineY(last) + BEAD_R + 1.5) return null;
+  let lo = 0;
+  let hi = last;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (lineY(mid) < y) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo > 0 && y - lineY(lo - 1) < lineY(lo) - y ? lo - 1 : lo;
+}
+
+/** Рядок бісерин i як половина ряду h, номер лінії в ній j (з вузлових угорі) і скільки в ній бісерин на сторону s. */
+function lineAt(i: number): { h: number; j: number; s: number } | null {
+  if (!geom || i < 0 || i >= geom.ylines.length - 1) return null;
+  const v = geom.ylines[i];
+  const h = Math.floor(v / GAP_UNIT);
+  const s = geom.halfSide[h];
+  return { h, j: Math.round(((v - h * GAP_UNIT) * (s - 1)) / GAP_UNIT), s };
+}
+
+/** Рядок бісерин i, який можна видалити (див. lineAt). null — це вузлові бісерини (їх не видаляють). */
+function lineTarget(i: number): { h: number; j: number; s: number } | null {
+  const t = lineAt(i);
+  return t && t.j >= 1 && t.j <= t.s - 2 ? t : null;
+}
+
+/** Місце вставки для екранного y: номер i рядка бісерин над ним (новий стане між i та i + 1); null — поза сіткою. */
+function slotNear(y: number): number | null {
+  if (!geom) return null;
+  const last = geom.ylines.length - 1;
+  if (y < lineY(0) || y > lineY(last)) return null;
+  let lo = 0;
+  let hi = last - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (lineY(mid) <= y) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+/**
+ * Вставка між рядками бісерин i та i + 1: половина ряду h, номер нового рядка в ній j і скільки в ній
+ * бісерин на сторону s зараз (див. insertLine). Рядок i — це лінія j − 1 тієї самої половини.
+ */
+function slotTarget(i: number): { h: number; j: number; s: number } | null {
+  const t = lineAt(i);
+  return t && { ...t, j: t.j + 1 };
+}
+
+/**
+ * Під курсором у режимі зміни сітки: ряд чи стовпець (з 1), рядок бісерин (номер у geom.ylines)
+ * або місце вставки (див. slotNear); null — нічого.
+ */
 function cutTargetAt(e: { clientX: number; clientY: number }): number | null {
   if (!geom || !ui.cut || ui.clean || settings.weave) return null;
   const pt = svgPoint(e);
   if (!pt) return null;
+  if (ui.cut === "line") return lineNear(pt.y);
+  if (ui.cut === "ins") return slotNear(pt.y);
   const b = cutBounds(ui.cut);
   const p = ui.cut === "col" ? pt.x : pt.y;
   if (p < -BEAD_R - 1.5 || p > b[b.length - 1]) return null;
@@ -1310,34 +1398,69 @@ function cutTargetAt(e: { clientX: number; clientY: number }): number | null {
   return lo;
 }
 
+/** «2 бісерини», «5 бісерин». */
+const beadsWord = (n: number): string => `${n} ${plural(n, "бісерина", "бісерини", "бісерин")}`;
+
+const KNOT_LINE = "Вузлові бісерини не видаляються: на них тримаються ромби. Цілий ряд ромбів — «Видалити ряд».";
+const FULL_HALF = `Тут уже ${MAX_BEADS_SIDE} бісерин на сторону ромба — більше не буває, тож рядок не вставити.`;
+
+/** «у ряду 3 на верхніх сторонах ромбів» — де змінюється кількість бісерин для половини ряду h. */
+const halfWhere = (h: number): string =>
+  `у ряду ${Math.floor(h / 2) + 1} на ${h % 2 === 0 ? "верхніх" : "нижніх"} сторонах ромбів`;
+
 function cutText(n: number | null): string | null {
   if (n === null || !ui.cut) return null;
+  if (ui.cut === "line") {
+    const t = lineTarget(n);
+    if (!t) return KNOT_LINE;
+    return `Клік — видалити рядок бісерин: ${halfWhere(t.h)} буде ${beadsWord(t.s - 1)} замість ${t.s}`;
+  }
+  if (ui.cut === "ins") {
+    const t = slotTarget(n);
+    if (!t) return null;
+    if (t.s >= MAX_BEADS_SIDE) return FULL_HALF;
+    return `Клік — вставити сюди порожній рядок бісерин: ${halfWhere(t.h)} буде ${beadsWord(t.s + 1)} замість ${t.s}`;
+  }
   if (ui.cut === "row") return project.rows < 2 ? "Єдиний ряд видалити не можна" : `Клік — видалити ряд ${n}`;
   return project.cols < 2 ? "Єдиний стовпець видалити не можна" : `Клік — видалити стовпець ${n}`;
 }
 
-/** Підсвічує ряд чи стовпець, який видалить клік. */
+/** Підсвічує ряд, стовпець чи рядок бісерин, який видалить клік (вузлові рядки — ні), або місце вставки рядка. */
 function setCutHover(n: number | null): void {
+  if (ui.cut === "line" && n !== null && !lineTarget(n)) n = null;
+  if (ui.cut === "ins" && n !== null && (slotTarget(n)?.s ?? MAX_BEADS_SIDE) >= MAX_BEADS_SIDE) n = null;
   if (n === cutHover) return;
   cutHover = n;
   if (cutBand && geom && n !== null && ui.cut) {
-    const b = cutBounds(ui.cut);
-    const [a0, a1] = [b[n - 1], b[n]];
     const set = (x: number, y: number, w: number, h: number): void => {
       cutBand?.setAttribute("x", r2(x));
       cutBand?.setAttribute("y", r2(y));
       cutBand?.setAttribute("width", r2(w));
       cutBand?.setAttribute("height", r2(h));
     };
-    if (ui.cut === "col") set(a0, -gutT() + 2, a1 - a0, geom.height + gutT() + PAD - 4);
-    else set(-gutL() + 2, a0, geom.width + gutL() + PAD - 4, a1 - a0);
+    if (ui.cut === "line") {
+      // Від середини до попереднього рядка до середини до наступного.
+      const last = geom.ylines.length - 1;
+      const y0 = n > 0 ? (lineY(n - 1) + lineY(n)) / 2 : lineY(n) - BEAD_R - 1.5;
+      const y1 = n < last ? (lineY(n) + lineY(n + 1)) / 2 : lineY(n) + BEAD_R + 1.5;
+      set(-gutL() + 2, y0, geom.width + gutL() + PAD - 4, y1 - y0);
+    } else if (ui.cut === "ins") {
+      // Між двома рядками бісерин — туди стане новий.
+      set(-gutL() + 2, lineY(n), geom.width + gutL() + PAD - 4, lineY(n + 1) - lineY(n));
+    } else {
+      const b = cutBounds(ui.cut);
+      const [a0, a1] = [b[n - 1], b[n]];
+      if (ui.cut === "col") set(a0, -gutT() + 2, a1 - a0, geom.height + gutT() + PAD - 4);
+      else set(-gutL() + 2, a0, geom.width + gutL() + PAD - 4, a1 - a0);
+    }
   }
   cutBand?.classList.toggle("on", n !== null);
+  cutBand?.classList.toggle("ins", ui.cut === "ins");
   syncOver();
 }
 
-/** Вмикає (row / col) чи вимикає (null) режим видалення. */
-function setCut(mode: CutAxis | null): void {
+/** Вмикає (row / col / line — видалення, ins — вставка рядка) чи вимикає (null) режим зміни сітки. */
+function setCut(mode: CutMode | null): void {
   if (ui.cut === mode) return;
   ui.cut = mode;
   if (mode) {
@@ -1365,6 +1488,61 @@ function cutAt(axis: CutAxis, n: number): void {
   showWarn(`${axis === "row" ? "Ряд" : "Стовпець"} ${n} видалено. «Скасувати» поверне його.`, 6000);
 }
 
+/**
+ * Видаляє рядок бісерин i (номер у geom.ylines) у візерунку для поточної кількості бісерин на сторону:
+ * ромби цієї половини ряду стають на бісерину нижчими, решта трафарету не змінюється.
+ */
+function cutLineAt(i: number): void {
+  const t = lineTarget(i);
+  if (!t) {
+    showWarn(KNOT_LINE, 6000);
+    return;
+  }
+  const side = sideKey(project.side);
+  const removed = cutLine(project, side, t.h, t.j);
+  if (!removed) return;
+  drawHistory.push({ kind: "cutline", side, h: t.h, j: t.j, removed });
+  afterCut();
+  showWarn(`Рядок бісерин видалено: ${halfWhere(t.h)} тепер ${beadsWord(t.s - 1)} замість ${t.s}. «Скасувати» поверне його.`, 7000);
+}
+
+/**
+ * Вставляє порожній рядок бісерин між рядками i та i + 1 (номери в geom.ylines) у візерунок для поточної
+ * кількості бісерин на сторону: ромби цієї половини ряду стають на бісерину вищими, решта трафарету не змінюється.
+ */
+function insLineAt(i: number): void {
+  const t = slotTarget(i);
+  if (!t) return;
+  if (t.s >= MAX_BEADS_SIDE) {
+    showWarn(FULL_HALF, 6000);
+    return;
+  }
+  const shape = [...shapeOf(project, project.side)];
+  while (shape.length <= t.h) shape.push(project.side);
+  shape[t.h] = t.s + 1;
+  if (!beadsFit(project.rows, project.cols, project.side, shape)) {
+    showWarn(
+      `З новим рядком у трафареті було б понад ${num(MAX_BEADS)} бісерин, і програма гальмувала б. ` +
+        `Зменште ширину чи висоту й спробуйте ще раз.`,
+      9000
+    );
+    return;
+  }
+  const side = sideKey(project.side);
+  const before = insertLine(project, side, t.h, t.j);
+  if (!before) return;
+  drawHistory.push({ kind: "insline", side, h: t.h, j: t.j, before });
+  afterCut();
+  showWarn(`Порожній рядок бісерин вставлено: ${halfWhere(t.h)} тепер ${beadsWord(t.s + 1)} замість ${t.s}. «Скасувати» прибере його.`, 7000);
+}
+
+/** Видаляє те, що під курсором у поточному режимі, чи вставляє туди рядок. */
+function cutTarget(n: number): void {
+  if (ui.cut === "line") cutLineAt(n);
+  else if (ui.cut === "ins") insLineAt(n);
+  else if (ui.cut) cutAt(ui.cut, n);
+}
+
 function afterCut(): void {
   // Ключі бісерин зсунулися: скасовувати старі дії плетіння вже не можна.
   weaveHistory.clear();
@@ -1374,6 +1552,8 @@ function afterCut(): void {
 }
 
 cutRowBtn.addEventListener("click", () => setCut(ui.cut === "row" ? null : "row"));
+cutLineBtn.addEventListener("click", () => setCut(ui.cut === "line" ? null : "line"));
+insLineBtn.addEventListener("click", () => setCut(ui.cut === "ins" ? null : "ins"));
 cutColBtn.addEventListener("click", () => setCut(ui.cut === "col" ? null : "col"));
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && ui.cut && !document.querySelector("dialog[open]")) setCut(null);
@@ -1397,21 +1577,25 @@ function linePos(kind: "x" | "y", v: number): number {
   return kind === "x" ? geom.px(v / GAP_UNIT) : geom.py(v / GAP_UNIT);
 }
 
-/** Межа між сусідніми лініями бісерин, на яку показує точка p (або null поза сіткою). */
+/**
+ * Межа між сусідніми лініями бісерин, на яку показує точка p (або null поза сіткою).
+ * По ширині лінії йдуть з однаковим кроком, по висоті — як у geom.ylines (половини рядів бувають нижчими).
+ */
 function boundaryNear(kind: "x" | "y", p: number): GapAt | null {
   if (!geom) return null;
   const n = kind === "x" ? project.cols : project.rows;
-  const step = geom.step;
-  const last = knotLine(n) / step;
   if (p < linePos(kind, 0) || p > linePos(kind, knotLine(n))) return null;
+  const step = geom.step;
+  const ylines = geom.ylines;
+  const at = (i: number): number => (kind === "x" ? i * step : ylines[i]);
   let lo = 0;
-  let hi = last;
+  let hi = kind === "x" ? knotLine(n) / step : ylines.length - 1;
   while (hi - lo > 1) {
     const mid = (lo + hi) >> 1;
-    if (linePos(kind, mid * step) <= p) lo = mid;
+    if (linePos(kind, at(mid)) <= p) lo = mid;
     else hi = mid;
   }
-  return { kind, at: lo * step, next: (lo + 1) * step };
+  return { kind, at: at(lo), next: at(lo + 1) };
 }
 
 /** Межа під мишею: над трафаретом — між стовпчиками бісерин, зліва — між рядками. */
@@ -1982,7 +2166,7 @@ svg.addEventListener("pointerdown", (e) => {
   if (ui.cut && !settings.weave) {
     e.preventDefault();
     const n = cutTargetAt(e);
-    if (n !== null) cutAt(ui.cut, n);
+    if (n !== null) cutTarget(n);
     setCutHover(cutTargetAt(e));
     return;
   }
@@ -2061,7 +2245,7 @@ svg.addEventListener("click", (e) => {
   commitField();
   if (ui.cut && !settings.weave) {
     const n = cutTargetAt(e);
-    if (n !== null) cutAt(ui.cut, n);
+    if (n !== null) cutTarget(n);
     return;
   }
   const k = beadAt(e);
@@ -2157,6 +2341,17 @@ function applyAction(a: Action, useBefore: boolean): void {
       if (useBefore) uncutGrid(project, a.axis, a.n, a.removed);
       [project.rows, project.cols] = a.size;
       if (!useBefore) a.removed = cutGrid(project, a.axis, a.n);
+      afterCut();
+      return;
+    case "cutline":
+      if (useBefore) uncutLine(project, a.side, a.h, a.j, a.removed);
+      else a.removed = cutLine(project, a.side, a.h, a.j) ?? a.removed;
+      afterCut();
+      return;
+    case "insline":
+      if (useBefore) a.removed = uninsertLine(project, a.side, a.h, a.j, a.before) ?? undefined;
+      else if (a.removed) uncutLine(project, a.side, a.h, a.j, a.removed);
+      else a.before = insertLine(project, a.side, a.h, a.j) ?? a.before;
       afterCut();
       return;
     case "mark": {
@@ -2269,12 +2464,24 @@ function setSize(name: "rows" | "cols", raw: string | number): void {
   const other = name === "rows" ? project.cols : project.rows;
   const cells = maxCells(project.side);
   const cap = Math.min(MAX_SIDE, Math.floor(cells / other));
-  const next = clamp(v, 1, cap);
+  let next = clamp(v, 1, cap);
   if (next < v) {
     showWarn(
       `Найбільше — 400 ромбів з кожного боку й до ${num(cells)} ромбів разом ` +
         `(для ${project.side} бісерин на сторону), щоб програма не зависала.`
     );
+  }
+  // Зі вставленими рядками бісерин у кожному ромбі більше бісерин: трафарет росте, доки їх не забагато.
+  const shape = shapeOf(project, project.side);
+  const fits = (n: number): boolean =>
+    name === "rows" ? beadsFit(n, project.cols, project.side, shape) : beadsFit(project.rows, n, project.side, shape);
+  if (next > project[name] && !fits(next)) {
+    while (next > project[name] && !fits(next)) next--;
+    const most =
+      name === "rows"
+        ? `у висоту — не більше ${next} ${plural(next, "ряду", "рядів", "рядів")}`
+        : `у ширину — не більше ${next} ${plural(next, "ромба", "ромбів", "ромбів")}`;
+    showWarn(`Зі вставленими рядками бісерин трафарет може мати до ${num(MAX_BEADS)} бісерин, щоб програма не зависала, тож ${most}.`, 9000);
   }
   if (next === project[name]) {
     updateMeta();
@@ -2315,6 +2522,15 @@ function setSide(raw: string | number): void {
     showWarn(
       `Для ${next} бісерин на сторону трафарет може мати до ${num(cells)} ромбів разом, ` +
         `а зараз ${num(project.rows * project.cols)}. Зменште висоту чи ширину й спробуйте ще раз.`,
+      9000
+    );
+    updateMeta();
+    return;
+  }
+  if (!beadsFit(project.rows, project.cols, next, shapeOf(project, next))) {
+    showWarn(
+      `У візерунку для ${next} бісерин на сторону є вставлені рядки бісерин, і з ними в трафареті такого розміру ` +
+        `було б понад ${num(MAX_BEADS)} бісерин. Зменште ширину й спробуйте ще раз.`,
       9000
     );
     updateMeta();
@@ -2509,6 +2725,7 @@ const dialog = initProjectsDialog({
       fills: cloneFills(src.fills),
       palette: [...src.palette],
       gaps: cloneGaps(src.gaps),
+      shape: cloneShapes(src.shape),
       woven: emptyWoven(),
       progress: undefined,
       createdAt: now,
@@ -2565,13 +2782,14 @@ function isPristine(p: Project): boolean {
     Object.values(p.fills).every((f) => Object.keys(f).length === 0) &&
     Object.values(p.woven).every((w) => w.length === 0) &&
     p.gaps.x.length === 0 &&
-    p.gaps.y.length === 0
+    p.gaps.y.length === 0 &&
+    !hasShape(p)
   );
 }
 
 /** Мініатюра й прогрес для трафарету, що не відкривався в цьому браузері. */
 function decorate(p: Project): void {
-  const g = buildGeometry(p.cols, p.rows, p.side, p.gaps);
+  const g = buildGeometry(p.cols, p.rows, p.side, p.gaps, shapeOf(p, p.side));
   const key = sideKey(p.side);
   p.thumb = makeThumb(g, p.fills[key] ?? {}, hexOf);
   const exist = new Set(g.beads.map((b) => b.k));

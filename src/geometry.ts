@@ -21,6 +21,9 @@ export interface Edge {
   ly0: number;
   lx1: number;
   ly1: number;
+  /** Зсув другого кінця від першого на екрані без проміжків: якщо pts з ним збігаються, сторона — пряма. */
+  dx: number;
+  dy: number;
   /** x0, y0, x1, y1, … — вершина, бісерини сторони, вершина. */
   pts: number[];
   /** Ключі тих самих бісерин по порядку: сусідні в списку з'єднані ниткою. */
@@ -52,8 +55,10 @@ export interface Gaps {
 export interface Geometry {
   beads: Bead[];
   edges: Edge[];
-  /** Півдіагональ ромба в одиницях SVG. */
+  /** Півдіагональ ромба в одиницях SVG (по ширині; по висоті — див. halfSide). */
   H: number;
+  /** Бісерин на сторону ромбів у кожній половині ряду: [верхня ряду 1, нижня ряду 1, верхня ряду 2, …]. */
+  halfSide: number[];
   /** Ширина одного проміжку в одиницях SVG. */
   gap: number;
   width: number;
@@ -62,8 +67,10 @@ export interface Geometry {
   colX: number[];
   /** Екранне y вузлових бісерин на межі рядів r (ґратка 2r), r = 0…rows. */
   rowY: number[];
-  /** Відстань між сусідніми лініями бісерин (у GAP_UNIT). */
+  /** Відстань між сусідніми лініями бісерин по ширині (у GAP_UNIT). */
   step: number;
+  /** Положення всіх рядків бісерин по висоті (у GAP_UNIT) за зростанням, від 0 до knotLine(rows). */
+  ylines: number[];
   /** Проміжки в межах сітки за зростанням (у GAP_UNIT). */
   gx: number[];
   gy: number[];
@@ -92,21 +99,52 @@ function inside(list: number[], n: number): number[] {
 }
 
 /**
+ * Бісерин на сторону в половині ряду h: зі списку shape, а чого там немає (чи незрозуміле) — side.
+ * До 11: для такої кількості кожна лінія бісерин ще має ціле положення в GAP_UNIT.
+ */
+export function sideAt(shape: readonly number[], h: number, side: number): number {
+  const v = shape[h];
+  return Number.isInteger(v) && v >= 2 && v <= 11 ? v : side;
+}
+
+/**
  * Сіточка з ромбів: cols ромбів у ширину, rows рядів у висоту.
  * side — бісерин на сторону ромба разом із вузловими (від 2 до 10).
  * Вузлові бісерини стоять у вершинах ромбів, між ними — side − 2 бісерини сторони (для 2 — жодної).
+ * shape — бісерин на сторону окремо для кожної половини ряду (див. sideAt): коли рядок бісерин видалено
+ * (вставлено), у цій половині ряду на сторонах ромбів менше (більше) бісерин, і вона нижча (вища) на екрані.
+ * Ширина ромбів однакова.
  * Проміжки розсувають сітку лише на екрані й у друці: усе, що правіше (нижче) від лінії
  * проміжку, зсувається, а нитки перетинають розрив.
  */
-export function buildGeometry(cols: number, rows: number, side: number, gaps: Gaps = noGaps()): Geometry {
-  const m = side - 2;
+export function buildGeometry(
+  cols: number,
+  rows: number,
+  side: number,
+  gaps: Gaps = noGaps(),
+  shape: readonly number[] = []
+): Geometry {
   const H = ((side - 1) / Math.SQRT2) * U;
   // Проміжок — пів ромба, але не ширший за три кроки бісерини (на великих комірках).
   const gap = Math.min(H, (3 * U) / Math.SQRT2);
   const gx = inside(gaps.x, cols);
   const gy = inside(gaps.y, rows);
+
+  // Висота половини ряду — як у ромба з такою кількістю бісерин на сторону.
+  const halves = 2 * rows;
+  const halfSide = Array.from({ length: halves }, (_, h) => sideAt(shape, h, side));
+  const hh = halfSide.map((s) => ((s - 1) / Math.SQRT2) * U);
+  const top = [0];
+  for (let h = 0; h < halves; h++) top.push(top[h] + hh[h]);
+  /** Координата ґратки по висоті → екран без проміжків (поза сіткою — як у крайніх половинах рядів). */
+  const yOf = (ly: number): number => {
+    if (ly <= 0) return ly * (hh[0] ?? H);
+    if (ly >= halves) return top[halves] + (ly - halves) * (hh[halves - 1] ?? H);
+    const h = Math.floor(ly);
+    return top[h] + (ly - h) * hh[h];
+  };
   const px = (lx: number): number => lx * H + gap * countBefore(gx, lx * GAP_UNIT);
-  const py = (ly: number): number => ly * H + gap * countBefore(gy, ly * GAP_UNIT);
+  const py = (ly: number): number => yOf(ly) + gap * countBefore(gy, ly * GAP_UNIT);
 
   const beads: Bead[] = [];
   const edges: Edge[] = [];
@@ -135,6 +173,8 @@ export function buildGeometry(cols: number, rows: number, side: number, gaps: Ga
       for (let e = 0; e < 4; e++) {
         const a = pts[e];
         const b = pts[(e + 1) % 4];
+        // Сторони 0 і 1 — у верхній половині ряду, 2 і 3 — у нижній.
+        const m = halfSide[e < 2 ? 2 * r : 2 * r + 1] - 2;
         const line = [px(a[0]), py(a[1])];
         const keys = [keyOf(a[0], a[1])];
         for (let j = 1; j <= m; j++) {
@@ -147,15 +187,33 @@ export function buildGeometry(cols: number, rows: number, side: number, gaps: Ga
         }
         line.push(px(b[0]), py(b[1]));
         keys.push(keyOf(b[0], b[1]));
-        edges.push({ lx0: a[0], ly0: a[1], lx1: b[0], ly1: b[1], pts: line, keys });
+        edges.push({
+          lx0: a[0],
+          ly0: a[1],
+          lx1: b[0],
+          ly1: b[1],
+          dx: (b[0] - a[0]) * H,
+          dy: yOf(b[1]) - yOf(a[1]),
+          pts: line,
+          keys
+        });
       }
     }
   }
 
+  const ylines: number[] = [];
+  for (let h = 0; h < halves; h++) {
+    const k = halfSide[h] - 1;
+    for (let j = 0; j < k; j++) ylines.push(h * GAP_UNIT + (j * GAP_UNIT) / k);
+  }
+  ylines.push(knotLine(rows));
+
   const colX = Array.from({ length: cols + 1 }, (_, j) => px(2 * j));
   const rowY = Array.from({ length: rows + 1 }, (_, r) => py(2 * r));
   const step = lineStep(side);
-  return { beads, edges, H, gap, width: px(2 * cols), height: py(2 * rows), colX, rowY, step, gx, gy, px, py };
+  const width = px(2 * cols);
+  const height = py(2 * rows);
+  return { beads, edges, H, halfSide, gap, width, height, colX, rowY, step, ylines, gx, gy, px, py };
 }
 
 /** Бісерина, дзеркальна відносно горизонтальної осі смужки. */
@@ -223,7 +281,9 @@ export function labelScale(side: number): number {
   return side <= 4 ? 1 : Math.min(2, (side - 1) / 3);
 }
 
-/** Скільки бісерин додає кожен ромб довжини при заданій висоті. */
-export function beadsPerStep(rows: number, side: number): number {
-  return 2 * rows + 1 + 4 * rows * (side - 2);
+/** Скільки бісерин додає кожен ромб довжини при заданій висоті (shape — як у buildGeometry). */
+export function beadsPerStep(rows: number, side: number, shape: readonly number[] = []): number {
+  let n = 2 * rows + 1;
+  for (let h = 0; h < 2 * rows; h++) n += 2 * (sideAt(shape, h, side) - 2);
+  return n;
 }

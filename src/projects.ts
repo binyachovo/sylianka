@@ -1,4 +1,4 @@
-import { GAP_UNIT, knotLine, type Gaps } from "./geometry";
+import { GAP_UNIT, beadsPerStep, knotLine, type Gaps } from "./geometry";
 import { clamp } from "./util";
 
 /** Бісерин на сторону ромба разом із вузловими: від MIN_BEADS_SIDE до MAX_BEADS_SIDE. */
@@ -9,6 +9,13 @@ export type SideKey = string;
 export type Fills = Record<SideKey, Record<string, string>>;
 /** Нанизані бісерини в порядку позначення (окремо для кожної кількості): номер у наборі = позиція + 1. */
 export type Woven = Record<SideKey, string[]>;
+/**
+ * Бісерин на сторону ромбів у кожній половині ряду (окремо для кожної кількості бісерин на сторону):
+ * [верхня половина ряду 1, нижня половина ряду 1, верхня ряду 2, …]. Коли видаляють рядок бісерин,
+ * у його половині ряду на сторонах ромбів стає на бісерину менше, коли вставляють — більше. Чого в списку
+ * немає — як у всьому трафареті (див. sideAt у geometry.ts); порожній запис — усі ромби однакові.
+ */
+export type Shapes = Record<SideKey, number[]>;
 
 export const MIN_BEADS_SIDE = 2;
 export const MAX_BEADS_SIDE = 10;
@@ -31,6 +38,8 @@ export interface ProjectData {
   gaps: Gaps;
   /** Крок повтору візерунка, ромбів: для «Повтору» й «Розмножити». */
   repeat: number;
+  /** Половини рядів з іншою кількістю бісерин на сторону (див. Shapes). */
+  shape: Shapes;
 }
 
 export interface Project extends ProjectData {
@@ -46,12 +55,26 @@ export interface Project extends ProjectData {
 export const MAX_SIDE = 400;
 export const MAX_CELLS = 12000;
 /** Скільки приблизно бісерин може бути в трафареті, щоб програма не гальмувала. */
-const MAX_BEADS = 130000;
+export const MAX_BEADS = 130000;
 
 /** Найбільше ромбів разом для side бісерин на сторону: кожен ромб додає ≈ 4·(side − 2) + 2 бісерини. */
 export function maxCells(side: Side): number {
   return Math.min(MAX_CELLS, Math.floor(MAX_BEADS / (4 * (side - 2) + 2)));
 }
+
+/** Скільки бісерин у трафареті rows × cols для side бісерин на сторону з половинами рядів shape. */
+export function beadTotal(rows: number, cols: number, side: Side, shape: readonly number[] = []): number {
+  return cols * beadsPerStep(rows, side, shape) + rows;
+}
+
+/**
+ * Чи не забагато бісерин через вставлені рядки бісерин: з ними трафарет не більший за MAX_BEADS бісерин
+ * (а якщо й без них більший — то не більший, ніж без них). Кількість ромбів обмежує maxCells.
+ */
+export function beadsFit(rows: number, cols: number, side: Side, shape: readonly number[]): boolean {
+  return beadTotal(rows, cols, side, shape) <= Math.max(MAX_BEADS, beadTotal(rows, cols, side));
+}
+
 export const MAX_PALETTE = 300;
 export const MAX_WOVEN = 200000;
 export const DEFAULT_ROWS = 8;
@@ -68,16 +91,26 @@ export const cloneFills = (f: Fills): Fills => Object.fromEntries(Object.entries
 export const emptyWoven = (): Woven => ({ "3": [], "4": [] });
 export const cloneWoven = (w: Woven): Woven => Object.fromEntries(Object.entries(w).map(([k, v]) => [k, [...v]]));
 export const sideKey = (side: Side): SideKey => String(side);
+export const cloneShapes = (s: Shapes): Shapes => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, [...v]]));
+/** Бісерин на сторону по половинах рядів для візерунка side (для buildGeometry). */
+export const shapeOf = (p: { shape: Shapes }, side: Side): number[] => p.shape[sideKey(side)] ?? [];
+/** Чи є в трафареті половини рядів з іншою кількістю бісерин на сторону (для будь-якого візерунка). */
+export function hasShape(p: { shape: Shapes }): boolean {
+  return Object.entries(p.shape).some(([k, list]) => list.some((v) => v !== Number(k)));
+}
 
 export function newId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function fitSize(p: { rows: number; cols: number; side: Side }): void {
+export function fitSize(p: { rows: number; cols: number; side: Side; shape?: Shapes }): void {
   const cells = maxCells(p.side);
   p.rows = clamp(Math.round(p.rows), 1, Math.min(MAX_SIDE, cells));
   p.cols = clamp(Math.round(p.cols), 1, Math.min(MAX_SIDE, Math.floor(cells / p.rows)));
+  // Із вставленими рядками бісерин кожен ромб довжини має більше бісерин.
+  const shape = p.shape?.[sideKey(p.side)] ?? [];
+  while (p.cols > 1 && !beadsFit(p.rows, p.cols, p.side, shape)) p.cols--;
 }
 
 export function blankProject(name: string): Project {
@@ -93,6 +126,7 @@ export function blankProject(name: string): Project {
     woven: emptyWoven(),
     gaps: emptyGaps(),
     repeat: DEFAULT_REPEAT,
+    shape: {},
     createdAt: now,
     updatedAt: now
   };
@@ -120,11 +154,32 @@ export function ensureFields(p: Project): void {
   if (!isSide(p.side)) p.side = DEFAULT_SIDE;
   p.gaps = sanitizeGaps((p as Partial<Project>).gaps);
   p.repeat = sanitizeRepeat((p as Partial<Project>).repeat);
+  p.shape = sanitizeShape((p as Partial<Project>).shape);
 }
 
 /** Крок повтору: ціле число ромбів 1…MAX_SIDE, інакше типовий. */
 export function sanitizeRepeat(raw: unknown): number {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= MAX_SIDE ? raw : DEFAULT_REPEAT;
+}
+
+/**
+ * Перевіряє половини рядів: для кожної кількості бісерин на сторону — цілі від MIN_BEADS_SIDE до MAX_BEADS_SIDE
+ * (незрозуміле — як у всьому трафареті), не довше за 2·MAX_SIDE. Однакові з трафаретом у кінці списку
+ * відкидаються, порожні списки — теж.
+ */
+export function sanitizeShape(raw: unknown): Shapes {
+  const out: Shapes = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, src] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isSideKey(key) || !Array.isArray(src)) continue;
+    const side = Number(key);
+    const list = src
+      .slice(0, 2 * MAX_SIDE)
+      .map((v): number => (isSide(v) ? v : side));
+    while (list.length > 0 && list[list.length - 1] === side) list.pop();
+    if (list.length > 0) out[key] = list;
+  }
+  return out;
 }
 
 export const emptyGaps = (): Gaps => ({ unit: GAP_UNIT, x: [], y: [] });
@@ -216,7 +271,8 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     palette: mode === "id" ? sanitizePalette(o.palette) : [],
     woven: sanitizeWoven(o.woven),
     gaps: sanitizeGaps(o.gaps),
-    repeat: sanitizeRepeat(o.repeat)
+    repeat: sanitizeRepeat(o.repeat),
+    shape: sanitizeShape(o.shape)
   };
   fitSize(data);
   return data;

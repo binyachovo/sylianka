@@ -169,3 +169,59 @@ describe("дзеркала й повтор", () => {
     expect(symmetryClosure(set, s)).toEqual(one);
   });
 });
+
+describe("половини рядів з різною кількістю бісерин на сторону", () => {
+  const G = GAP_UNIT;
+
+  it("список з тією самою кількістю, що й трафарет, нічого не змінює", () => {
+    const a = buildGeometry(5, 3, 4, gaps([3.5], [0.5]));
+    const b = buildGeometry(5, 3, 4, gaps([3.5], [0.5]), [4, 4, 4, 4, 4, 4]);
+    expect(b.beads).toEqual(a.beads);
+    expect(b.height).toBeCloseTo(a.height);
+    expect(b.ylines).toEqual(a.ylines);
+  });
+
+  it("кількість бісерин: у кожній половині ряду — своя", () => {
+    const shape = [4, 3, 4, 2];
+    const g = buildGeometry(3, 2, 4, undefined, shape);
+    const knots = 2 * 4 + 3 * 3;
+    const sides = shape.reduce((n, s) => n + 2 * 3 * (s - 2), 0);
+    expect(g.beads.length).toBe(knots + sides);
+    expect(new Set(g.beads.map((b) => b.k)).size).toBe(knots + sides);
+    const a = buildGeometry(3, 2, 4, undefined, shape).beads.length;
+    const b = buildGeometry(4, 2, 4, undefined, shape).beads.length;
+    expect(b - a).toBe(beadsPerStep(2, 4, shape));
+    expect(beadsPerStep(2, 4, [4, 4, 4, 4])).toBe(beadsPerStep(2, 4));
+  });
+
+  it("половина ряду з меншою кількістю нижча на екрані, ширина ромбів та сама", () => {
+    const g0 = buildGeometry(3, 2, 4);
+    const g = buildGeometry(3, 2, 4, undefined, [4, 3, 4, 4]);
+    expect(g.width).toBeCloseTo(g0.width);
+    expect(g.py(1) - g.py(0)).toBeCloseTo(g0.py(1) - g0.py(0));
+    expect(g.py(2) - g.py(1)).toBeCloseTo((2 / Math.SQRT2) * 10);
+    expect(g.height).toBeCloseTo(g0.height - (1 / Math.SQRT2) * 10);
+  });
+
+  it("сторони ромбів: наявні бісерини, пряма нитка без проміжків, бісерини не налазять одна на одну", () => {
+    const g = buildGeometry(4, 2, 5, undefined, [5, 2, 3, 4]);
+    const keys = new Set(g.beads.map((b) => b.k));
+    for (const e of g.edges) {
+      const h = Math.min(e.ly0, e.ly1);
+      expect(e.keys.length).toBe(g.halfSide[h]);
+      for (const k of e.keys) expect(keys.has(k)).toBe(true);
+      const n = e.pts.length;
+      expect(e.pts[n - 2] - e.pts[0]).toBeCloseTo(e.dx);
+      expect(e.pts[n - 1] - e.pts[1]).toBeCloseTo(e.dy);
+      for (let i = 2; i < n; i += 2) expect(Math.hypot(e.pts[i] - e.pts[i - 2], e.pts[i + 1] - e.pts[i - 1])).toBeGreaterThan(9.99);
+    }
+  });
+
+  it("рядки бісерин по висоті: у кожній половині ряду — свої, кожна бісерина лежить на одному з них", () => {
+    const g = buildGeometry(3, 1, 3, undefined, [3, 2]);
+    expect(g.ylines).toEqual([0, G / 2, G, 2 * G]);
+    const g4 = buildGeometry(3, 2, 4, undefined, [4, 3, 2, 4]);
+    const lines = new Set(g4.ylines);
+    for (const b of g4.beads) expect(lines.has(Math.round(b.ly * G))).toBe(true);
+  });
+});

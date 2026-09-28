@@ -1,5 +1,5 @@
 import { allCustomsForBackup, customIdsIn, customsForFile } from "./colors";
-import { sanitizeProjectData, type Project, type ProjectData } from "./projects";
+import { hasShape, sanitizeProjectData, type Project, type ProjectData } from "./projects";
 
 /**
  * Формат файлу трафарету. Номер формату дозволяє змінювати структуру без втрати старих файлів:
@@ -9,14 +9,19 @@ import { sanitizeProjectData, type Project, type ProjectData } from "./projects"
  *       Проміжки: { x, y } — після якої лінії бісерин (координата ґратки в шостих частках);
  *       найперші файли з проміжками мали { cols, rows } — номери ромбів і рядів, їх теж розуміємо.
  *       З етапу 7 — «repeat», крок повтору візерунка в ромбах (необов'язковий).
+ *   3 — як 2, плюс «shape»: половини рядів з іншою кількістю бісерин на сторону (після видалення
+ *       чи вставки рядків бісерин). Номер 3 пишемо лише тоді, коли такі половини рядів є, щоб старіша версія
+ *       програми не показала такий трафарет неправильно, а решту файлів відкривала як раніше.
  */
 const APP = "sylianka";
-const FORMAT = 2;
+const FORMAT = 3;
+/** Номер формату для файлу з цими трафаретами. */
+const formatFor = (projects: Project[]): number => (projects.some(hasShape) ? 3 : 2);
 
 export function serializeProject(p: Project): string {
   const data = {
     app: APP,
-    format: FORMAT,
+    format: formatFor([p]),
     project: {
       name: p.name,
       rows: p.rows,
@@ -27,6 +32,7 @@ export function serializeProject(p: Project): string {
       woven: p.woven,
       gaps: p.gaps,
       repeat: p.repeat,
+      shape: p.shape,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     },
@@ -75,7 +81,7 @@ export interface ParsedBackup {
 export function serializeBackup(projects: Project[]): string {
   const data = {
     app: APP,
-    format: FORMAT,
+    format: formatFor(projects),
     kind: "backup",
     savedAt: Date.now(),
     projects: projects.map((p) => ({
@@ -89,6 +95,7 @@ export function serializeBackup(projects: Project[]): string {
       woven: p.woven,
       gaps: p.gaps,
       repeat: p.repeat,
+      shape: p.shape,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     })),
