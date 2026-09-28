@@ -9,6 +9,13 @@ export type SideKey = string;
 export type Fills = Record<SideKey, Record<string, string>>;
 /** Нанизані бісерини в порядку позначення (окремо для кожної кількості): номер у наборі = позиція + 1. */
 export type Woven = Record<SideKey, string[]>;
+/**
+ * Бісерин на сторону ромбів у кожній половині ряду (окремо для кожної кількості бісерин на сторону):
+ * [верхня половина ряду 1, нижня половина ряду 1, верхня ряду 2, …]. Коли видаляють рядок бісерин,
+ * у його половині ряду на сторонах ромбів стає на бісерину менше. Чого в списку немає — як у всьому
+ * трафареті (див. sideAt у geometry.ts); порожній запис — усі ромби однакові.
+ */
+export type Shapes = Record<SideKey, number[]>;
 
 export const MIN_BEADS_SIDE = 2;
 export const MAX_BEADS_SIDE = 10;
@@ -31,6 +38,8 @@ export interface ProjectData {
   gaps: Gaps;
   /** Крок повтору візерунка, ромбів: для «Повтору» й «Розмножити». */
   repeat: number;
+  /** Половини рядів з меншою кількістю бісерин на сторону (див. Shapes). */
+  shape: Shapes;
 }
 
 export interface Project extends ProjectData {
@@ -68,6 +77,13 @@ export const cloneFills = (f: Fills): Fills => Object.fromEntries(Object.entries
 export const emptyWoven = (): Woven => ({ "3": [], "4": [] });
 export const cloneWoven = (w: Woven): Woven => Object.fromEntries(Object.entries(w).map(([k, v]) => [k, [...v]]));
 export const sideKey = (side: Side): SideKey => String(side);
+export const cloneShapes = (s: Shapes): Shapes => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, [...v]]));
+/** Бісерин на сторону по половинах рядів для візерунка side (для buildGeometry). */
+export const shapeOf = (p: { shape: Shapes }, side: Side): number[] => p.shape[sideKey(side)] ?? [];
+/** Чи є в трафареті половини рядів з іншою кількістю бісерин на сторону (для будь-якого візерунка). */
+export function hasShape(p: { shape: Shapes }): boolean {
+  return Object.entries(p.shape).some(([k, list]) => list.some((v) => v !== Number(k)));
+}
 
 export function newId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -93,6 +109,7 @@ export function blankProject(name: string): Project {
     woven: emptyWoven(),
     gaps: emptyGaps(),
     repeat: DEFAULT_REPEAT,
+    shape: {},
     createdAt: now,
     updatedAt: now
   };
@@ -120,11 +137,32 @@ export function ensureFields(p: Project): void {
   if (!isSide(p.side)) p.side = DEFAULT_SIDE;
   p.gaps = sanitizeGaps((p as Partial<Project>).gaps);
   p.repeat = sanitizeRepeat((p as Partial<Project>).repeat);
+  p.shape = sanitizeShape((p as Partial<Project>).shape);
 }
 
 /** Крок повтору: ціле число ромбів 1…MAX_SIDE, інакше типовий. */
 export function sanitizeRepeat(raw: unknown): number {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= MAX_SIDE ? raw : DEFAULT_REPEAT;
+}
+
+/**
+ * Перевіряє половини рядів: для кожної кількості бісерин на сторону — цілі від MIN_BEADS_SIDE до неї самої
+ * (незрозуміле — як у всьому трафареті), не довше за 2·MAX_SIDE. Однакові з трафаретом у кінці списку
+ * відкидаються, порожні списки — теж.
+ */
+export function sanitizeShape(raw: unknown): Shapes {
+  const out: Shapes = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, src] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isSideKey(key) || !Array.isArray(src)) continue;
+    const side = Number(key);
+    const list = src
+      .slice(0, 2 * MAX_SIDE)
+      .map((v): number => (typeof v === "number" && Number.isInteger(v) && v >= MIN_BEADS_SIDE && v <= side ? v : side));
+    while (list.length > 0 && list[list.length - 1] === side) list.pop();
+    if (list.length > 0) out[key] = list;
+  }
+  return out;
 }
 
 export const emptyGaps = (): Gaps => ({ unit: GAP_UNIT, x: [], y: [] });
@@ -216,7 +254,8 @@ export function sanitizeProjectData(raw: unknown, fallbackName: string, mode: "i
     palette: mode === "id" ? sanitizePalette(o.palette) : [],
     woven: sanitizeWoven(o.woven),
     gaps: sanitizeGaps(o.gaps),
-    repeat: sanitizeRepeat(o.repeat)
+    repeat: sanitizeRepeat(o.repeat),
+    shape: sanitizeShape(o.shape)
   };
   fitSize(data);
   return data;
