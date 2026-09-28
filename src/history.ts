@@ -1,3 +1,4 @@
+import type { CutAxis, CutRemoved } from "./cut";
 import type { Gaps } from "./geometry";
 import type { Fills, Side, SideKey } from "./projects";
 
@@ -8,6 +9,8 @@ export type Action =
   | { kind: "side"; before: Side; after: Side }
   | { kind: "clear"; before: Fills; after: Fills }
   | { kind: "gaps"; before: Gaps; after: Gaps }
+  /** Видалено ряд чи стовпець n (з 1); size — [рядів, стовпців] до видалення. */
+  | { kind: "cut"; axis: CutAxis; n: number; size: [number, number]; removed: CutRemoved }
   /** Позначено нанизаними (додано в кінець набору в цьому порядку). */
   | { kind: "mark"; side: SideKey; keys: string[] }
   /** Знято позначки: [позиція в наборі на момент зняття, ключ] у порядку зняття. */

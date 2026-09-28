@@ -11,6 +11,7 @@ import "./styles.css";
 import { registerSW } from "virtual:pwa-register";
 import { fmtGrams, gramsFor } from "./buy";
 import { initCatalogDialog } from "./catalogDialog";
+import { cutGrid, uncutGrid, type CutAxis } from "./cut";
 import {
   adoptCustomColors,
   colorTitle,
@@ -105,7 +106,7 @@ const gutT = (): number => 20 * labelScale(project.side);
 const PAD = 9;
 
 const settings = loadSettings();
-const ui = { erase: false, fill: false, clean: false };
+const ui = { erase: false, fill: false, clean: false, cut: null as CutAxis | null };
 /** «Скасувати» в малюванні й у плетінні — окремі: кожне скасовує лише свої дії. */
 const drawHistory = new History(200);
 const weaveHistory = new History(200);
@@ -120,6 +121,8 @@ const copy = $<SVGSVGElement>("#strip2");
 const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
 const fillBtn = $<HTMLButtonElement>("#fill");
+const cutRowBtn = $<HTMLButtonElement>("#cut-row");
+const cutColBtn = $<HTMLButtonElement>("#cut-col");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
 const mirrorLrBtn = $<HTMLButtonElement>("#mirror-lr");
 const repeatBtn = $<HTMLButtonElement>("#repeat");
@@ -175,6 +178,8 @@ let ringHover: SVGElement | null = null;
 let ringLast: SVGElement | null = null;
 /** Лінія-підказка «тут буде проміжок», коли миша між номерами ромбів чи рядів. */
 let gapGuide: SVGElement | null = null;
+/** Смуга «це буде видалено» в режимі видалення ряду чи стовпця. */
+let cutBand: SVGElement | null = null;
 /** Група шляху набору (запам'ятовуємо: пошук у сітці з десятків тисяч бісерин повільний). */
 let pathGroup: SVGElement | null = null;
 /** Межа під мишею над номерами: після якого ромба (col) чи ряду (row). */
@@ -339,7 +344,8 @@ function render(): void {
   parts.push(
     `<g class="marks"><circle class="ring ring-last" cx="0" cy="0" r="${BEAD_R + 1.1}"/>` +
       `<circle class="ring ring-hover" cx="0" cy="0" r="${BEAD_R + 0.9}"/>` +
-      `<line class="gap-guide" x1="0" y1="0" x2="0" y2="0"/></g>`
+      `<line class="gap-guide" x1="0" y1="0" x2="0" y2="0"/>` +
+      `<rect class="cut-band" x="0" y="0" width="0" height="0"/></g>`
   );
   // Прозорий шар зверху ловить мишу; бісерину під курсором шукаємо за координатами.
   parts.push(`<rect class="hit" x="${r2(vb[0])}" y="${r2(vb[1])}" width="${r2(vb[2])}" height="${r2(vb[3])}"/>`);
@@ -361,6 +367,9 @@ function render(): void {
   ringLast = marks?.querySelector<SVGElement>(".ring-last") ?? null;
   ringHover = marks?.querySelector<SVGElement>(".ring-hover") ?? null;
   gapGuide = marks?.querySelector<SVGElement>(".gap-guide") ?? null;
+  cutBand = marks?.querySelector<SVGElement>(".cut-band") ?? null;
+  cutHover = null;
+  cutBoundsCache = null;
   pathGroup = (marks?.previousElementSibling as SVGElement | null) ?? null;
   hoverKey = null;
   hoverGutter = null;
@@ -370,7 +379,6 @@ function render(): void {
   updateMeta();
   updateStats();
   updateWeaveInfo();
-  syncGapsUi();
   syncRepeatUi();
   drawPath();
   printLayout();
@@ -404,10 +412,11 @@ function relayout(): void {
   hitIndex = new HitIndex(geom.beads, geom.width);
   setHover(null);
   setGutterHover(null);
+  cutBoundsCache = null;
+  setCutHover(null);
   placeRing(ringLast, weave.last);
   drawPath();
   syncCopy();
-  syncGapsUi();
   printLayout();
 }
 
@@ -967,10 +976,13 @@ function renderPalette(): void {
 
 function syncTools(): void {
   for (const b of $$<HTMLButtonElement>("button.pill", pal)) {
-    b.setAttribute("aria-pressed", String(!ui.erase && b.dataset.id === settings.color));
+    b.setAttribute("aria-pressed", String(!ui.erase && !ui.cut && b.dataset.id === settings.color));
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
   fillBtn.setAttribute("aria-pressed", String(ui.fill));
+  cutRowBtn.setAttribute("aria-pressed", String(ui.cut === "row"));
+  cutColBtn.setAttribute("aria-pressed", String(ui.cut === "col"));
+  svg.classList.toggle("cutting", ui.cut !== null && !settings.weave);
   svg.classList.toggle("filling", ui.fill && !settings.weave);
   mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
   mirrorLrBtn.setAttribute("aria-pressed", String(settings.mirrorLR));
@@ -981,10 +993,12 @@ function syncTools(): void {
   svg.classList.toggle("repeat-on", settings.repeat && !settings.weave);
   const cur = $("#cur-name");
   const brush = ui.erase ? "гумка" : settings.color ? fullLabel(colorView(settings.color)) : "не вибрано";
-  cur.textContent = ui.fill ? (ui.erase ? "заливка гумкою" : `заливка — ${brush}`) : brush;
+  if (ui.cut) cur.textContent = ui.cut === "row" ? "видалення ряду" : "видалення стовпця";
+  else cur.textContent = ui.fill ? (ui.erase ? "заливка гумкою" : `заливка — ${brush}`) : brush;
 }
 
 function selectColor(id: string): void {
+  setCut(null);
   settings.color = id;
   ui.erase = false;
   syncTools();
@@ -1041,10 +1055,12 @@ pal.addEventListener("click", (e) => {
 });
 
 eraseBtn.addEventListener("click", () => {
+  setCut(null);
   ui.erase = !ui.erase;
   syncTools();
 });
 fillBtn.addEventListener("click", () => {
+  setCut(null);
   ui.fill = !ui.fill;
   syncTools();
 });
@@ -1251,19 +1267,131 @@ function beadAt(e: { clientX: number; clientY: number }): string | null {
   return i >= 0 ? geom.beads[i].k : null;
 }
 
+/* ---------- Видалення ряду чи стовпця ---------- */
+
+/** Межі смуг видалення на екрані для поточної сітки (див. cutBounds). */
+let cutBoundsCache: { axis: CutAxis; bounds: number[] } | null = null;
+/** Ряд чи стовпець (з 1), підсвічений під мишею. */
+let cutHover: number | null = null;
+
+/**
+ * Межі смуг, що видаляються, уздовж осі: [лівий край смуги 1, правий край смуги 1, …, правий край смуги n].
+ * Смуга n — від середини між лівою межею ромбів і наступною лінією бісерин до такої самої середини
+ * після правої межі (див. cut.ts: вузлові лівого краю лишаються, правого — видаляються).
+ */
+function cutBounds(axis: CutAxis): number[] {
+  if (!geom) return [];
+  if (cutBoundsCache?.axis === axis) return cutBoundsCache.bounds;
+  const n = axis === "col" ? project.cols : project.rows;
+  const pos = axis === "col" ? geom.px : geom.py;
+  const s = geom.step / GAP_UNIT;
+  const bounds: number[] = [];
+  for (let j = 0; j < n; j++) bounds.push((pos(2 * j) + pos(2 * j + s)) / 2);
+  bounds.push(pos(2 * n) + BEAD_R + 1.5);
+  cutBoundsCache = { axis, bounds };
+  return bounds;
+}
+
+/** Ряд чи стовпець (з 1) під курсором у режимі видалення, або null. */
+function cutTargetAt(e: { clientX: number; clientY: number }): number | null {
+  if (!geom || !ui.cut || ui.clean || settings.weave) return null;
+  const pt = svgPoint(e);
+  if (!pt) return null;
+  const b = cutBounds(ui.cut);
+  const p = ui.cut === "col" ? pt.x : pt.y;
+  if (p < -BEAD_R - 1.5 || p > b[b.length - 1]) return null;
+  let lo = 1;
+  let hi = b.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (b[mid] >= p) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+function cutText(n: number | null): string | null {
+  if (n === null || !ui.cut) return null;
+  if (ui.cut === "row") return project.rows < 2 ? "Єдиний ряд видалити не можна" : `Клік — видалити ряд ${n}`;
+  return project.cols < 2 ? "Єдиний стовпець видалити не можна" : `Клік — видалити стовпець ${n}`;
+}
+
+/** Підсвічує ряд чи стовпець, який видалить клік. */
+function setCutHover(n: number | null): void {
+  if (n === cutHover) return;
+  cutHover = n;
+  if (cutBand && geom && n !== null && ui.cut) {
+    const b = cutBounds(ui.cut);
+    const [a0, a1] = [b[n - 1], b[n]];
+    const set = (x: number, y: number, w: number, h: number): void => {
+      cutBand?.setAttribute("x", r2(x));
+      cutBand?.setAttribute("y", r2(y));
+      cutBand?.setAttribute("width", r2(w));
+      cutBand?.setAttribute("height", r2(h));
+    };
+    if (ui.cut === "col") set(a0, -gutT() + 2, a1 - a0, geom.height + gutT() + PAD - 4);
+    else set(-gutL() + 2, a0, geom.width + gutL() + PAD - 4, a1 - a0);
+  }
+  cutBand?.classList.toggle("on", n !== null);
+  syncOver();
+}
+
+/** Вмикає (row / col) чи вимикає (null) режим видалення. */
+function setCut(mode: CutAxis | null): void {
+  if (ui.cut === mode) return;
+  ui.cut = mode;
+  if (mode) {
+    ui.erase = false;
+    ui.fill = false;
+    setHover(null);
+    setGutterHover(null);
+  }
+  setCutHover(null);
+  syncTools();
+}
+
+/** Видаляє ряд (стовпець) n: візерунок і позначки плетіння для всіх кількостей бісерин, проміжки. */
+function cutAt(axis: CutAxis, n: number): void {
+  const total = axis === "row" ? project.rows : project.cols;
+  if (n < 1 || n > total) return;
+  if (total < 2) {
+    showWarn(axis === "row" ? "Єдиний ряд видалити не можна." : "Єдиний стовпець видалити не можна.");
+    return;
+  }
+  const size: [number, number] = [project.rows, project.cols];
+  const removed = cutGrid(project, axis, n);
+  drawHistory.push({ kind: "cut", axis, n, size, removed });
+  afterCut();
+  showWarn(`${axis === "row" ? "Ряд" : "Стовпець"} ${n} видалено. «Скасувати» поверне його.`, 6000);
+}
+
+function afterCut(): void {
+  // Ключі бісерин зсунулися: скасовувати старі дії плетіння вже не можна.
+  weaveHistory.clear();
+  render();
+  syncHistory();
+  markDirty();
+}
+
+cutRowBtn.addEventListener("click", () => setCut(ui.cut === "row" ? null : "row"));
+cutColBtn.addEventListener("click", () => setCut(ui.cut === "col" ? null : "col"));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && ui.cut && !document.querySelector("dialog[open]")) setCut(null);
+});
+
 /* ---------- Проміжки: клік у смузі з номерами ---------- */
 
 /**
  * Місце для проміжку — між двома сусідніми лініями бісерин: «x» — між стовпчиками
  * (смуга з номерами ромбів згори), «y» — між рядками (смуга з номерами рядів зліва).
- * at і next — положення цих ліній у шостих частках ґратки; проміжок записується як at.
+ * at і next — положення цих ліній у GAP_UNIT (1/2520 кроку ґратки); проміжок записується як at.
  */
 type GapAt = { kind: "x" | "y"; at: number; next: number };
 
-/** Проміжки між цими двома лініями (після зміни 3 ↔ 4 бісерини на сторону їх може бути кілька). */
+/** Проміжки між цими двома лініями (після зміни кількості бісерин на сторону їх може бути кілька). */
 const gapsIn = (g: GapAt): number[] => project.gaps[g.kind].filter((v) => v >= g.at && v < g.next);
 
-/** Екранне положення лінії бісерин (шості частки ґратки). */
+/** Екранне положення лінії бісерин (v — у GAP_UNIT). */
 function linePos(kind: "x" | "y", v: number): number {
   if (!geom) return 0;
   return kind === "x" ? geom.px(v / GAP_UNIT) : geom.py(v / GAP_UNIT);
@@ -1333,7 +1461,7 @@ function setGutterHover(g: GapAt | null): void {
     gapGuide.classList.toggle("on", g !== null);
     gapGuide.classList.toggle("del", g !== null && gapsIn(g).length > 0);
   }
-  hitRect?.classList.toggle("over", hoverKey !== null || g !== null);
+  syncOver();
 }
 
 /** Змінює проміжки однією дією (можна скасувати). */
@@ -1354,96 +1482,6 @@ function toggleGap(g: GapAt): void {
   const list = project.gaps[g.kind];
   const next = gapsIn(g).length ? list.filter((v) => v < g.at || v >= g.next) : [...list, g.at];
   setGaps(g.kind === "x" ? { x: next, y: project.gaps.y } : { x: project.gaps.x, y: next });
-}
-
-/* ---------- Проміжки: панель «Проміжки» над трафаретом ---------- */
-
-const gapsBtn = $<HTMLButtonElement>("#gaps-btn");
-const gapsPop = $("#gaps-pop");
-const gapsCount = $("#gaps-n");
-const gapsState = $("#gaps-state");
-const gapAxes = {
-  x: {
-    input: $<HTMLInputElement>("#gap-cols-n"),
-    lead: $("#gap-cols-lead"),
-    unit: $("#gap-cols-unit"),
-    set: $<HTMLButtonElement>("#gap-cols-set"),
-    clear: $<HTMLButtonElement>("#gap-cols-clear"),
-    fallback: 5
-  },
-  y: {
-    input: $<HTMLInputElement>("#gap-rows-n"),
-    lead: $("#gap-rows-lead"),
-    unit: $("#gap-rows-unit"),
-    set: $<HTMLButtonElement>("#gap-rows-set"),
-    clear: $<HTMLButtonElement>("#gap-rows-clear"),
-    fallback: 4
-  }
-};
-
-/** «Після кожних 5 ромбів», але «після кожного 21 ромба». */
-function syncEveryWords(kind: "x" | "y"): void {
-  const a = gapAxes[kind];
-  const n = Math.round(Number(a.input.value));
-  const one = n % 10 === 1 && n % 100 !== 11;
-  a.lead.textContent = one ? "Після кожного" : "Після кожних";
-  a.unit.textContent = kind === "x" ? (one ? "ромба" : "ромбів") : one ? "ряду" : "рядів";
-}
-
-/** «5, 10, 15» — перші кілька номерів. */
-function numList(v: number[]): string {
-  const head = v.slice(0, 8).join(", ");
-  return v.length > 8 ? `${head} … (усього ${v.length})` : head;
-}
-
-/** Підсумок у панелі: номери ромбів (рядів), якщо всі проміжки між ними, інакше — скільки проміжків. */
-function describeGaps(list: number[], kind: "x" | "y"): string {
-  if (!list.length) return "";
-  const one = knotLine(1);
-  if (list.every((g) => g > 0 && g % one === 0)) {
-    const where = numList(list.map((g) => g / one));
-    return kind === "x" ? `Вертикальні — після ромбів ${where}.` : `Горизонтальні — після рядів ${where}.`;
-  }
-  return kind === "x" ? `Вертикальних проміжків — ${list.length}.` : `Горизонтальних проміжків — ${list.length}.`;
-}
-
-/** Лічильник на кнопці, стан кнопок і підсумок у панелі. */
-function syncGapsUi(): void {
-  if (!geom) return;
-  const nx = geom.gx.length;
-  const ny = geom.gy.length;
-  gapsCount.textContent = nx + ny ? ` · ${nx + ny}` : "";
-  for (const kind of ["x", "y"] as const) {
-    const a = gapAxes[kind];
-    const total = kind === "x" ? project.cols : project.rows;
-    a.input.max = String(Math.max(1, total - 1));
-    a.input.disabled = total < 2;
-    a.set.disabled = total < 2;
-    a.clear.disabled = (kind === "x" ? nx : ny) === 0;
-    syncEveryWords(kind);
-  }
-  const text = [describeGaps(geom.gx, "x"), describeGaps(geom.gy, "y")].filter(Boolean).join(" ");
-  gapsState.textContent = text || "Проміжків ще немає.";
-}
-
-/** Рівномірні проміжки: після кожних n ромбів (рядів). Інші проміжки цього напрямку прибираються. */
-function spreadGaps(kind: "x" | "y"): void {
-  const a = gapAxes[kind];
-  const total = kind === "x" ? project.cols : project.rows;
-  if (total < 2) return;
-  let n = Math.round(Number(a.input.value));
-  if (!Number.isFinite(n) || n < 1) n = a.fallback;
-  n = clamp(n, 1, total - 1);
-  a.input.value = String(n);
-  const list: number[] = [];
-  for (let v = n; v < total; v += n) list.push(knotLine(v));
-  setGaps(kind === "x" ? { x: list, y: project.gaps.y } : { x: project.gaps.x, y: list });
-  syncGapsUi();
-}
-
-function clearGaps(kind: "x" | "y"): void {
-  setGaps(kind === "x" ? { x: [], y: project.gaps.y } : { x: project.gaps.x, y: [] });
-  syncGapsUi();
 }
 
 /**
@@ -1497,20 +1535,6 @@ function popover(btn: HTMLButtonElement, pop: HTMLElement, onOpen: () => void): 
     if (t && !pop.contains(t) && !btn.contains(t)) show(false);
   });
   return show;
-}
-
-const showGapsPop = popover(gapsBtn, gapsPop, syncGapsUi);
-for (const kind of ["x", "y"] as const) {
-  const a = gapAxes[kind];
-  a.set.addEventListener("click", () => spreadGaps(kind));
-  a.clear.addEventListener("click", () => clearGaps(kind));
-  a.input.addEventListener("input", () => syncEveryWords(kind));
-  a.input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      spreadGaps(kind);
-    }
-  });
 }
 
 /* ---------- «Розмножити»: візерунок вибраних ромбів — праворуч до кінця ---------- */
@@ -1629,7 +1653,12 @@ function setHover(k: string | null): void {
   hoverKey = k;
   placeRing(ringHover, k);
   // Клас на прозорому шарі, а не на всій сітці: інакше браузер перераховує стилі всіх бісерин.
-  hitRect?.classList.toggle("over", k !== null || hoverGutter !== null);
+  syncOver();
+}
+
+/** Курсор-рука над прозорим шаром: під мишею бісерина, місце для проміжку чи смуга видалення. */
+function syncOver(): void {
+  hitRect?.classList.toggle("over", hoverKey !== null || hoverGutter !== null || cutHover !== null);
 }
 
 let painting: { mode: string | null } | null = null;
@@ -1771,7 +1800,7 @@ function setMode(weaveMode: boolean): void {
   if (weaving) endWeave();
   settings.weave = weaveMode;
   if (weaveMode) {
-    showGapsPop(false);
+    setCut(null);
     showMulPop(false);
     setGutterHover(null);
   }
@@ -1950,6 +1979,13 @@ svg.addEventListener("pointerdown", (e) => {
   lastPointer = e.pointerType;
   if (e.pointerType !== "mouse" || e.button !== 0 || ui.clean) return;
   commitField();
+  if (ui.cut && !settings.weave) {
+    e.preventDefault();
+    const n = cutTargetAt(e);
+    if (n !== null) cutAt(ui.cut, n);
+    setCutHover(cutTargetAt(e));
+    return;
+  }
   const k = beadAt(e);
   if (!k) {
     const g = gutterAt(e);
@@ -1987,6 +2023,10 @@ svg.addEventListener("pointerdown", (e) => {
 svg.addEventListener("pointermove", (e) => {
   if (e.pointerType !== "mouse") return;
   if (!painting && !weaving) {
+    if (ui.cut && !settings.weave) {
+      setCutHover(cutTargetAt(e));
+      return;
+    }
     const k = ui.clean ? null : beadAt(e);
     setHover(k);
     setGutterHover(k ? null : gutterAt(e));
@@ -2006,6 +2046,7 @@ svg.addEventListener("pointermove", (e) => {
 svg.addEventListener("pointerleave", () => {
   setHover(null);
   setGutterHover(null);
+  setCutHover(null);
 });
 const stopPainting = (): void => {
   if (weaving) endWeave();
@@ -2018,6 +2059,11 @@ window.addEventListener("pointercancel", stopPainting);
 svg.addEventListener("click", (e) => {
   if (lastPointer === "mouse" || ui.clean) return;
   commitField();
+  if (ui.cut && !settings.weave) {
+    const n = cutTargetAt(e);
+    if (n !== null) cutAt(ui.cut, n);
+    return;
+  }
   const k = beadAt(e);
   if (!k) {
     const g = gutterAt(e);
@@ -2044,6 +2090,7 @@ svg.addEventListener("click", (e) => {
 });
 
 initTooltip(svg, $("#tip"), (e) => {
+  if (ui.cut && !settings.weave) return cutText(cutTargetAt(e));
   const k = beadAt(e);
   if (!k) {
     const g = gutterAt(e);
@@ -2106,6 +2153,12 @@ function applyAction(a: Action, useBefore: boolean): void {
       project.gaps = cloneGaps(useBefore ? a.before : a.after);
       relayout();
       break;
+    case "cut":
+      if (useBefore) uncutGrid(project, a.axis, a.n, a.removed);
+      [project.rows, project.cols] = a.size;
+      if (!useBefore) a.removed = cutGrid(project, a.axis, a.n);
+      afterCut();
+      return;
     case "mark": {
       const list = (project.woven[a.side] ??= []);
       if (useBefore) {
@@ -2177,10 +2230,12 @@ document.addEventListener("keydown", (e) => {
     }
   } else if (e.code === "KeyE") {
     e.preventDefault();
+    setCut(null);
     ui.erase = !ui.erase;
     syncTools();
   } else if (e.code === "KeyF") {
     e.preventDefault();
+    setCut(null);
     ui.fill = !ui.fill;
     syncTools();
   }
@@ -2284,7 +2339,7 @@ function setClean(on: boolean): void {
   setHover(null);
   setGutterHover(null);
   if (on) {
-    showGapsPop(false);
+    setCut(null);
     showMulPop(false);
     showPrintPop(false);
     showExportPop(false);

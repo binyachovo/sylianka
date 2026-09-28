@@ -258,6 +258,7 @@ button, input { font: inherit; color: inherit; }
 }
 .tbtn[aria-pressed="true"], .tbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .tbtn.danger { color: var(--danger); border-color: var(--danger); background: none; }
+.tbtn.cut[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); color: var(--danger-ink); }
 .tbtn.danger.armed { background: var(--danger); color: var(--danger-ink); }
 .tbtn:disabled { opacity: 0.45; cursor: default; }
 .tbtn.small { gap: 5px; padding: 4px 10px; font-size: 13.5px; }
@@ -375,13 +376,9 @@ body.weaving #clear { display: none; }
   gap: 6px;
   margin: -2px 0 8px;
 }
-/* Спливні панелі біля кнопок (проміжки, «Розмножити») */
+/* Спливні панелі біля кнопок («Розмножити», «Експортувати», «Друк») */
 .pop-wrap { position: relative; }
 .pop-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-/* Проміжки: кнопка й панель над трафаретом */
-.gaps-wrap { position: relative; margin-right: auto; }
-.gaps-n { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
-body.weaving .gaps-wrap { display: none; }
 .pop {
   position: absolute;
   top: calc(100% + 6px);
@@ -401,17 +398,6 @@ body.weaving .gaps-wrap { display: none; }
 }
 .pop p { margin: 0; }
 .pop-lead, .pop-hint { font-size: 13.5px; line-height: 1.35; color: var(--muted); }
-.pop-grid {
-  display: grid;
-  grid-template-columns: max-content 58px max-content max-content max-content;
-  align-items: center;
-  gap: 8px;
-}
-.pop-row { display: contents; }
-@media (max-width: 560px) {
-  .pop-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-}
 .pop-state { font-size: 13.5px; line-height: 1.35; }
 .num-in {
   width: 58px;
@@ -518,6 +504,18 @@ body.clean .stencil .ring { visibility: hidden !important; }
 .stencil .gap-guide.del { stroke: var(--danger); }
 #strip .gap-guide.on { visibility: visible; }
 body.clean .stencil .gap-guide { visibility: hidden !important; }
+/* Смуга «це буде видалено» (режими «Видалити ряд» і «Видалити стовпець») */
+.stencil .cut-band {
+  fill: var(--danger);
+  fill-opacity: 0.13;
+  stroke: var(--danger);
+  stroke-width: 1;
+  stroke-dasharray: 3 2.5;
+  pointer-events: none;
+  visibility: hidden;
+}
+#strip .cut-band.on { visibility: visible; }
+body.clean .stencil .cut-band { visibility: hidden !important; }
 /* Плетіння: нанизані приглушені (заливку змішує код) */
 .stencil.weaving.dim .bd.done { stroke-opacity: 0.3; }
 #strip2 { display: none; pointer-events: none; }
@@ -985,7 +983,7 @@ body.clean .clean-bar { display: flex; }
   .board, .stats { border: 0; padding: 0; }
   .mode-switch { display: none !important; }
   .stencil .bd.done { stroke-opacity: 1 !important; }
-  .stencil .ring, .stencil .gap-guide { visibility: hidden !important; }
+  .stencil .ring, .stencil .gap-guide, .stencil .cut-band { visibility: hidden !important; }
   .stencil .axis, .stencil .periods { display: none !important; }
   body:not(.clean) .board .stencil { width: 100% !important; min-width: 0 !important; max-width: none !important; max-height: 118mm; }
   .board-tools { display: none !important; }

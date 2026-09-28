@@ -184,6 +184,14 @@
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.6 2.2l5.6 5.6-4.9 4.9a1.3 1.3 0 01-1.8 0L2 9.2a1.3 1.3 0 010-1.8z"/><path d="M2.4 8.4h9.4"/><path d="M4.6 1.4l2 2"/><path d="M13.6 10.3c.8 1.1 1.2 1.9 1.2 2.5a1.2 1.2 0 01-2.4 0c0-.6.4-1.4 1.2-2.5z"/></svg>
             Заливка
           </button>
+          <button type="button" class="tbtn cut" id="cut-row" aria-pressed="false" title="Увімкніть і клікніть по ряду на трафареті — ряд видалиться, нижчі піднімуться. Esc — вимкнути">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.8h12"/><path d="M2 13.2h12"/><path d="M5.8 5.8l4.4 4.4"/><path d="M10.2 5.8l-4.4 4.4"/></svg>
+            Видалити ряд
+          </button>
+          <button type="button" class="tbtn cut" id="cut-col" aria-pressed="false" title="Увімкніть і клікніть по стовпцю на трафареті — стовпець видалиться, правіші зсунуться ліворуч. Esc — вимкнути">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.8 2v12"/><path d="M13.2 2v12"/><path d="M5.8 5.8l4.4 4.4"/><path d="M10.2 5.8l-4.4 4.4"/></svg>
+            Видалити стовпець
+          </button>
           <button type="button" class="tbtn" id="undo" data-undo title="Скасувати (Ctrl+Z)" disabled>
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4L2.5 7l3 3"/><path d="M2.5 7h7a4 4 0 010 8H7"/></svg>
             Скасувати
@@ -242,33 +250,6 @@
 
     <section class="board" aria-label="Трафарет">
       <div class="board-tools" role="group" aria-label="Вигляд трафарету">
-        <div class="gaps-wrap">
-          <button type="button" class="tbtn small" id="gaps-btn" aria-expanded="false" aria-controls="gaps-pop" title="Проміжки між будь-якими рядками чи стовпчиками бісерин — лише для вигляду">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="4.5" height="9" rx="1"/><rect x="10" y="3.5" width="4.5" height="9" rx="1"/><path d="M8 2v12" stroke-dasharray="1.4 1.8"/></svg>
-            Проміжки<span class="gaps-n" id="gaps-n"></span>
-          </button>
-          <div class="pop" id="gaps-pop" role="group" aria-label="Проміжки" hidden>
-            <p class="pop-lead">Проміжки лише для вигляду: бісерини й нитки не змінюються. На папері проміжки теж будуть.</p>
-            <div class="pop-grid">
-              <div class="pop-row">
-                <label for="gap-cols-n" id="gap-cols-lead">Після кожних</label>
-                <input class="num-in" id="gap-cols-n" type="number" min="1" value="5" inputmode="numeric" aria-labelledby="gap-cols-lead gap-cols-n gap-cols-unit">
-                <span class="pop-unit" id="gap-cols-unit">ромбів</span>
-                <button type="button" class="tbtn small" id="gap-cols-set" title="Замінити всі вертикальні проміжки рівномірними" aria-label="Розставити вертикальні проміжки">Розставити</button>
-                <button type="button" class="tbtn small" id="gap-cols-clear" title="Прибрати всі вертикальні проміжки" aria-label="Прибрати вертикальні проміжки">Прибрати</button>
-              </div>
-              <div class="pop-row">
-                <label for="gap-rows-n" id="gap-rows-lead">Після кожних</label>
-                <input class="num-in" id="gap-rows-n" type="number" min="1" value="4" inputmode="numeric" aria-labelledby="gap-rows-lead gap-rows-n gap-rows-unit">
-                <span class="pop-unit" id="gap-rows-unit">рядів</span>
-                <button type="button" class="tbtn small" id="gap-rows-set" title="Замінити всі горизонтальні проміжки рівномірними" aria-label="Розставити горизонтальні проміжки">Розставити</button>
-                <button type="button" class="tbtn small" id="gap-rows-clear" title="Прибрати всі горизонтальні проміжки" aria-label="Прибрати горизонтальні проміжки">Прибрати</button>
-              </div>
-            </div>
-            <p class="pop-state" id="gaps-state" aria-live="polite"></p>
-            <p class="pop-hint">Окремий проміжок — клік у смузі з номерами: згори — між будь-якими стовпчиками бісерин, зліва — між будь-якими рядками. Пунктир показує, де він буде; повторний клік прибирає.</p>
-          </div>
-        </div>
         <span class="zoom-label">Масштаб <b id="zoom-value">авто</b></span>
         <button type="button" class="tbtn small icon-btn" id="zoom-out" aria-label="Зменшити" title="Зменшити">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9"/></svg>
