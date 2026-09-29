@@ -11,7 +11,7 @@ import "./styles.css";
 import { registerSW } from "virtual:pwa-register";
 import { fmtGrams, gramsFor } from "./buy";
 import { initCatalogDialog } from "./catalogDialog";
-import { cutGrid, cutLine, insertLine, uncutGrid, uncutLine, uninsertLine, type CutAxis } from "./cut";
+import { cutLine, insertLine, uncutLine, uninsertLine } from "./cut";
 import {
   adoptCustomColors,
   colorTitle,
@@ -111,8 +111,8 @@ const gutT = (): number => 20 * labelScale(project.side);
 const PAD = 9;
 
 const settings = loadSettings();
-/** Що робить клік у режимі зміни сітки: видаляє ряд ромбів, стовпець ромбів чи один рядок бісерин або вставляє рядок. */
-type CutMode = CutAxis | "line" | "ins";
+/** Що робить клік у режимі зміни сітки: видаляє рядок бісерин (line) чи вставляє новий (ins). */
+type CutMode = "line" | "ins";
 const ui = { erase: false, fill: false, clean: false, cut: null as CutMode | null };
 /** «Скасувати» в малюванні й у плетінні — окремі: кожне скасовує лише свої дії. */
 const drawHistory = new History(200);
@@ -128,10 +128,8 @@ const copy = $<SVGSVGElement>("#strip2");
 const pal = $("#palette");
 const eraseBtn = $<HTMLButtonElement>("#erase");
 const fillBtn = $<HTMLButtonElement>("#fill");
-const cutRowBtn = $<HTMLButtonElement>("#cut-row");
 const cutLineBtn = $<HTMLButtonElement>("#cut-line");
 const insLineBtn = $<HTMLButtonElement>("#ins-line");
-const cutColBtn = $<HTMLButtonElement>("#cut-col");
 const mirrorBtn = $<HTMLButtonElement>("#mirror");
 const mirrorLrBtn = $<HTMLButtonElement>("#mirror-lr");
 const repeatBtn = $<HTMLButtonElement>("#repeat");
@@ -187,7 +185,7 @@ let ringHover: SVGElement | null = null;
 let ringLast: SVGElement | null = null;
 /** Лінія-підказка «тут буде проміжок», коли миша між номерами ромбів чи рядів. */
 let gapGuide: SVGElement | null = null;
-/** Смуга «це буде видалено» в режимі видалення ряду, стовпця чи рядка бісерин. */
+/** Смуга «це буде видалено» в режимі видалення рядка бісерин (у вставці — «сюди стане новий рядок»). */
 let cutBand: SVGElement | null = null;
 /** Група шляху набору (запам'ятовуємо: пошук у сітці з десятків тисяч бісерин повільний). */
 let pathGroup: SVGElement | null = null;
@@ -381,7 +379,6 @@ function render(): void {
   gapGuide = marks?.querySelector<SVGElement>(".gap-guide") ?? null;
   cutBand = marks?.querySelector<SVGElement>(".cut-band") ?? null;
   cutHover = null;
-  cutBoundsCache = null;
   pathGroup = (marks?.previousElementSibling as SVGElement | null) ?? null;
   hoverKey = null;
   hoverGutter = null;
@@ -424,7 +421,6 @@ function relayout(): void {
   hitIndex = new HitIndex(geom.beads, geom.width);
   setHover(null);
   setGutterHover(null);
-  cutBoundsCache = null;
   setCutHover(null);
   placeRing(ringLast, weave.last);
   drawPath();
@@ -987,10 +983,8 @@ function renderPalette(): void {
 }
 
 const CUT_NAMES: Record<CutMode, string> = {
-  row: "видалення ряду",
   line: "видалення рядка бісерин",
-  ins: "вставка рядка бісерин",
-  col: "видалення стовпця"
+  ins: "вставка рядка бісерин"
 };
 
 function syncTools(): void {
@@ -999,10 +993,8 @@ function syncTools(): void {
   }
   eraseBtn.setAttribute("aria-pressed", String(ui.erase));
   fillBtn.setAttribute("aria-pressed", String(ui.fill));
-  cutRowBtn.setAttribute("aria-pressed", String(ui.cut === "row"));
   cutLineBtn.setAttribute("aria-pressed", String(ui.cut === "line"));
   insLineBtn.setAttribute("aria-pressed", String(ui.cut === "ins"));
-  cutColBtn.setAttribute("aria-pressed", String(ui.cut === "col"));
   svg.classList.toggle("cutting", ui.cut !== null && !settings.weave);
   svg.classList.toggle("filling", ui.fill && !settings.weave);
   mirrorBtn.setAttribute("aria-pressed", String(settings.mirror));
@@ -1288,35 +1280,10 @@ function beadAt(e: { clientX: number; clientY: number }): string | null {
   return i >= 0 ? geom.beads[i].k : null;
 }
 
-/* ---------- Видалення ряду, стовпця чи рядка бісерин, вставка рядка ---------- */
+/* ---------- Видалення й вставка рядка бісерин ---------- */
 
-/** Межі смуг видалення на екрані для поточної сітки (див. cutBounds). */
-let cutBoundsCache: { axis: CutAxis; bounds: number[] } | null = null;
-/**
- * Під мишею: ряд чи стовпець (з 1) або рядок бісерин, який можна видалити (номер у geom.ylines),
- * а у вставці — місце між рядками бісерин i та i + 1.
- */
+/** Під мишею: рядок бісерин, який можна видалити (номер у geom.ylines), а у вставці — місце між рядками i та i + 1. */
 let cutHover: number | null = null;
-
-/**
- * Межі смуг, що видаляються, уздовж осі: [лівий край смуги 1, правий край смуги 1, …, правий край смуги n].
- * Смуга n — від середини між лівою межею ромбів і наступною лінією бісерин до такої самої середини
- * після правої межі (див. cut.ts: вузлові лівого краю лишаються, правого — видаляються).
- */
-function cutBounds(axis: CutAxis): number[] {
-  if (!geom) return [];
-  if (cutBoundsCache?.axis === axis) return cutBoundsCache.bounds;
-  const g = geom;
-  const n = axis === "col" ? project.cols : project.rows;
-  const pos = axis === "col" ? g.px : g.py;
-  // Перша лінія бісерин після межі: по ширині крок однаковий, по висоті — свій у кожній половині ряду.
-  const next = (j: number): number => 2 * j + (axis === "col" ? g.step / GAP_UNIT : 1 / (g.halfSide[2 * j] - 1));
-  const bounds: number[] = [];
-  for (let j = 0; j < n; j++) bounds.push((pos(2 * j) + pos(next(j))) / 2);
-  bounds.push(pos(2 * n) + BEAD_R + 1.5);
-  cutBoundsCache = { axis, bounds };
-  return bounds;
-}
 
 /** Екранне y рядка бісерин i (номер у geom.ylines). */
 const lineY = (i: number): number => (geom ? geom.py(geom.ylines[i] / GAP_UNIT) : 0);
@@ -1375,33 +1342,18 @@ function slotTarget(i: number): { h: number; j: number; s: number } | null {
   return t && { ...t, j: t.j + 1 };
 }
 
-/**
- * Під курсором у режимі зміни сітки: ряд чи стовпець (з 1), рядок бісерин (номер у geom.ylines)
- * або місце вставки (див. slotNear); null — нічого.
- */
+/** Під курсором у режимі зміни сітки: рядок бісерин (номер у geom.ylines) чи місце вставки (див. slotNear); null — нічого. */
 function cutTargetAt(e: { clientX: number; clientY: number }): number | null {
   if (!geom || !ui.cut || ui.clean || settings.weave) return null;
   const pt = svgPoint(e);
   if (!pt) return null;
-  if (ui.cut === "line") return lineNear(pt.y);
-  if (ui.cut === "ins") return slotNear(pt.y);
-  const b = cutBounds(ui.cut);
-  const p = ui.cut === "col" ? pt.x : pt.y;
-  if (p < -BEAD_R - 1.5 || p > b[b.length - 1]) return null;
-  let lo = 1;
-  let hi = b.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (b[mid] >= p) hi = mid;
-    else lo = mid + 1;
-  }
-  return lo;
+  return ui.cut === "line" ? lineNear(pt.y) : slotNear(pt.y);
 }
 
 /** «2 бісерини», «5 бісерин». */
 const beadsWord = (n: number): string => `${n} ${plural(n, "бісерина", "бісерини", "бісерин")}`;
 
-const KNOT_LINE = "Вузлові бісерини не видаляються: на них тримаються ромби. Цілий ряд ромбів — «Видалити ряд».";
+const KNOT_LINE = "Вузлові бісерини не видаляються: на них тримаються ромби.";
 const FULL_HALF = `Тут уже ${MAX_BEADS_SIDE} бісерин на сторону ромба — більше не буває, тож рядок не вставити.`;
 
 /** «у ряду 3 на верхніх сторонах ромбів» — де змінюється кількість бісерин для половини ряду h. */
@@ -1415,17 +1367,13 @@ function cutText(n: number | null): string | null {
     if (!t) return KNOT_LINE;
     return `Клік — видалити рядок бісерин: ${halfWhere(t.h)} буде ${beadsWord(t.s - 1)} замість ${t.s}`;
   }
-  if (ui.cut === "ins") {
-    const t = slotTarget(n);
-    if (!t) return null;
-    if (t.s >= MAX_BEADS_SIDE) return FULL_HALF;
-    return `Клік — вставити сюди порожній рядок бісерин: ${halfWhere(t.h)} буде ${beadsWord(t.s + 1)} замість ${t.s}`;
-  }
-  if (ui.cut === "row") return project.rows < 2 ? "Єдиний ряд видалити не можна" : `Клік — видалити ряд ${n}`;
-  return project.cols < 2 ? "Єдиний стовпець видалити не можна" : `Клік — видалити стовпець ${n}`;
+  const t = slotTarget(n);
+  if (!t) return null;
+  if (t.s >= MAX_BEADS_SIDE) return FULL_HALF;
+  return `Клік — вставити сюди порожній рядок бісерин: ${halfWhere(t.h)} буде ${beadsWord(t.s + 1)} замість ${t.s}`;
 }
 
-/** Підсвічує ряд, стовпець чи рядок бісерин, який видалить клік (вузлові рядки — ні), або місце вставки рядка. */
+/** Підсвічує рядок бісерин, який видалить клік (вузлові рядки — ні), або місце вставки рядка. */
 function setCutHover(n: number | null): void {
   if (ui.cut === "line" && n !== null && !lineTarget(n)) n = null;
   if (ui.cut === "ins" && n !== null && (slotTarget(n)?.s ?? MAX_BEADS_SIDE) >= MAX_BEADS_SIDE) n = null;
@@ -1444,14 +1392,9 @@ function setCutHover(n: number | null): void {
       const y0 = n > 0 ? (lineY(n - 1) + lineY(n)) / 2 : lineY(n) - BEAD_R - 1.5;
       const y1 = n < last ? (lineY(n) + lineY(n + 1)) / 2 : lineY(n) + BEAD_R + 1.5;
       set(-gutL() + 2, y0, geom.width + gutL() + PAD - 4, y1 - y0);
-    } else if (ui.cut === "ins") {
+    } else {
       // Між двома рядками бісерин — туди стане новий.
       set(-gutL() + 2, lineY(n), geom.width + gutL() + PAD - 4, lineY(n + 1) - lineY(n));
-    } else {
-      const b = cutBounds(ui.cut);
-      const [a0, a1] = [b[n - 1], b[n]];
-      if (ui.cut === "col") set(a0, -gutT() + 2, a1 - a0, geom.height + gutT() + PAD - 4);
-      else set(-gutL() + 2, a0, geom.width + gutL() + PAD - 4, a1 - a0);
     }
   }
   cutBand?.classList.toggle("on", n !== null);
@@ -1459,7 +1402,7 @@ function setCutHover(n: number | null): void {
   syncOver();
 }
 
-/** Вмикає (row / col / line — видалення, ins — вставка рядка) чи вимикає (null) режим зміни сітки. */
+/** Вмикає (line — видалення рядка бісерин, ins — вставка) чи вимикає (null) режим зміни сітки. */
 function setCut(mode: CutMode | null): void {
   if (ui.cut === mode) return;
   ui.cut = mode;
@@ -1471,21 +1414,6 @@ function setCut(mode: CutMode | null): void {
   }
   setCutHover(null);
   syncTools();
-}
-
-/** Видаляє ряд (стовпець) n: візерунок і позначки плетіння для всіх кількостей бісерин, проміжки. */
-function cutAt(axis: CutAxis, n: number): void {
-  const total = axis === "row" ? project.rows : project.cols;
-  if (n < 1 || n > total) return;
-  if (total < 2) {
-    showWarn(axis === "row" ? "Єдиний ряд видалити не можна." : "Єдиний стовпець видалити не можна.");
-    return;
-  }
-  const size: [number, number] = [project.rows, project.cols];
-  const removed = cutGrid(project, axis, n);
-  drawHistory.push({ kind: "cut", axis, n, size, removed });
-  afterCut();
-  showWarn(`${axis === "row" ? "Ряд" : "Стовпець"} ${n} видалено. «Скасувати» поверне його.`, 6000);
 }
 
 /**
@@ -1536,11 +1464,10 @@ function insLineAt(i: number): void {
   showWarn(`Порожній рядок бісерин вставлено: ${halfWhere(t.h)} тепер ${beadsWord(t.s + 1)} замість ${t.s}. «Скасувати» прибере його.`, 7000);
 }
 
-/** Видаляє те, що під курсором у поточному режимі, чи вставляє туди рядок. */
+/** Видаляє рядок бісерин під курсором чи вставляє туди новий — за поточним режимом. */
 function cutTarget(n: number): void {
   if (ui.cut === "line") cutLineAt(n);
   else if (ui.cut === "ins") insLineAt(n);
-  else if (ui.cut) cutAt(ui.cut, n);
 }
 
 function afterCut(): void {
@@ -1551,10 +1478,8 @@ function afterCut(): void {
   markDirty();
 }
 
-cutRowBtn.addEventListener("click", () => setCut(ui.cut === "row" ? null : "row"));
 cutLineBtn.addEventListener("click", () => setCut(ui.cut === "line" ? null : "line"));
 insLineBtn.addEventListener("click", () => setCut(ui.cut === "ins" ? null : "ins"));
-cutColBtn.addEventListener("click", () => setCut(ui.cut === "col" ? null : "col"));
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && ui.cut && !document.querySelector("dialog[open]")) setCut(null);
 });
@@ -2337,12 +2262,6 @@ function applyAction(a: Action, useBefore: boolean): void {
       project.gaps = cloneGaps(useBefore ? a.before : a.after);
       relayout();
       break;
-    case "cut":
-      if (useBefore) uncutGrid(project, a.axis, a.n, a.removed);
-      [project.rows, project.cols] = a.size;
-      if (!useBefore) a.removed = cutGrid(project, a.axis, a.n);
-      afterCut();
-      return;
     case "cutline":
       if (useBefore) uncutLine(project, a.side, a.h, a.j, a.removed);
       else a.removed = cutLine(project, a.side, a.h, a.j) ?? a.removed;

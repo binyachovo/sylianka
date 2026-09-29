@@ -504,7 +504,7 @@ body.clean .stencil .ring { visibility: hidden !important; }
 .stencil .gap-guide.del { stroke: var(--danger); }
 #strip .gap-guide.on { visibility: visible; }
 body.clean .stencil .gap-guide { visibility: hidden !important; }
-/* Смуга «це буде видалено» (режими «Видалити ряд», «Видалити рядок», «Видалити стовпець»); синя — «сюди стане новий рядок» */
+/* Смуга «це буде видалено» (режим «Видалити рядок»); синя — «сюди стане новий рядок» (режим «Вставити рядок») */
 .stencil .cut-band {
   fill: var(--danger);
   fill-opacity: 0.13;
